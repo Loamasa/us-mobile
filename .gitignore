@@ -46,3 +46,6 @@ GoogleService-Info.plist
 # generated native folders
 /ios
 /android
+
+# Antigravity skills junction (symlink to .claude/skills/, avoid duplicating)
+.antigravity/skills/
