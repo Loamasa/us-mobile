@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users: any authenticated user can read profiles, only owner can write
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+
+      // Friends subcollection: readable by both parties
+      match /friends/{friendId} {
+        allow read: if request.auth.uid == userId || request.auth.uid == friendId;
+        allow write: if request.auth.uid == userId;
+      }
+
+      // Friend requests: creator can create, recipient can read/update
+      match /friendRequests/{requestId} {
+        allow read: if request.auth.uid == userId
+                    || request.auth.uid == resource.data.fromUserId;
+        allow create: if request.auth != null
+                      && request.resource.data.fromUserId == request.auth.uid;
+        allow update: if request.auth.uid == userId;
+      }
+
+      // User spots: only owner can read/write
+      match /spots/{spotId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+    }
+
+    // Locations: owner writes, any authenticated user can read
+    match /locations/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == userId;
+    }
+
+    // Handle reservation: anyone can read (for uniqueness check), creator can create
+    match /handles/{handle} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}
