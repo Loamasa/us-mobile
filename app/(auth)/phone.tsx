@@ -8,22 +8,23 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import {
-  signInWithPhoneNumber,
-  type ApplicationVerifier,
-} from 'firebase/auth';
-import { auth } from '@/config/firebase';
+import Constants from 'expo-constants';
 
 /**
- * Minimal mock verifier for Firebase Auth Emulator.
- * The emulator accepts any token — no real reCAPTCHA needed.
- * This avoids the "Failed to initialize reCAPTCHA Enterprise config" error
- * that occurs because there's no browser DOM in React Native / Expo Go.
+ * Phone auth screen.
+ *
+ * In dev (__DEV__ = true) we talk directly to the Firebase Auth Emulator REST API
+ * to avoid the reCAPTCHA problem (no DOM in React Native / Expo Go).
+ *
+ * In production you'd swap to @react-native-firebase/auth which uses the native
+ * SDK and handles CAPTCHA natively.
  */
-const emulatorVerifier: ApplicationVerifier = {
-  type: 'recaptcha',
-  verify: () => Promise.resolve('emulator-mock-token'),
-};
+
+/** Get the LAN IP of the dev machine (from Expo's debuggerHost). */
+function getEmulatorHost(): string {
+  const debuggerHost = Constants.expoConfig?.hostUri ?? 'localhost:8081';
+  return debuggerHost.split(':')[0];
+}
 
 export default function PhoneScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -41,28 +42,57 @@ export default function PhoneScreen() {
     setError('');
 
     try {
-      // Format phone number (ensure it starts with +)
       const formatted = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
 
-      // In dev mode (emulator), use a mock verifier that skips reCAPTCHA.
-      // In production, this will need a real RecaptchaVerifier or a switch
-      // to @react-native-firebase/auth (native SDK).
-      const confirmation = await signInWithPhoneNumber(
-        auth,
-        formatted,
-        emulatorVerifier as ApplicationVerifier
-      );
+      // ── Emulator path: use REST API to send verification code ──
+      const host = getEmulatorHost();
+      const url = `http://${host}:9099/identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=fake-api-key`;
 
-      // Store confirmation result for OTP screen
-      // Using a simple global for now — in production, use context or state management
-      (globalThis as any).__phoneConfirmation = confirmation;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber: formatted }),
+      });
+
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Emulator error: ${res.status} — ${body}`);
+      }
+
+      const data = await res.json();
+
+      // Store the sessionInfo for the OTP screen
+      (globalThis as any).__phoneSessionInfo = data.sessionInfo;
+
+      // Fetch the verification code from the emulator so we can auto-fill it
+      let devCode = '';
+      try {
+        const codesRes = await fetch(
+          `http://${host}:9099/emulator/v1/projects/demo-us-app/verificationCodes`
+        );
+        if (codesRes.ok) {
+          const codesData = await codesRes.json();
+          // Get the most recent code for this phone number
+          const match = codesData.verificationCodes
+            ?.reverse()
+            ?.find((c: any) => c.phoneNumber === formatted);
+          if (match) devCode = match.code;
+        }
+      } catch {
+        // Non-critical — user can still enter code manually
+      }
 
       router.push({
         pathname: '/(auth)/otp',
-        params: { phone: formatted },
+        params: { phone: formatted, devCode },
       });
     } catch (err: any) {
-      setError(err.message ?? 'Failed to send code');
+      console.error('Phone auth error:', err);
+      if (err.message?.includes('Network request failed')) {
+        setError('Cannot reach Firebase Emulator. Is it running?\nRun: firebase emulators:start');
+      } else {
+        setError(err.message ?? 'Failed to send code');
+      }
     } finally {
       setLoading(false);
     }
@@ -96,6 +126,13 @@ export default function PhoneScreen() {
             />
           </View>
         </View>
+
+        {/* Dev hint */}
+        {__DEV__ && (
+          <Text className="text-mint/60 text-xs text-center mb-4">
+            🧪 Dev mode — uses Firebase Auth Emulator (port 9099)
+          </Text>
+        )}
 
         {/* Error */}
         {error ? (

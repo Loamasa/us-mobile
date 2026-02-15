@@ -1,9 +1,12 @@
 # us-mobile
 
-Nonprofit location-based social app. Expo SDK 54 + Firebase + NativeWind v4.
+Nonprofit location-based social app. Expo SDK 54 + Firebase + NativeWind v4 + Tailwind v3.
 
 ## Session Protocol
-Read `STATUS.md` at session start. Update it at session end or when asked.
+Read `STATUS.md` at session start. Keep it current:
+- Update STATUS.md after milestones, before commits, and on "wrap up".
+- Update MEMORY.md (+ `.context/memory.md`) when discovering gotchas.
+- Always tell the user when you update these files.
 
 ## Commands
 - `npx expo start` / `npx expo start --clear` — dev server

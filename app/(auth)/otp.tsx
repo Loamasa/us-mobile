@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,16 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getUserProfile } from '@/lib/firestore';
+import { signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
 import { auth } from '@/config/firebase';
+import { getUserProfile } from '@/lib/firestore';
+import Constants from 'expo-constants';
+
+/** Get the LAN IP of the dev machine (from Expo's debuggerHost). */
+function getEmulatorHost(): string {
+  const debuggerHost = Constants.expoConfig?.hostUri ?? 'localhost:8081';
+  return debuggerHost.split(':')[0];
+}
 
 export default function OtpScreen() {
   const [code, setCode] = useState('');
@@ -17,7 +25,14 @@ export default function OtpScreen() {
   const [error, setError] = useState('');
   const inputRef = useRef<TextInput>(null);
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { phone, devCode } = useLocalSearchParams<{ phone: string; devCode?: string }>();
+
+  // Auto-fill the code in dev mode
+  useEffect(() => {
+    if (devCode && devCode.length === 6) {
+      setCode(devCode);
+    }
+  }, [devCode]);
 
   const handleVerify = async () => {
     if (code.length !== 6) {
@@ -29,12 +44,16 @@ export default function OtpScreen() {
     setError('');
 
     try {
-      const confirmation = (globalThis as any).__phoneConfirmation;
-      if (!confirmation) {
+      const sessionInfo = (globalThis as any).__phoneSessionInfo;
+      if (!sessionInfo) {
         throw new Error('Session expired. Go back and resend code.');
       }
 
-      const result = await confirmation.confirm(code);
+      // Sign in via the Firebase SDK using the session from the emulator REST API.
+      // The SDK is connected to the emulator via connectAuthEmulator,
+      // so it will validate the credential against the emulator's session store.
+      const credential = PhoneAuthProvider.credential(sessionInfo, code);
+      const result = await signInWithCredential(auth, credential);
 
       // Check if user already has a profile
       const profile = await getUserProfile(result.user.uid);
@@ -44,6 +63,7 @@ export default function OtpScreen() {
         router.replace('/(auth)/profile');
       }
     } catch (err: any) {
+      console.error('OTP verify error:', err);
       setError(err.message ?? 'Invalid code');
     } finally {
       setLoading(false);
@@ -64,6 +84,13 @@ export default function OtpScreen() {
           Enter the code sent to {phone}
         </Text>
 
+        {/* Dev hint */}
+        {__DEV__ && devCode && (
+          <Text className="text-mint/60 text-xs text-center mb-6">
+            🧪 Auto-filled code: {devCode}
+          </Text>
+        )}
+
         {/* Code Input — hidden input behind visual boxes */}
         <TouchableOpacity
           activeOpacity={1}
@@ -74,13 +101,12 @@ export default function OtpScreen() {
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <View
                 key={i}
-                className={`w-12 h-14 rounded-xl items-center justify-center border ${
-                  code.length === i
-                    ? 'border-signal bg-signal/10'
-                    : code[i]
+                className={`w-12 h-14 rounded-xl items-center justify-center border ${code.length === i
+                  ? 'border-signal bg-signal/10'
+                  : code[i]
                     ? 'border-fog/30 bg-glass'
                     : 'border-glass-border bg-glass'
-                }`}
+                  }`}
               >
                 <Text className="text-fog text-2xl font-bold">
                   {code[i] ?? ''}
@@ -97,7 +123,6 @@ export default function OtpScreen() {
             onChangeText={(text) => {
               setCode(text);
               if (text.length === 6) {
-                // Auto-submit when 6 digits entered
                 setTimeout(() => handleVerify(), 100);
               }
             }}
@@ -112,9 +137,8 @@ export default function OtpScreen() {
 
         {/* Verify Button */}
         <TouchableOpacity
-          className={`rounded-2xl py-4 items-center ${
-            loading ? 'bg-signal/50' : 'bg-signal'
-          }`}
+          className={`rounded-2xl py-4 items-center ${loading ? 'bg-signal/50' : 'bg-signal'
+            }`}
           onPress={handleVerify}
           disabled={loading}
           activeOpacity={0.8}

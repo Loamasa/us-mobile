@@ -24,9 +24,15 @@ export function userRef(userId: string): DocumentReference {
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  const snap = await getDoc(userRef(userId));
-  if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as UserProfile;
+  try {
+    const snap = await getDoc(userRef(userId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as UserProfile;
+  } catch (e) {
+    // Firestore offline or emulator not running — treat as no profile
+    console.warn('getUserProfile failed (Firestore offline?):', e);
+    return null;
+  }
 }
 
 export function onUserProfile(

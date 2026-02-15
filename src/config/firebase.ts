@@ -31,7 +31,7 @@ if (USE_EMULATORS) {
 
   try {
     connectAuthEmulator(auth, `http://${hostIP}:9099`, { disableWarnings: true });
-    connectFirestoreEmulator(db, hostIP, 8080);
+    connectFirestoreEmulator(db, hostIP, 8088);
     console.log(`🔥 Firebase emulators connected at ${hostIP}`);
   } catch (e) {
     // Already connected — safe to ignore
