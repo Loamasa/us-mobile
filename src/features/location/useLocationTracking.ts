@@ -45,7 +45,7 @@ export function useLocationTracking() {
             lat: latitude,
             lng: longitude,
             precision: 'EXACT',
-          } as any);
+          });
         }
       );
     };

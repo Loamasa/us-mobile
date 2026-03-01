@@ -39,8 +39,12 @@ export default function FriendsScreen() {
     const unsubscribe = onFriends(userId, async (friendList) => {
       const withProfiles = await Promise.all(
         friendList.map(async (f) => {
-          const profile = await getUserProfile(f.userId);
-          return { ...f, profile: profile ?? undefined };
+          try {
+            const profile = await getUserProfile(f.userId);
+            return { ...f, profile: profile ?? undefined };
+          } catch {
+            return { ...f, profile: undefined };
+          }
         })
       );
       setFriends(withProfiles);
@@ -56,8 +60,12 @@ export default function FriendsScreen() {
     const unsubscribe = onFriendRequests(userId, async (reqList) => {
       const withProfiles = await Promise.all(
         reqList.map(async (r) => {
-          const profile = await getUserProfile(r.fromUserId);
-          return { ...r, fromProfile: profile ?? undefined };
+          try {
+            const profile = await getUserProfile(r.fromUserId);
+            return { ...r, fromProfile: profile ?? undefined };
+          } catch {
+            return { ...r, fromProfile: undefined };
+          }
         })
       );
       setRequests(withProfiles);

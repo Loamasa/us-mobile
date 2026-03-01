@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 // Firebase config — real project values from google-services.json.
 // Note: The web SDK needs an authDomain and appId. If you registered a Web app
@@ -24,10 +25,14 @@ export const db = getFirestore(app);
 // Expo Go on a phone needs the computer's LAN IP, not "localhost".
 const USE_EMULATORS = __DEV__;
 
+export function getEmulatorHost() {
+  if (Platform.OS === 'web') return '127.0.0.1';
+  const debuggerHost = Constants.expoConfig?.hostUri;
+  return debuggerHost ? debuggerHost.split(':')[0] : '127.0.0.1';
+}
+
 if (USE_EMULATORS) {
-  // debuggerHost gives us "192.168.x.x:8081" — we extract just the IP
-  const debuggerHost = Constants.expoConfig?.hostUri ?? 'localhost:8081';
-  const hostIP = debuggerHost.split(':')[0];
+  const hostIP = getEmulatorHost();
 
   try {
     connectAuthEmulator(auth, `http://${hostIP}:9099`, { disableWarnings: true });

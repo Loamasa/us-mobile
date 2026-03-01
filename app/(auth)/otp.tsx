@@ -11,13 +11,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { getUserProfile } from '@/lib/firestore';
-import Constants from 'expo-constants';
-
-/** Get the LAN IP of the dev machine (from Expo's debuggerHost). */
-function getEmulatorHost(): string {
-  const debuggerHost = Constants.expoConfig?.hostUri ?? 'localhost:8081';
-  return debuggerHost.split(':')[0];
-}
 
 export default function OtpScreen() {
   const [code, setCode] = useState('');
@@ -25,7 +18,7 @@ export default function OtpScreen() {
   const [error, setError] = useState('');
   const inputRef = useRef<TextInput>(null);
   const router = useRouter();
-  const { phone, devCode } = useLocalSearchParams<{ phone: string; devCode?: string }>();
+  const { phone, devCode, sessionInfo } = useLocalSearchParams<{ phone: string; devCode?: string; sessionInfo?: string }>();
 
   // Auto-fill the code in dev mode
   useEffect(() => {
@@ -44,7 +37,6 @@ export default function OtpScreen() {
     setError('');
 
     try {
-      const sessionInfo = (globalThis as any).__phoneSessionInfo;
       if (!sessionInfo) {
         throw new Error('Session expired. Go back and resend code.');
       }

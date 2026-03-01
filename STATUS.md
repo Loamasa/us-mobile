@@ -1,50 +1,98 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-02-15 — NativeWind fixed, phone auth working end-to-end with emulator
+2026-03-01 — Codebase audit + cleanup (TS errors, convention fixes, type safety)
+
+## Default Testing Method
+**Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
+Web preview is fallback only — NativeWind styling and react-native-maps don't work on web.
 
 ## What Was Done This Session
 
-### NativeWind Config Fix (COMPLETED ✅)
-Previous session incorrectly migrated to NativeWind v5/Tailwind v4. Reverted to the correct **NativeWind v4.2.1 + Tailwind v3.4.19** stack.
+### Fixed Auth Guard Redirect Loop (COMPLETED ✅)
+Root layout now uses `onSnapshot` listener on the user's profile document instead of one-time `getUserProfile()`.
+`hasProfile` updates in real-time when the profile is created during onboarding.
+Auth guard distinguishes onboarding screens (permissions/spots) from pre-onboarding (phone/profile/otp) — only redirects to map from the latter.
 
-**Files changed:** `metro.config.js`, `babel.config.js`, `global.css`, `tailwind.config.js` (recreated), `nativewind-env.d.ts`, `postcss.config.mjs` (deleted), `package.json`
+**Files changed:** `app/_layout.tsx`
 
-### Phone Auth via Emulator REST API (COMPLETED ✅)
-Firebase web SDK `signInWithPhoneNumber` requires reCAPTCHA → no DOM in React Native → hangs.
-Rewrote `phone.tsx` to call emulator REST API directly (`sendVerificationCode`), bypassing reCAPTCHA.
-OTP screen auto-fetches the verification code from the emulator and pre-fills it.
+### Fixed Handle Uniqueness (COMPLETED ✅)
+`isHandleAvailable()` now accepts an optional `currentUserId` — allows re-using your own handle from a previous emulator session.
 
-**Files changed:** `app/(auth)/phone.tsx`, `app/(auth)/otp.tsx`
+**Files changed:** `src/lib/firestore.ts`, `app/(auth)/profile.tsx`
 
-### Firebase Emulator Network Fix (COMPLETED ✅)
-Emulators defaulted to `127.0.0.1` (unreachable from phone). Set `host: "0.0.0.0"` in `firebase.json`.
-Fixed Firestore port conflict (8080 → 8088, websocketPort 9151).
+### Fixed Expo Router Platform Resolution (COMPLETED ✅)
+Expo Router requires a base fallback file (no platform suffix) for `.native.tsx` routes.
+- Renamed `spots.web.tsx` → `spots.tsx` (fallback), kept `spots.native.tsx` (native override)
+- Renamed `map.web.tsx` → `map.tsx` (fallback), renamed original `map.tsx` → `map.native.tsx`
 
-**Files changed:** `firebase.json`, `src/config/firebase.ts`
+### Installed @expo/ngrok (COMPLETED ✅)
+Added `@expo/ngrok` as devDependency for tunnel mode (use `npx expo start --tunnel` if LAN doesn't work).
 
-### Firestore Offline Resilience (COMPLETED ✅)
-Made `getUserProfile` handle offline errors gracefully (returns `null` instead of crashing).
+### Earlier: Centralized getEmulatorHost (COMPLETED ✅)
+`src/config/firebase.ts` → `getEmulatorHost()`: `127.0.0.1` on web, LAN IP on native.
 
-**Files changed:** `src/lib/firestore.ts`
+### Earlier: Firebase Emulators Verified (COMPLETED ✅)
+Auth Emulator on port 9099 confirmed working (HTTP 200).
 
-## Verified On Device ✅
-- NativeWind styles render correctly (dark bg, styled text, blue buttons)
-- Phone auth → OTP → profile screen flow works end-to-end
+### Codebase Audit + Cleanup (COMPLETED ✅)
+Full top-down audit of all config, routing, components, hooks, and types. Then 3 parallel fix agents:
+
+**Agent 1 — TS errors + platform resolution + design tokens:**
+- Created barrel re-exports (`FriendMarker.tsx`, `ClusterMarker.tsx`) to fix 2 TS module resolution errors
+- Extracted duplicated `darkMapStyle` → `src/config/mapStyles.ts` as `DARK_MAP_STYLE`
+- Replaced hardcoded colors (`#666`, `text-gray-600/400`) with design tokens (`fog/50`, `fog/30`)
+
+**Agent 2 — Convention violations:**
+- Removed dead `getEmulatorHost()` duplicate + unused `Constants` import from `otp.tsx` and `phone.tsx`
+- Replaced `globalThis` session hack with typed route params (`sessionInfo` passed via `router.push`)
+- Replaced hardcoded `'#0F1115'` in auth layout with `COLORS.void`
+
+**Agent 3 — Type safety + cleanup:**
+- Fixed `updateLocation` signature: `Omit<LocationPresence, 'userId' | 'updatedAt'>` (removed `as any`)
+- Typed `mapRef` properly with `MapView` import (removed `useRef<any>`)
+- Removed `(spot: any)` annotations (type inferred from `UserSpot[]`)
+- Added null safety on `profile.currentSignal?.expiresAt`
+- Added try/catch in friend profile fetches for resilience
+- Deleted unused `src/features/auth/useAuth.ts`
+
+**Result:** `npx tsc --noEmit` passes with zero errors.
+
+## Current State
+- Expo server running (`npx expo start --clear`) — **no errors**
+- Firebase emulators should be running (`firebase emulators:start --project demo-us-app`)
+- Phone auth flow has been tested: phone → OTP works
+- Profile creation → permissions → spots → map flow **has bug fixes applied but needs on-device verification**
+
+## Known Issues / Warnings
+- `react-native-svg@15.15.3` version mismatch warning (expected 15.12.1) — non-blocking
+- `SafeAreaView` deprecation warning — cosmetic, non-blocking
+- Firestore emulator has stale data from previous sessions (handles, profiles)
 
 ## Next Steps
-1. Test full profile creation + map flow
+1. **Verify full onboarding on device** — phone → OTP → profile → permissions → spots → map
 2. Build APK with EAS: `eas build --platform android --profile preview`
 3. Set up Firebase App Distribution for testers
+
+## How to Run
+1. Terminal 1: `firebase emulators:start --project demo-us-app`
+2. Terminal 2: `npx expo start --clear`
+3. Open **Expo Go** on phone → scan QR code from terminal
+4. If LAN fails: `npx expo start --tunnel`
 
 ## Key Files
 | File | Purpose |
 |------|---------|
-| `babel.config.js` | Expo preset + nativewind/babel + reanimated |
-| `metro.config.js` | `withNativeWind(config, { input: './global.css' })` |
-| `tailwind.config.js` | TW3 config with `nativewind/preset` + Void Mode colors |
-| `global.css` | `@tailwind base/components/utilities` |
-| `firebase.json` | Emulators: auth@9099, firestore@8088, ui@4000 (all on 0.0.0.0) |
-| `src/config/firebase.ts` | Firebase config + emulator connection |
+| `app/_layout.tsx` | Root layout with auth guard + real-time profile listener |
 | `app/(auth)/phone.tsx` | Phone auth via emulator REST API |
 | `app/(auth)/otp.tsx` | OTP verification with auto-fill |
+| `app/(auth)/profile.tsx` | Profile creation with handle uniqueness check |
+| `app/(auth)/permissions.tsx` | Location permission request |
+| `app/(auth)/spots.native.tsx` | Spots setup (native, uses react-native-maps) |
+| `app/(auth)/spots.tsx` | Spots fallback (web placeholder) |
+| `app/(tabs)/map.native.tsx` | Map screen (native, uses react-native-maps) |
+| `app/(tabs)/map.tsx` | Map fallback (web placeholder) |
+| `src/config/mapStyles.ts` | Shared dark map style constant (`DARK_MAP_STYLE`) |
+| `src/config/firebase.ts` | Firebase config + emulator connection + `getEmulatorHost()` |
+| `src/lib/firestore.ts` | Firestore helpers (profile, handles, friends, location, spots) |
+| `firebase.json` | Emulators: auth@9099, firestore@8088, ui@4000 (host 0.0.0.0) |

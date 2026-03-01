@@ -8,23 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
-
-/**
- * Phone auth screen.
- *
- * In dev (__DEV__ = true) we talk directly to the Firebase Auth Emulator REST API
- * to avoid the reCAPTCHA problem (no DOM in React Native / Expo Go).
- *
- * In production you'd swap to @react-native-firebase/auth which uses the native
- * SDK and handles CAPTCHA natively.
- */
-
-/** Get the LAN IP of the dev machine (from Expo's debuggerHost). */
-function getEmulatorHost(): string {
-  const debuggerHost = Constants.expoConfig?.hostUri ?? 'localhost:8081';
-  return debuggerHost.split(':')[0];
-}
+import { getEmulatorHost } from '@/config/firebase';
 
 export default function PhoneScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -61,9 +45,6 @@ export default function PhoneScreen() {
 
       const data = await res.json();
 
-      // Store the sessionInfo for the OTP screen
-      (globalThis as any).__phoneSessionInfo = data.sessionInfo;
-
       // Fetch the verification code from the emulator so we can auto-fill it
       let devCode = '';
       try {
@@ -84,7 +65,7 @@ export default function PhoneScreen() {
 
       router.push({
         pathname: '/(auth)/otp',
-        params: { phone: formatted, devCode },
+        params: { phone: formatted, devCode, sessionInfo: data.sessionInfo },
       });
     } catch (err: any) {
       console.error('Phone auth error:', err);

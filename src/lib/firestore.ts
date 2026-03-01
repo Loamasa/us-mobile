@@ -47,9 +47,12 @@ export function onUserProfile(
 
 // ─── Handle Uniqueness ───────────────────────────────
 
-export async function isHandleAvailable(handle: string): Promise<boolean> {
+export async function isHandleAvailable(handle: string, currentUserId?: string): Promise<boolean> {
   const snap = await getDoc(doc(db, 'handles', handle.toLowerCase()));
-  return !snap.exists();
+  if (!snap.exists()) return true;
+  // Allow re-using your own handle
+  if (currentUserId && snap.data()?.userId === currentUserId) return true;
+  return false;
 }
 
 export async function reserveHandle(handle: string, userId: string): Promise<void> {
@@ -145,7 +148,7 @@ export function onLocation(
 
 export async function updateLocation(
   userId: string,
-  data: Omit<LocationPresence, 'userId'>
+  data: Omit<LocationPresence, 'userId' | 'updatedAt'>
 ): Promise<void> {
   await setDoc(doc(db, 'locations', userId), {
     ...data,

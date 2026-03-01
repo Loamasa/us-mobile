@@ -36,7 +36,7 @@ export default function ProfileScreen() {
     }
 
     setHandleStatus('checking');
-    const available = await isHandleAvailable(sanitized);
+    const available = await isHandleAvailable(sanitized, auth.currentUser?.uid);
     setHandleStatus(available ? 'available' : 'taken');
   };
 
@@ -164,9 +164,8 @@ export default function ProfileScreen() {
 
         {/* Continue */}
         <TouchableOpacity
-          className={`rounded-2xl py-4 items-center ${
-            loading ? 'bg-signal/50' : 'bg-signal'
-          }`}
+          className={`rounded-2xl py-4 items-center ${loading ? 'bg-signal/50' : 'bg-signal'
+            }`}
           onPress={handleContinue}
           disabled={loading}
           activeOpacity={0.8}
