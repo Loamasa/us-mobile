@@ -34,7 +34,12 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "CAMERA"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyDbe2K0Ttie5U24QvxUdRXi_2hFwfTDLEg"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -158,7 +158,7 @@ export default function MapScreen() {
     return (
       <MapView
         ref={mapRef}
-        className="flex-1"
+        style={{ flex: 1 }}
         initialRegion={initialRegion}
         customMapStyle={DARK_MAP_STYLE}
         showsUserLocation={!ghostMode}

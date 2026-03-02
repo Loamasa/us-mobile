@@ -118,7 +118,7 @@ export default function SpotsScreen() {
       <View className="flex-1 mx-4 rounded-2xl overflow-hidden border border-glass-border">
         <MapView
           ref={mapRef}
-          className="flex-1"
+          style={{ flex: 1 }}
           initialRegion={MAP_DEFAULTS.initialRegion}
           customMapStyle={DARK_MAP_STYLE}
           onPress={handleMapPress}
@@ -176,9 +176,8 @@ export default function SpotsScreen() {
       {/* Actions */}
       <View className="px-8 pb-8 pt-2">
         <TouchableOpacity
-          className={`rounded-2xl py-4 items-center mb-3 ${
-            saving ? 'bg-signal/50' : 'bg-signal'
-          }`}
+          className={`rounded-2xl py-4 items-center mb-3 ${saving ? 'bg-signal/50' : 'bg-signal'
+            }`}
           onPress={handleContinue}
           disabled={saving}
           activeOpacity={0.8}
@@ -187,8 +186,8 @@ export default function SpotsScreen() {
             {saving
               ? 'Saving...'
               : spots.length > 0
-              ? `Continue with ${spots.length} spot${spots.length > 1 ? 's' : ''}`
-              : 'Continue without spots'}
+                ? `Continue with ${spots.length} spot${spots.length > 1 ? 's' : ''}`
+                : 'Continue without spots'}
           </Text>
         </TouchableOpacity>
 
@@ -218,11 +217,10 @@ export default function SpotsScreen() {
                     setDraftEmoji(preset.emoji);
                     if (!draftName) setDraftName(preset.label);
                   }}
-                  className={`mr-2 px-4 py-3 rounded-xl border ${
-                    draftEmoji === preset.emoji
+                  className={`mr-2 px-4 py-3 rounded-xl border ${draftEmoji === preset.emoji
                       ? 'border-signal bg-signal/10'
                       : 'border-glass-border bg-glass'
-                  }`}
+                    }`}
                 >
                   <Text className="text-2xl text-center">{preset.emoji}</Text>
                   <Text className="text-fog/50 text-xs text-center mt-1">
