@@ -7,8 +7,13 @@ import {
   FlatList,
   Modal,
   Alert,
+  Switch,
+  ScrollView,
 } from 'react-native';
-import { auth } from '@/config/firebase';
+import { useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '@/config/firebase';
 import {
   onFriends,
   onFriendRequests,
@@ -16,26 +21,29 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   getUserProfile,
+  onUserProfile,
+  deleteLocation,
 } from '@/lib/firestore';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import type { Friend, FriendRequest, UserProfile } from '@/types';
 import GlassCard from '@/components/ui/GlassCard';
 import UserAvatar from '@/components/UserAvatar';
-import { SearchIcon, UserPlusIcon, UsersIcon } from '@/components/ui/icons';
+import { SearchIcon, UserPlusIcon, UsersIcon, SettingsIcon } from '@/components/ui/icons';
 import { COLORS } from '@/config/constants';
 
 type FriendWithProfile = Friend & { profile?: UserProfile };
 type RequestWithProfile = FriendRequest & { fromProfile?: UserProfile };
 
-export default function FriendsScreen() {
+export default function ChatsScreen() {
   const [friends, setFriends] = useState<FriendWithProfile[]>([]);
   const [requests, setRequests] = useState<RequestWithProfile[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const router = useRouter();
 
   const userId = auth.currentUser?.uid;
 
@@ -80,6 +88,37 @@ export default function FriendsScreen() {
 
     return unsubscribe;
   }, [userId]);
+
+  // Load own profile for settings modal
+  useEffect(() => {
+    if (!userId) return;
+    return onUserProfile(userId, setProfile);
+  }, [userId]);
+
+  const toggleLocationSharing = async (value: boolean) => {
+    if (!userId) return;
+    await updateDoc(doc(db, 'users', userId), { 'settings.globalLocationSharing': value });
+    if (!value) await deleteLocation(userId);
+  };
+
+  const toggleFriendRequests = async (value: boolean) => {
+    if (!userId) return;
+    await updateDoc(doc(db, 'users', userId), { 'settings.allowFriendRequests': value });
+  };
+
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          if (userId) await deleteLocation(userId);
+          await signOut(auth);
+        },
+      },
+    ]);
+  };
 
   const handleAddFriend = async () => {
     if (!userId || !handleInput.trim()) return;
@@ -136,22 +175,30 @@ export default function FriendsScreen() {
     <View className="flex-1 bg-void pt-16 px-4">
       {/* Header */}
       <View className="flex-row items-center justify-between mb-5 px-1">
-        <Text className="text-fog text-2xl font-bold">Friends</Text>
-        <TouchableOpacity
-          style={{
-            backgroundColor: COLORS.signal,
-            borderRadius: 999,
-            paddingHorizontal: 14,
-            paddingVertical: 8,
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-          }}
-          onPress={() => setShowAddModal(true)}
-        >
-          <UserPlusIcon size={15} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Add</Text>
-        </TouchableOpacity>
+        <Text className="text-fog text-2xl font-bold">Chats</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: COLORS.signal,
+              borderRadius: 999,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            onPress={() => setShowAddModal(true)}
+          >
+            <UserPlusIcon size={15} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Add</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={{ padding: 8 }}
+            onPress={() => setShowSettingsModal(true)}
+          >
+            <SettingsIcon size={22} color="rgba(242,244,246,0.5)" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search bar */}
@@ -316,6 +363,82 @@ export default function FriendsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Settings Modal */}
+      <Modal visible={showSettingsModal} transparent animationType="slide">
+        <View className="flex-1 justify-end">
+          <View className="bg-void border-t border-glass-border rounded-t-3xl" style={{ maxHeight: '85%' }}>
+            <View className="flex-row items-center justify-between px-6 pt-6 pb-4">
+              <Text className="text-fog text-xl font-bold">Settings</Text>
+              <TouchableOpacity onPress={() => setShowSettingsModal(false)}>
+                <Text className="text-fog/50 text-sm">Done</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView className="px-6 pb-8" showsVerticalScrollIndicator={false}>
+              {profile ? (
+                <>
+                  <GlassCard className="mb-6 items-center py-6">
+                    <View className="w-16 h-16 rounded-full bg-signal/20 items-center justify-center mb-3">
+                      <Text className="text-3xl">👤</Text>
+                    </View>
+                    <Text className="text-fog text-base font-bold">{profile.displayName}</Text>
+                    <Text className="text-fog/50 text-sm">@{profile.handle}</Text>
+                  </GlassCard>
+
+                  <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-1">Privacy</Text>
+
+                  <GlassCard className="mb-2 flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text className="text-fog font-semibold">Location Sharing</Text>
+                      <Text className="text-fog/40 text-xs mt-1">
+                        {profile.settings.globalLocationSharing ? 'Friends can see you on the map' : 'Ghost mode — you are invisible'}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={profile.settings.globalLocationSharing}
+                      onValueChange={toggleLocationSharing}
+                      trackColor={{ false: '#333', true: COLORS.signal }}
+                      thumbColor={COLORS.fog}
+                    />
+                  </GlassCard>
+
+                  <GlassCard className="mb-6 flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text className="text-fog font-semibold">Allow Friend Requests</Text>
+                      <Text className="text-fog/40 text-xs mt-1">Let others send you friend requests</Text>
+                    </View>
+                    <Switch
+                      value={profile.settings.allowFriendRequests}
+                      onValueChange={toggleFriendRequests}
+                      trackColor={{ false: '#333', true: COLORS.signal }}
+                      thumbColor={COLORS.fog}
+                    />
+                  </GlassCard>
+
+                  <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-1">Account</Text>
+
+                  <TouchableOpacity onPress={handleSignOut}>
+                    <GlassCard className="mb-4 flex-row items-center justify-center">
+                      <Text className="text-red-400 font-semibold">Sign Out</Text>
+                    </GlassCard>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <GlassCard className="mb-6 items-center py-6">
+                  <Text className="text-fog/50 text-sm">Not signed in</Text>
+                </GlassCard>
+              )}
+
+              <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-1">Developer</Text>
+              <TouchableOpacity onPress={() => { setShowSettingsModal(false); router.push('/(auth)/phone'); }}>
+                <GlassCard className="mb-8 flex-row items-center justify-center">
+                  <Text className="text-signal font-semibold">Test Onboarding</Text>
+                </GlassCard>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>

@@ -1,24 +1,22 @@
 import { Tabs } from 'expo-router';
 import { View } from 'react-native';
 import { COLORS } from '@/config/constants';
-import { MapIcon, UsersIcon, SettingsIcon } from '@/components/ui/icons';
+import { MapIcon, UsersIcon, MessageSquareIcon } from '@/components/ui/icons';
 
 function TabIcon({
   name,
   focused,
-  color,
 }: {
-  name: 'map' | 'friends' | 'settings';
+  name: 'chats' | 'map' | 'communities';
   focused: boolean;
-  color: string;
 }) {
   const iconColor = focused ? COLORS.signal : 'rgba(242,244,246,0.35)';
   const iconSize = 22;
 
   const Icon = {
+    chats: <MessageSquareIcon size={iconSize} color={iconColor} />,
     map: <MapIcon size={iconSize} color={iconColor} />,
-    friends: <UsersIcon size={iconSize} color={iconColor} />,
-    settings: <SettingsIcon size={iconSize} color={iconColor} />,
+    communities: <UsersIcon size={iconSize} color={iconColor} />,
   }[name];
 
   return (
@@ -68,32 +66,34 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="chats"
+        options={{
+          title: 'Chats',
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon name="chats" focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="map"
         options={{
           title: 'Map',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="map" focused={focused} color={color} />
+            <TabIcon name="map" focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
-        name="friends"
+        name="communities"
         options={{
-          title: 'Friends',
+          title: 'Communities',
           tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="friends" focused={focused} color={color} />
+            <TabIcon name="communities" focused={focused} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Settings',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="settings" focused={focused} color={color} />
-          ),
-        }}
-      />
+      {/* Hidden from tab bar — Settings accessed from Chats header gear */}
+      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }

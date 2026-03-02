@@ -130,6 +130,13 @@ export const MapPinIcon = ({ size = 20, color = '#F2F4F6' }: IconProps) => (
     </Svg>
 );
 
+// Message Square icon (chats tab)
+export const MessageSquareIcon = ({ size = 22, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </Svg>
+);
+
 // User icon (single person)
 export const UserIcon = ({ size = 20, color = '#9CA3AF' }: IconProps) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

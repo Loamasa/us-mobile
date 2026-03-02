@@ -1,13 +1,20 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-03-02 — Prototype reference system setup
+2026-03-02 — Tab layout fixed: Chats / Map / Communities (prototype-aligned)
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
 Web preview is fallback only — NativeWind styling and react-native-maps don't work on web.
 
 ## What Was Done This Session
+
+### Tab Layout Fixed (2026-03-02)
+- Renamed `app/(tabs)/friends.tsx` → `chats.tsx`; function renamed `ChatsScreen`
+- Tab order now matches prototype: **Chats / Map / Communities** (Map center)
+- Settings removed as a tab — now a bottom sheet modal opened via gear icon in Chats header
+- Created `app/(tabs)/communities.tsx` placeholder
+- Added `MessageSquareIcon` to `src/components/ui/icons.tsx`
 
 ### Auth Bypass & Dev Auto-Sign-In (2026-03-02)
 - Removed auth guard from `app/_layout.tsx` — no more redirect to phone auth on startup
@@ -20,9 +27,6 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 ## Known Issues / Warnings
 
 ### Bugs — Found During Testing
-- **Map is black screen** on device — map screen appears but map tiles not visible (pre-existing)
-- **Tab layout wrong** — Current: Map / Friends / Settings (3 tabs). Prototype: **Chats / Map / Communities** (Map is center). Settings is NOT a tab — it's accessed from the Chats sidebar via `UserSettingsModal`
-- **Settings location wrong** — Settings should be a modal/screen opened from within the Chats tab, not a bottom tab. Prototype uses a gear icon in the ChatList header that opens `UserSettingsModal`
 
 ### Warnings (Non-blocking)
 - `react-native-svg@15.15.3` version mismatch warning (expected 15.12.1)
@@ -43,7 +47,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 > Get these working and polished first. Auth is bypassed during this phase.
 
 #### Map Screen
-- [ ] **Fix map visibility on device** — map screen appears but map itself not visible
+- [x] **Fix map visibility on device** — map screen appears but map itself not visible
 - [ ] **Fix spot placement on map** — spot creation doesn't work on device
 - [ ] **Clock widget** — top-center HUD: `bg-black/40 backdrop-blur`, time + short date, rounded-2xl
 - [ ] **Visibility HUD** — Lucide Eye/Ghost icons, `backdrop-blur` pill, signal-blue when visible
@@ -112,6 +116,8 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | `app/(auth)/permissions.tsx` | Location permission request |
 | `app/(auth)/spots.native.tsx` | Spots setup (native, uses react-native-maps) |
 | `app/(auth)/spots.tsx` | Spots fallback (web placeholder) |
+| `app/(tabs)/chats.tsx` | Chats tab — friends list + gear icon opens settings modal |
+| `app/(tabs)/communities.tsx` | Communities tab — placeholder |
 | `app/(tabs)/map.native.tsx` | Map screen (native, uses react-native-maps) |
 | `app/(tabs)/map.tsx` | Map fallback (web placeholder) |
 | `src/config/mapStyles.ts` | Shared dark map style constant (`DARK_MAP_STYLE`) |
