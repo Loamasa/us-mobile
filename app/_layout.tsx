@@ -1,81 +1,76 @@
 import { useEffect, useState } from 'react';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator } from 'react-native';
-import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { View, ActivityIndicator, Text } from 'react-native';
+import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import '../global.css';
 
-export default function RootLayout() {
-  const [user, setUser] = useState<User | null>(null);
-  const [hasProfile, setHasProfile] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const segments = useSegments();
-  const router = useRouter();
+/**
+ * Dev auto-sign-in: silently creates an anonymous Firebase user
+ * and a test profile so all Firestore features work without
+ * going through the auth/onboarding flow.
+ */
+async function ensureDevUser() {
+  // Already signed in?
+  if (auth.currentUser) return;
 
-  // Listen to Firebase auth state
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      if (!firebaseUser) {
-        setHasProfile(false);
-        setLoading(false);
-      }
-      // Profile listening handled by the next effect
+  // Sign in anonymously on the emulator
+  const cred = await signInAnonymously(auth);
+  const uid = cred.user.uid;
+
+  // Create a dev profile if one doesn't exist
+  const profileSnap = await getDoc(doc(db, 'users', uid));
+  if (!profileSnap.exists()) {
+    await setDoc(doc(db, 'users', uid), {
+      displayName: 'Dev User',
+      handle: 'dev',
+      bio: '🛠️ Development account',
+      avatarUrl: null,
+      settings: {
+        globalLocationSharing: true,
+        allowFriendRequests: true,
+      },
+      currentSignal: null,
+      createdAt: new Date().toISOString(),
     });
-    return unsubscribe;
+    // Reserve the handle
+    await setDoc(doc(db, 'handles', 'dev'), { userId: uid });
+    console.log('🧪 Dev profile created for', uid);
+  }
+}
+
+export default function RootLayout() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (__DEV__) {
+      // Race between dev sign-in and a 5s timeout
+      const timeout = new Promise<void>((resolve) => setTimeout(() => {
+        console.warn('⏱️ Dev auto-sign-in timed out — emulators might not be running');
+        resolve();
+      }, 5000));
+
+      Promise.race([ensureDevUser(), timeout])
+        .then(() => setReady(true))
+        .catch((err) => {
+          console.warn('Dev auto-sign-in failed:', err);
+          setReady(true);
+        });
+    } else {
+      // In production, you'd use a proper auth guard here
+      setReady(true);
+    }
   }, []);
 
-  // Listen to profile document in real-time so hasProfile updates
-  // when the profile is created during onboarding
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    const unsubscribe = onSnapshot(
-      doc(db, 'users', user.uid),
-      (snap) => {
-        setHasProfile(snap.exists());
-        setLoading(false);
-      },
-      (err) => {
-        console.warn('Profile listener error:', err);
-        setHasProfile(false);
-        setLoading(false);
-      }
-    );
-    return unsubscribe;
-  }, [user]);
-
-  // Auth guard: redirect based on auth state
-  useEffect(() => {
-    if (loading) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-    const currentScreen = (segments as string[])[1]; // e.g. 'phone', 'profile', 'permissions', 'spots'
-
-    if (!user && !inAuthGroup) {
-      // Not signed in, redirect to auth
-      router.replace('/(auth)/phone');
-    } else if (user && !hasProfile && !inAuthGroup) {
-      // Signed in but no profile, redirect to profile creation
-      router.replace('/(auth)/profile');
-    } else if (user && hasProfile && inAuthGroup) {
-      // Signed in with profile — only redirect to map if on phone/profile screens.
-      // If on permissions or spots, the user is mid-onboarding, let them finish.
-      if (currentScreen === 'phone' || currentScreen === 'profile' || currentScreen === 'otp') {
-        router.replace('/(tabs)/map');
-      }
-    }
-  }, [user, hasProfile, loading, segments]);
-
-  if (loading) {
+  if (!ready) {
     return (
-      <View className="flex-1 bg-void items-center justify-center">
+      <View style={{ flex: 1, backgroundColor: '#0F1115', alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color="#2E5CFF" />
+        <Text style={{ color: 'rgba(242,244,246,0.5)', marginTop: 12, fontSize: 12 }}>
+          Setting up dev environment...
+        </Text>
       </View>
     );
   }

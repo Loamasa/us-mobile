@@ -9,94 +9,92 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 
 ## What Was Done This Session
 
-### Prototype Reference System (2026-03-02)
-- Copied prototype `src/` (82 files) into `.context/prototype/`
-- Generated `.context/prototype/prototype-map.md` — file-level index of all screens, components, hooks, mock data
-- Created `prototype-reference` skill for Claude Code (`.claude/skills/prototype-reference/`)
-- Created matching skill for Antigravity (`.agents/skills/prototype-reference/`)
-- One source of truth: both tools read from the same `.context/prototype/` directory
-- Updated both MEMORY.md files with the new setup
-
-### On-Device Testing (2026-03-01)
-- Updated `.context/memory.md` with testing setup (Expo Go already installed on Pixel 7)
-- Tested full onboarding flow on device: phone → OTP → profile → permissions → spots → map
-- Found: map not visible on device, spots can't be placed on map
-- Found: returning users forced through full onboarding again (emulator data wiped on restart)
-
-### Fixed Auth Guard Redirect Loop (COMPLETED ✅)
-
-(previous session notes below)
-
-## Current State
-- Expo server running (`npx expo start --clear`) — **no errors**
-- Firebase emulators running (`firebase emulators:start --project demo-us-app`)
-- Onboarding flow completes but map + spots have issues on device
-Root layout now uses `onSnapshot` listener on the user's profile document instead of one-time `getUserProfile()`.
-`hasProfile` updates in real-time when the profile is created during onboarding.
-Auth guard distinguishes onboarding screens (permissions/spots) from pre-onboarding (phone/profile/otp) — only redirects to map from the latter.
-
-**Files changed:** `app/_layout.tsx`
-
-### Fixed Handle Uniqueness (COMPLETED ✅)
-`isHandleAvailable()` now accepts an optional `currentUserId` — allows re-using your own handle from a previous emulator session.
-
-**Files changed:** `src/lib/firestore.ts`, `app/(auth)/profile.tsx`
-
-### Fixed Expo Router Platform Resolution (COMPLETED ✅)
-Expo Router requires a base fallback file (no platform suffix) for `.native.tsx` routes.
-- Renamed `spots.web.tsx` → `spots.tsx` (fallback), kept `spots.native.tsx` (native override)
-- Renamed `map.web.tsx` → `map.tsx` (fallback), renamed original `map.tsx` → `map.native.tsx`
-
-### Installed @expo/ngrok (COMPLETED ✅)
-Added `@expo/ngrok` as devDependency for tunnel mode (use `npx expo start --tunnel` if LAN doesn't work).
-
-### Earlier: Centralized getEmulatorHost (COMPLETED ✅)
-`src/config/firebase.ts` → `getEmulatorHost()`: `127.0.0.1` on web, LAN IP on native.
-
-### Earlier: Firebase Emulators Verified (COMPLETED ✅)
-Auth Emulator on port 9099 confirmed working (HTTP 200).
-
-### Codebase Audit + Cleanup (COMPLETED ✅)
-Full top-down audit of all config, routing, components, hooks, and types. Then 3 parallel fix agents:
-
-**Agent 1 — TS errors + platform resolution + design tokens:**
-- Created barrel re-exports (`FriendMarker.tsx`, `ClusterMarker.tsx`) to fix 2 TS module resolution errors
-- Extracted duplicated `darkMapStyle` → `src/config/mapStyles.ts` as `DARK_MAP_STYLE`
-- Replaced hardcoded colors (`#666`, `text-gray-600/400`) with design tokens (`fog/50`, `fog/30`)
-
-**Agent 2 — Convention violations:**
-- Removed dead `getEmulatorHost()` duplicate + unused `Constants` import from `otp.tsx` and `phone.tsx`
-- Replaced `globalThis` session hack with typed route params (`sessionInfo` passed via `router.push`)
-- Replaced hardcoded `'#0F1115'` in auth layout with `COLORS.void`
-
-**Agent 3 — Type safety + cleanup:**
-- Fixed `updateLocation` signature: `Omit<LocationPresence, 'userId' | 'updatedAt'>` (removed `as any`)
-- Typed `mapRef` properly with `MapView` import (removed `useRef<any>`)
-- Removed `(spot: any)` annotations (type inferred from `UserSpot[]`)
-- Added null safety on `profile.currentSignal?.expiresAt`
-- Added try/catch in friend profile fetches for resilience
-- Deleted unused `src/features/auth/useAuth.ts`
-
-**Result:** `npx tsc --noEmit` passes with zero errors.
-
-## Current State
-- Expo server running (`npx expo start --clear`) — **no errors**
-- Firebase emulators should be running (`firebase emulators:start --project demo-us-app`)
-- Phone auth flow has been tested: phone → OTP works
-- Profile creation → permissions → spots → map flow **has bug fixes applied but needs on-device verification**
+### Auth Bypass & Dev Auto-Sign-In (2026-03-02)
+- Removed auth guard from `app/_layout.tsx` — no more redirect to phone auth on startup
+- Added `ensureDevUser()` — silently signs in anonymously on Firebase emulator, creates a "Dev User" profile in Firestore (with 5s timeout if emulators are down)
+- Created `app/index.tsx` — forces app to start on `(tabs)/map` instead of alphabetically-first `(auth)` group
+- Added "Test Onboarding" button in Settings screen (`app/(tabs)/settings.tsx`) under new Developer section
+- Profile-dependent UI in Settings now gracefully handles null auth state
+- Reorganized STATUS.md Next Steps into Phase 1 (Core MVP) / Phase 2 (Onboarding) / Phase 3 (Build)
 
 ## Known Issues / Warnings
-- `react-native-svg@15.15.3` version mismatch warning (expected 15.12.1) — non-blocking
-- `SafeAreaView` deprecation warning — cosmetic, non-blocking
+
+### Bugs — Found During Testing
+- **Map is black screen** on device — map screen appears but map tiles not visible (pre-existing)
+- **Tab layout wrong** — Current: Map / Friends / Settings (3 tabs). Prototype: **Chats / Map / Communities** (Map is center). Settings is NOT a tab — it's accessed from the Chats sidebar via `UserSettingsModal`
+- **Settings location wrong** — Settings should be a modal/screen opened from within the Chats tab, not a bottom tab. Prototype uses a gear icon in the ChatList header that opens `UserSettingsModal`
+
+### Warnings (Non-blocking)
+- `react-native-svg@15.15.3` version mismatch warning (expected 15.12.1)
+- `SafeAreaView` deprecation warning — cosmetic
 - Firestore emulator has stale data from previous sessions (handles, profiles)
-- **Map not showing** on device — map screen appears but the map itself is not visible
-- **Can't place spots on map** — spot creation on map doesn't work on device
 
 ## Next Steps
-1. **Dev-mode skip** — add a flag to bypass phone auth + onboarding and go straight to the map (auto-sign-in with test user, skip profile/permissions/spots if profile already exists)
-2. **Verify full onboarding on device** — phone → OTP → profile → permissions → spots → map
-3. Build APK with EAS: `eas build --platform android --profile preview`
-4. Set up Firebase App Distribution for testers
+
+### Development Approach
+- **Auth bypass on startup** — app opens directly to the map tab, no login required
+- **"Test Onboarding" button in Settings** — full auth/onboarding flow accessible for testing
+- **MVP core features first**, onboarding/auth polish later
+
+---
+
+### Phase 1 — Core MVP Features
+
+> Get these working and polished first. Auth is bypassed during this phase.
+
+#### Map Screen
+- [ ] **Fix map visibility on device** — map screen appears but map itself not visible
+- [ ] **Fix spot placement on map** — spot creation doesn't work on device
+- [ ] **Clock widget** — top-center HUD: `bg-black/40 backdrop-blur`, time + short date, rounded-2xl
+- [ ] **Visibility HUD** — Lucide Eye/Ghost icons, `backdrop-blur` pill, signal-blue when visible
+- [ ] **Ghost mode toggle** — proper SVG ghost/eye icons, `backdrop-blur-md`, signal-blue fill
+- [ ] **Signal broadcast button** — Radio icon, pink/rose tint, hidden when ghost mode active
+- [ ] **Signal HUD** — floating pill with emoji + text + countdown timer + X to clear
+
+#### Friend Clusters (GROUP type on map)
+- [ ] **Friend cluster markers** — show friends from same group chat at the same location as a merged GROUP node (prototype: `useMapProjection.ts`)
+- [ ] **Cluster callout** — tap cluster to see member list, group chat name, member count
+- [ ] **Deduplication** — friends in clusters don't appear as separate pins on the map
+
+#### Friends Screen
+- [ ] **Avatar component** — replace 👤 emoji with `UserAvatar` (size variants, online status dot)
+- [ ] **Presence indicators** — online/away/offline status dots (green/amber/gray)
+- [ ] **Search** — search bar to filter friends list
+- [ ] **Friend categories** — close friend toggle + categories
+
+#### Settings Screen
+- [ ] **Profile card** — proper avatar with tier ring/gradient border, edit button
+- [ ] **"Test Onboarding" button** — in Developer section at bottom, navigates to `/(auth)/phone`
+
+#### Tab Navigation
+- [ ] **Tab icons** — replace emoji (🗺️👥⚙️) with Lucide SVG icons
+- [ ] **Active tab indicator** — scale + signal-blue glow (prototype style)
+- [ ] **Tab bar styling** — `backdrop-blur-xl` + `bg-void/80` glass effect
+
+---
+
+### Phase 2 — Onboarding & Auth Polish
+
+> After MVP core is solid. Access via Settings → "Test Onboarding".
+
+#### Onboarding Carousel (NEW)
+- [ ] **5-slide carousel** before auth flow (prototype: `Onboarding.tsx`)
+  - Slides: anti-ads, culture, events, map, control — color-coded accents
+  - Step dots, CTA buttons, final "Enter the Void" → transitions to auth
+
+#### Auth Screens (phone → OTP → profile → permissions)
+- [ ] **Shared AuthLayout wrapper** — gradient blob, "us" logo, full-width CTA button
+- [ ] **Phone screen** — "Enter the Void" layout with proper icons
+- [ ] **OTP screen** — larger code boxes, "Wrong number? Retarget." link
+- [ ] **Profile screen** — "Identity." layout with dashed avatar border
+- [ ] **Permissions screen** — "Synchronize." with radial glow and privacy pill
+
+---
+
+### Phase 3 — Build & Distribution
+
+1. Build APK with EAS: `eas build --platform android --profile preview`
+2. Set up Firebase App Distribution for testers
 
 ## How to Run
 1. Terminal 1: `firebase emulators:start --project demo-us-app`

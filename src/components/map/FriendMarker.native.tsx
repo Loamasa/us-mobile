@@ -1,5 +1,6 @@
 import { View, Text } from 'react-native';
 import { Marker, Callout } from 'react-native-maps';
+import UserAvatar from '@/components/UserAvatar';
 import type { MapEntity } from '@/types';
 
 interface FriendMarkerProps {
@@ -18,46 +19,56 @@ export default function FriendMarker({ entity }: FriendMarkerProps) {
       }}
       anchor={{ x: 0.5, y: 0.5 }}
     >
-      <View className="items-center">
+      <View style={{ alignItems: 'center' }}>
         {/* Signal Badge */}
         {entity.signal && (
-          <View className="bg-void/80 border border-rose/40 rounded-full px-2 py-1 mb-1 flex-row items-center">
-            <Text className="text-xs">{entity.signal.emoji}</Text>
-            <Text className="text-fog text-[10px] ml-1">{entity.signal.text}</Text>
+          <View
+            style={{
+              backgroundColor: 'rgba(15,17,21,0.8)',
+              borderWidth: 1,
+              borderColor: 'rgba(244,114,182,0.4)',
+              borderRadius: 999,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              marginBottom: 4,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            <Text style={{ fontSize: 11 }}>{entity.signal.emoji}</Text>
+            <Text style={{ color: '#F2F4F6', fontSize: 10 }}>{entity.signal.text}</Text>
           </View>
         )}
 
-        {/* Avatar */}
-        <View className="relative">
-          <View
-            className={`w-10 h-10 rounded-full items-center justify-center border-2 ${
-              entity.signal ? 'border-rose bg-rose/20' : 'border-signal bg-signal/20'
-            }`}
-          >
-            {friend.avatarUrl ? (
-              <Text className="text-lg">👤</Text>
-            ) : (
-              <Text className="text-fog text-sm font-bold">
-                {friend.displayName.charAt(0).toUpperCase()}
-              </Text>
-            )}
-          </View>
+        {/* Avatar with online indicator */}
+        <UserAvatar
+          displayName={friend.displayName}
+          size="md"
+          showStatus
+          status={friend.isOnline ? 'online' : 'offline'}
+        />
 
-          {/* Online Indicator */}
-          {friend.isOnline && (
-            <View className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-mint border-2 border-void" />
-          )}
-        </View>
-
-        {/* Name */}
-        <Text className="text-fog/70 text-[10px] mt-1">{friend.displayName.split(' ')[0]}</Text>
+        {/* Name label */}
+        <Text
+          style={{
+            color: 'rgba(242,244,246,0.7)',
+            fontSize: 10,
+            marginTop: 3,
+            textShadowColor: 'rgba(0,0,0,0.8)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 3,
+          }}
+        >
+          {friend.displayName.split(' ')[0]}
+        </Text>
       </View>
 
       <Callout>
-        <View className="p-2 min-w-[120px]">
-          <Text className="text-base font-bold">{friend.displayName}</Text>
+        <View style={{ padding: 8, minWidth: 120 }}>
+          <Text style={{ fontSize: 15, fontWeight: '700' }}>{friend.displayName}</Text>
           {entity.signal && (
-            <Text className="text-sm text-fog/50 mt-1">
+            <Text style={{ fontSize: 13, color: '#9CA3AF', marginTop: 4 }}>
               {entity.signal.emoji} {entity.signal.text}
             </Text>
           )}

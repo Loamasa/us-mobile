@@ -21,14 +21,21 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { Friend, FriendRequest, UserProfile } from '@/types';
 import GlassCard from '@/components/ui/GlassCard';
+import UserAvatar from '@/components/UserAvatar';
+import { SearchIcon, UserPlusIcon, UsersIcon } from '@/components/ui/icons';
+import { COLORS } from '@/config/constants';
+
+type FriendWithProfile = Friend & { profile?: UserProfile };
+type RequestWithProfile = FriendRequest & { fromProfile?: UserProfile };
 
 export default function FriendsScreen() {
-  const [friends, setFriends] = useState<(Friend & { profile?: UserProfile })[]>([]);
-  const [requests, setRequests] = useState<(FriendRequest & { fromProfile?: UserProfile })[]>([]);
+  const [friends, setFriends] = useState<FriendWithProfile[]>([]);
+  const [requests, setRequests] = useState<RequestWithProfile[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const userId = auth.currentUser?.uid;
 
@@ -82,7 +89,6 @@ export default function FriendsScreen() {
     setAddError('');
 
     try {
-      // Look up handle
       const handleDoc = await getDoc(doc(db, 'handles', sanitized));
       if (!handleDoc.exists()) {
         setAddError('User not found');
@@ -116,36 +122,85 @@ export default function FriendsScreen() {
     await rejectFriendRequest(userId, request.id);
   };
 
+  const filteredFriends = searchQuery.trim()
+    ? friends.filter((f) => {
+      const q = searchQuery.toLowerCase();
+      return (
+        f.profile?.displayName?.toLowerCase().includes(q) ||
+        f.profile?.handle?.toLowerCase().includes(q)
+      );
+    })
+    : friends;
+
   return (
     <View className="flex-1 bg-void pt-16 px-4">
       {/* Header */}
-      <View className="flex-row items-center justify-between mb-6 px-2">
+      <View className="flex-row items-center justify-between mb-5 px-1">
         <Text className="text-fog text-2xl font-bold">Friends</Text>
         <TouchableOpacity
-          className="bg-signal rounded-full px-4 py-2"
+          style={{
+            backgroundColor: COLORS.signal,
+            borderRadius: 999,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+          }}
           onPress={() => setShowAddModal(true)}
         >
-          <Text className="text-fog text-sm font-semibold">+ Add</Text>
+          <UserPlusIcon size={15} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Add</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Search bar */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: 'rgba(255,255,255,0.05)',
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderRadius: 14,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          marginBottom: 16,
+          gap: 10,
+        }}
+      >
+        <SearchIcon size={16} color="#6B7280" />
+        <TextInput
+          style={{ flex: 1, color: '#F2F4F6', fontSize: 15 }}
+          placeholder="Search by name or handle…"
+          placeholderTextColor="rgba(242,244,246,0.3)"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
       </View>
 
       {/* Friend Requests */}
       {requests.length > 0 && (
         <View className="mb-6">
-          <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-2">
-            Pending Requests ({requests.length})
+          <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-1">
+            Pending ({requests.length})
           </Text>
           {requests.map((req) => (
             <GlassCard key={req.id} className="mb-2 flex-row items-center">
-              <View className="w-10 h-10 rounded-full bg-signal/20 items-center justify-center mr-3">
-                <Text className="text-lg">👤</Text>
-              </View>
-              <View className="flex-1">
+              <UserAvatar
+                displayName={req.fromProfile?.displayName}
+                size="md"
+                showStatus
+                status="online"
+              />
+              <View className="flex-1 ml-3">
                 <Text className="text-fog font-semibold">
                   {req.fromProfile?.displayName ?? 'Unknown'}
                 </Text>
                 <Text className="text-fog/50 text-xs">
-                  @{req.fromProfile?.handle ?? '...'}
+                  @{req.fromProfile?.handle ?? '…'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -166,36 +221,50 @@ export default function FriendsScreen() {
       )}
 
       {/* Friends List */}
-      <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-2">
-        Friends ({friends.length})
+      <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-1">
+        {searchQuery ? `Results (${filteredFriends.length})` : `Friends (${friends.length})`}
       </Text>
 
-      {friends.length === 0 ? (
+      {filteredFriends.length === 0 ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-6xl mb-4">👥</Text>
-          <Text className="text-fog/50 text-base text-center">No friends yet</Text>
-          <Text className="text-fog/30 text-sm text-center mt-1">
-            Add friends by their handle or QR code
+          <UsersIcon size={48} color="rgba(242,244,246,0.15)" />
+          <Text className="text-fog/40 text-base text-center mt-4">
+            {searchQuery ? 'No matches found' : 'No friends yet'}
+          </Text>
+          <Text className="text-fog/25 text-sm text-center mt-1">
+            {searchQuery ? 'Try a different search' : 'Add friends by their handle'}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={friends}
+          data={filteredFriends}
           keyExtractor={(item) => item.userId}
+          showsVerticalScrollIndicator={false}
           renderItem={({ item }) => (
             <GlassCard className="mb-2 flex-row items-center">
-              <View className="w-10 h-10 rounded-full bg-signal/20 items-center justify-center mr-3">
-                <Text className="text-lg">👤</Text>
-              </View>
-              <View className="flex-1">
+              <UserAvatar
+                displayName={item.profile?.displayName}
+                size="md"
+                showStatus
+                status="online"
+              />
+              <View className="flex-1 ml-3">
                 <Text className="text-fog font-semibold">
-                  {item.profile?.displayName ?? 'Loading...'}
+                  {item.profile?.displayName ?? 'Loading…'}
                 </Text>
                 <Text className="text-fog/50 text-xs">
-                  @{item.profile?.handle ?? '...'}
+                  @{item.profile?.handle ?? '…'}
                 </Text>
               </View>
-              <View className="w-2 h-2 rounded-full bg-mint" />
+              {/* Online dot */}
+              <View
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  backgroundColor: COLORS.mint,
+                }}
+              />
             </GlassCard>
           )}
         />
@@ -205,7 +274,8 @@ export default function FriendsScreen() {
       <Modal visible={showAddModal} transparent animationType="slide">
         <View className="flex-1 justify-end">
           <View className="bg-void border-t border-glass-border rounded-t-3xl p-6">
-            <Text className="text-fog text-xl font-bold mb-4">Add Friend</Text>
+            <Text className="text-fog text-xl font-bold mb-1">Add Friend</Text>
+            <Text className="text-fog/40 text-sm mb-5">Search by their handle</Text>
 
             <View className="bg-glass border border-glass-border rounded-2xl px-4 py-4 flex-row items-center mb-4">
               <Text className="text-fog/50 text-lg mr-1">@</Text>
@@ -237,14 +307,12 @@ export default function FriendsScreen() {
                 <Text className="text-fog/50 font-semibold">Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                className={`flex-1 rounded-2xl py-4 items-center ${
-                  addLoading ? 'bg-signal/50' : 'bg-signal'
-                }`}
+                className={`flex-1 rounded-2xl py-4 items-center ${addLoading ? 'bg-signal/50' : 'bg-signal'}`}
                 onPress={handleAddFriend}
                 disabled={addLoading}
               >
                 <Text className="text-fog font-semibold">
-                  {addLoading ? 'Sending...' : 'Send Request'}
+                  {addLoading ? 'Sending…' : 'Send Request'}
                 </Text>
               </TouchableOpacity>
             </View>
