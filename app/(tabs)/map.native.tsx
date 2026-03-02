@@ -10,6 +10,7 @@ import { DARK_MAP_STYLE } from '@/config/mapStyles';
 import { useLocationTracking } from '@/features/location/useLocationTracking';
 import { useFriendLocations } from '@/features/map/useFriendLocations';
 import { useMapProjection } from '@/features/map/useMapProjection';
+import { BlurView } from 'expo-blur';
 import FriendMarker from '@/components/map/FriendMarker';
 import ClusterMarker from '@/components/map/ClusterMarker';
 import SignalModal from '@/features/signals/SignalModal';
@@ -236,15 +237,18 @@ export default function MapScreen() {
         }}
       >
         {/* Clock widget */}
-        <View
+        <BlurView
+          tint="dark"
+          intensity={40}
           style={{
-            backgroundColor: 'rgba(15,17,21,0.7)',
+            backgroundColor: 'rgba(0,0,0,0.4)',
             borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.08)',
+            borderColor: 'rgba(255,255,255,0.05)',
             borderRadius: 16,
             paddingHorizontal: 16,
             paddingVertical: 8,
             alignItems: 'center',
+            overflow: 'hidden',
           }}
         >
           <Text
@@ -270,17 +274,19 @@ export default function MapScreen() {
           >
             {dateStr}
           </Text>
-        </View>
+        </BlurView>
 
         {/* Visibility HUD pill */}
-        <View
+        <BlurView
+          tint={visibilityStatus.visible ? "light" : "dark"}
+          intensity={visibilityStatus.visible ? 20 : 40}
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
             backgroundColor: visibilityStatus.visible
               ? 'rgba(46,92,255,0.2)'
-              : 'rgba(0,0,0,0.55)',
+              : 'rgba(0,0,0,0.5)',
             borderWidth: 1,
             borderColor: visibilityStatus.visible
               ? 'rgba(46,92,255,0.5)'
@@ -288,6 +294,7 @@ export default function MapScreen() {
             borderRadius: 999,
             paddingHorizontal: 12,
             paddingVertical: 6,
+            overflow: 'hidden',
           }}
         >
           {visibilityStatus.visible ? (
@@ -306,7 +313,7 @@ export default function MapScreen() {
           >
             {visibilityStatus.label}
           </Text>
-        </View>
+        </BlurView>
       </View>
 
       {/* ── Active Signal HUD ── */}
@@ -327,42 +334,54 @@ export default function MapScreen() {
         {/* Ghost mode toggle */}
         <TouchableOpacity
           onPress={toggleGhostMode}
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: ghostMode ? COLORS.signal : 'rgba(15,17,21,0.75)',
-            borderWidth: 1,
-            borderColor: ghostMode ? COLORS.signal : 'rgba(255,255,255,0.1)',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
           activeOpacity={0.8}
         >
-          {ghostMode ? (
-            <GhostIcon size={20} color="#ffffff" />
-          ) : (
-            <EyeIcon size={20} color="#9CA3AF" />
-          )}
+          <BlurView
+            tint="dark"
+            intensity={40}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: ghostMode ? COLORS.signal : 'rgba(0,0,0,0.4)',
+              borderWidth: 1,
+              borderColor: ghostMode ? COLORS.signal : 'rgba(255,255,255,0.1)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            {ghostMode ? (
+              <GhostIcon size={20} color="#ffffff" />
+            ) : (
+              <EyeIcon size={20} color="#9CA3AF" />
+            )}
+          </BlurView>
         </TouchableOpacity>
 
         {/* Signal broadcast button — hidden in ghost mode */}
         {!ghostMode && (
           <TouchableOpacity
             onPress={() => setShowSignalModal(true)}
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: 'rgba(244,114,182,0.1)',
-              borderWidth: 1,
-              borderColor: 'rgba(244,114,182,0.3)',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
             activeOpacity={0.8}
           >
-            <RadioIcon size={20} color="#F472B6" />
+            <BlurView
+              tint="light"
+              intensity={20}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: 'rgba(244,114,182,0.1)',
+                borderWidth: 1,
+                borderColor: 'rgba(244,114,182,0.3)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <RadioIcon size={20} color="#F472B6" />
+            </BlurView>
           </TouchableOpacity>
         )}
       </View>
@@ -373,14 +392,6 @@ export default function MapScreen() {
           position: 'absolute',
           bottom: 24,
           right: 16,
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: 'rgba(15,17,21,0.75)',
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.1)',
-          alignItems: 'center',
-          justifyContent: 'center',
           zIndex: 40,
         }}
         onPress={() => {
@@ -395,7 +406,23 @@ export default function MapScreen() {
         }}
         activeOpacity={0.8}
       >
-        <NavigationIcon size={18} color="#F2F4F6" />
+        <BlurView
+          tint="dark"
+          intensity={40}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.1)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          <NavigationIcon size={18} color="#F2F4F6" />
+        </BlurView>
       </TouchableOpacity>
 
       {/* ── Signal Modal ── */}

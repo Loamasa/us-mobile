@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { XIcon, ClockIcon } from '@/components/ui/icons';
 import type { UserSignal } from '@/types';
 
@@ -32,7 +33,9 @@ export default function ActiveSignalHUD({ signal, onClear }: ActiveSignalHUDProp
     }, [signal.expiresAt]);
 
     return (
-        <View
+        <BlurView
+            tint="dark"
+            intensity={80}
             style={{
                 position: 'absolute',
                 top: 112,
@@ -40,14 +43,15 @@ export default function ActiveSignalHUD({ signal, onClear }: ActiveSignalHUDProp
                 zIndex: 40,
                 flexDirection: 'row',
                 alignItems: 'center',
-                backgroundColor: 'rgba(0,0,0,0.80)',
+                backgroundColor: 'rgba(0,0,0,0.5)',
                 borderWidth: 1,
-                borderColor: 'rgba(244,114,182,0.35)',
+                borderColor: 'rgba(244,114,182,0.3)',
                 borderRadius: 999,
                 paddingLeft: 16,
                 paddingRight: 4,
                 paddingVertical: 4,
                 gap: 12,
+                overflow: 'hidden',
             }}
         >
             {/* Emoji + text + timer */}
@@ -89,6 +93,6 @@ export default function ActiveSignalHUD({ signal, onClear }: ActiveSignalHUDProp
             >
                 <XIcon size={14} color="#9CA3AF" />
             </TouchableOpacity>
-        </View>
+        </BlurView>
     );
 }

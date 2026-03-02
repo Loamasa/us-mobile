@@ -27,6 +27,8 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 ## Known Issues / Warnings
 
 ### Bugs — Found During Testing
+- [ ] **Ghost mode toggle unresponsive:** Nothing happens when pressing the Ghost icon on the Map.
+- [ ] **Signal Broadcast failure:** Pressing the Broadcast button inside the signal modal does not start a broadcast like the prototype.
 
 ### Warnings (Non-blocking)
 - `react-native-svg@15.15.3` version mismatch warning (expected 15.12.1)
@@ -48,31 +50,41 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 
 #### Map Screen
 - [x] **Fix map visibility on device** — map screen appears but map itself not visible
-- [ ] **Fix spot placement on map** — spot creation doesn't work on device
-- [ ] **Clock widget** — top-center HUD: `bg-black/40 backdrop-blur`, time + short date, rounded-2xl
-- [ ] **Visibility HUD** — Lucide Eye/Ghost icons, `backdrop-blur` pill, signal-blue when visible
-- [ ] **Ghost mode toggle** — proper SVG ghost/eye icons, `backdrop-blur-md`, signal-blue fill
-- [ ] **Signal broadcast button** — Radio icon, pink/rose tint, hidden when ghost mode active
-- [ ] **Signal HUD** — floating pill with emoji + text + countdown timer + X to clear
+- [x] **Clock widget** — top-center HUD: `bg-black/40 backdrop-blur`, time + short date, rounded-2xl
+- [x] **Visibility HUD** — Lucide Eye/Ghost icons, `backdrop-blur` pill, signal-blue when visible
+- [x] **Ghost mode toggle** — proper SVG ghost/eye icons, `backdrop-blur-md`, signal-blue fill
+- [x] **Signal broadcast button** — Radio icon, pink/rose tint, hidden when ghost mode active
+- [x] **Signal HUD** — floating pill with emoji + text + countdown timer + X to clear
+
+#### My Spots (manage personal visibility zones)
+- [ ] **My Spots screen** — list/create/edit/delete spots, emoji icon, radius, toggle active
 
 #### Friend Clusters (GROUP type on map)
-- [ ] **Friend cluster markers** — show friends from same group chat at the same location as a merged GROUP node (prototype: `useMapProjection.ts`)
-- [ ] **Cluster callout** — tap cluster to see member list, group chat name, member count
-- [ ] **Deduplication** — friends in clusters don't appear as separate pins on the map
+- [ ] **Cluster markers** — 2+ friends within 100m merge into a single cluster node
+- [ ] **Cluster callout** — tap cluster to see member list + count
+
+#### My Spots (manage personal visibility zones)
+- [ ] **My Spots management** — accessed from Settings, matching the prototype `ManagePlacesModal`. List/create/edit/delete spots with emoji icon, radius, toggle active.
+- [ ] **Fix spot placement on map** — ensure spot creation works on device with an interactive center-pin map view.
+
+#### Dev Mock Friends (testing infrastructure)
+- [ ] **Seed 5 mock friends** — profiles, spots, locations, friendships in Firestore emulator
+- [ ] **2 friends at Rörsjögatan 8** — cluster test (both inside their spots → visible)
+- [ ] **1 friend at own spot in Malmö center** — individual visible pin
+- [ ] **2 friends not in spots** — hidden/in transit (should NOT appear on map)
+
 
 #### Friends Screen
 - [ ] **Avatar component** — replace 👤 emoji with `UserAvatar` (size variants, online status dot)
 - [ ] **Presence indicators** — online/away/offline status dots (green/amber/gray)
-- [ ] **Search** — search bar to filter friends list
-- [ ] **Friend categories** — close friend toggle + categories
 
 #### Settings Screen
-- [ ] **Profile card** — proper avatar with tier ring/gradient border, edit button
-- [ ] **"Test Onboarding" button** — in Developer section at bottom, navigates to `/(auth)/phone`
+- [ ] **Profile card** — proper avatar with edit button
+- [ ] **"Test Onboarding" button** — in Developer section, navigates to `/(auth)/phone`
 
 #### Tab Navigation
-- [ ] **Tab icons** — replace emoji (🗺️👥⚙️) with Lucide SVG icons
-- [ ] **Active tab indicator** — scale + signal-blue glow (prototype style)
+- [ ] **Tab icons** — replace emoji with Lucide SVG icons
+- [ ] **Active tab indicator** — scale + signal-blue glow
 - [ ] **Tab bar styling** — `backdrop-blur-xl` + `bg-void/80` glass effect
 
 ---
@@ -92,6 +104,9 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [ ] **OTP screen** — larger code boxes, "Wrong number? Retarget." link
 - [ ] **Profile screen** — "Identity." layout with dashed avatar border
 - [ ] **Permissions screen** — "Synchronize." with radial glow and privacy pill
+
+#### My Spots (Onboarding & Management)
+- [ ] **Add your starting spots** — integrated into the onboarding flow after permissions
 
 ---
 
