@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, Alert } from 'react-native';
 import * as Location from 'expo-location';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
@@ -64,7 +64,7 @@ export default function MapScreen() {
     let subscription: Location.LocationSubscription | null = null;
 
     (async () => {
-      const { status } = await Location.getForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
 
       subscription = await Location.watchPositionAsync(
@@ -121,12 +121,20 @@ export default function MapScreen() {
 
   const toggleGhostMode = async () => {
     const userId = auth.currentUser?.uid;
-    if (!userId) return;
+    if (!userId) {
+      console.warn('toggleGhostMode: no user signed in');
+      return;
+    }
     const newValue = !ghostMode;
-    await updateDoc(doc(db, 'users', userId), {
-      'settings.globalLocationSharing': !newValue,
-    });
-    if (newValue) await deleteLocation(userId);
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        'settings.globalLocationSharing': !newValue,
+      });
+      if (newValue) await deleteLocation(userId);
+    } catch (err) {
+      console.error('toggleGhostMode failed:', err);
+      Alert.alert('Error', 'Could not toggle ghost mode. Check emulator connection.');
+    }
   };
 
   const clearSignal = async () => {
@@ -327,7 +335,7 @@ export default function MapScreen() {
           position: 'absolute',
           top: 56,
           right: 16,
-          zIndex: 40,
+          zIndex: 50,
           gap: 10,
         }}
       >

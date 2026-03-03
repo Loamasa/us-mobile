@@ -1,0 +1,107 @@
+{
+  "personas": {
+    "alice": {
+      "auth": { "email": "alice@test.dev", "password": "test123456" },
+      "profile": {
+        "displayName": "Alice Svensson",
+        "handle": "alice",
+        "bio": "☕ Coffee enthusiast in Malmö",
+        "avatarUrl": null,
+        "phoneNumber": "+46701111111",
+        "settings": {
+          "globalLocationSharing": true,
+          "allowFriendRequests": true,
+          "showOnlineStatus": true
+        },
+        "signal": { "emoji": "☕", "text": "Getting coffee, come join!" }
+      },
+      "location": { "lat": 55.5953, "lng": 13.0115 },
+      "spots": [
+        { "id": "home", "name": "Home", "emoji": "🏠", "lat": 55.5953, "lng": 13.0115, "radius": 100, "isActive": true }
+      ]
+    },
+    "bob": {
+      "auth": { "email": "bob@test.dev", "password": "test123456" },
+      "profile": {
+        "displayName": "Bob Nilsson",
+        "handle": "bob",
+        "bio": "🎮 Gamer from Rörsjöstaden",
+        "avatarUrl": null,
+        "phoneNumber": "+46702222222",
+        "settings": {
+          "globalLocationSharing": true,
+          "allowFriendRequests": true,
+          "showOnlineStatus": true
+        },
+        "signal": null
+      },
+      "location": { "lat": 55.5954, "lng": 13.0116 },
+      "spots": [
+        { "id": "home", "name": "Home", "emoji": "🏠", "lat": 55.5954, "lng": 13.0116, "radius": 100, "isActive": true }
+      ]
+    },
+    "charlie": {
+      "auth": { "email": "charlie@test.dev", "password": "test123456" },
+      "profile": {
+        "displayName": "Charlie Öberg",
+        "handle": "charlie",
+        "bio": "🛹 Skater at Möllevången",
+        "avatarUrl": null,
+        "phoneNumber": "+46703333333",
+        "settings": {
+          "globalLocationSharing": true,
+          "allowFriendRequests": true,
+          "showOnlineStatus": true
+        },
+        "signal": null
+      },
+      "location": { "lat": 55.5890, "lng": 13.0010 },
+      "spots": [
+        { "id": "hangout", "name": "Hangout", "emoji": "🛹", "lat": 55.5890, "lng": 13.0010, "radius": 150, "isActive": true }
+      ]
+    },
+    "dana": {
+      "auth": { "email": "dana@test.dev", "password": "test123456" },
+      "profile": {
+        "displayName": "Dana Lindqvist",
+        "handle": "dana",
+        "bio": "📚 Studying at Malmö Uni",
+        "avatarUrl": null,
+        "phoneNumber": "+46704444444",
+        "settings": {
+          "globalLocationSharing": false,
+          "allowFriendRequests": true,
+          "showOnlineStatus": false
+        },
+        "signal": null
+      },
+      "location": { "lat": 55.6130, "lng": 12.9880 },
+      "spots": []
+    },
+    "eve": {
+      "auth": { "email": "eve@test.dev", "password": "test123456" },
+      "profile": {
+        "displayName": "Eve Bergström",
+        "handle": "eve",
+        "bio": "🎨 Artist at Turning Torso",
+        "avatarUrl": null,
+        "phoneNumber": "+46705555555",
+        "settings": {
+          "globalLocationSharing": false,
+          "allowFriendRequests": false,
+          "showOnlineStatus": false
+        },
+        "signal": null
+      },
+      "location": { "lat": 55.6135, "lng": 12.9750 },
+      "spots": []
+    }
+  },
+  "friendships": [
+    ["dev-user", "alice"],
+    ["dev-user", "bob"],
+    ["dev-user", "charlie"],
+    ["dev-user", "dana"],
+    ["dev-user", "eve"]
+  ]
+}

@@ -1,7 +1,7 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-03-02 — Tab layout fixed: Chats / Map / Communities (prototype-aligned)
+2026-03-03 — Dev accounts & test data system implemented
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
@@ -24,11 +24,18 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - Profile-dependent UI in Settings now gracefully handles null auth state
 - Reorganized STATUS.md Next Steps into Phase 1 (Core MVP) / Phase 2 (Onboarding) / Phase 3 (Build)
 
+### Dev Accounts & Test Data (2026-03-03)
+- Created `src/dev/fixtures.json` — 5 test personas (Alice, Bob, Charlie, Dana, Eve) with Malmö locations
+- Created `src/dev/seedDevData.ts` — seeds Auth users (fixed UIDs via emulator admin API) + Firestore data (profiles, handles, locations, spots, friendships) in one batch
+- Created `src/dev/devAccounts.ts` — `DEV_ACCOUNTS` list, `getCurrentAccountId()`, `switchAccount()` for toggling between test personas
+- Updated `app/_layout.tsx` — `ensureDevUser()` now uses email+password auth with fixed UID "dev-user" (two-step admin API: create user, then set password)
+- Updated `app/(tabs)/settings.tsx` — Developer section with "Seed Test Data" button and 6-account switcher UI
+
 ## Known Issues / Warnings
 
 ### Bugs — Found During Testing
-- [ ] **Ghost mode toggle unresponsive:** Nothing happens when pressing the Ghost icon on the Map.
-- [ ] **Signal Broadcast failure:** Pressing the Broadcast button inside the signal modal does not start a broadcast like the prototype.
+- [x] **Ghost mode toggle unresponsive:** Fixed — top-right controls zIndex raised above the full-width HUD container that was blocking touches.
+- [x] **Signal Broadcast failure:** Fixed — added error alert on failure, location warning when GPS unavailable, dimmed button when disabled.
 
 ### Warnings (Non-blocking)
 - `react-native-svg@15.15.3` version mismatch warning (expected 15.12.1)
@@ -57,22 +64,17 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **Signal HUD** — floating pill with emoji + text + countdown timer + X to clear
 
 #### My Spots (manage personal visibility zones)
-- [ ] **My Spots screen** — list/create/edit/delete spots, emoji icon, radius, toggle active
+- [ ] **My Spots system** — My spots on the map, show user to friends when user are in the spot, and accessed from Settings, matching the prototype `ManagePlacesModal`. List/create/edit/delete spots with emoji icon, radius, toggle active. Use the prototype as a for the system. 
 
 #### Friend Clusters (GROUP type on map)
 - [ ] **Cluster markers** — 2+ friends within 100m merge into a single cluster node
 - [ ] **Cluster callout** — tap cluster to see member list + count
 
-#### My Spots (manage personal visibility zones)
-- [ ] **My Spots management** — accessed from Settings, matching the prototype `ManagePlacesModal`. List/create/edit/delete spots with emoji icon, radius, toggle active.
-- [ ] **Fix spot placement on map** — ensure spot creation works on device with an interactive center-pin map view.
-
 #### Dev Mock Friends (testing infrastructure)
-- [ ] **Seed 5 mock friends** — profiles, spots, locations, friendships in Firestore emulator
-- [ ] **2 friends at Rörsjögatan 8** — cluster test (both inside their spots → visible)
-- [ ] **1 friend at own spot in Malmö center** — individual visible pin
-- [ ] **2 friends not in spots** — hidden/in transit (should NOT appear on map)
-
+- [x] **Seed 5 mock friends** — profiles, spots, locations, friendships in Firestore emulator
+- [x] **2 friends at Rörsjögatan 8** — cluster test (Alice+Bob, both inside their spots → visible)
+- [x] **1 friend at own spot in Malmö center** — individual visible pin (Charlie at Möllevången)
+- [x] **2 friends not in spots** — hidden/ghost mode (Dana+Eve, location sharing off)
 
 #### Friends Screen
 - [ ] **Avatar component** — replace 👤 emoji with `UserAvatar` (size variants, online status dot)
@@ -116,10 +118,12 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 2. Set up Firebase App Distribution for testers
 
 ## How to Run
-1. Terminal 1: `firebase emulators:start --project demo-us-app`
+1. Terminal 1: `firebase emulators:start --project us-v1-ff6b3`
 2. Terminal 2: `npx expo start --clear`
 3. Open **Expo Go** on phone → scan QR code from terminal
 4. If LAN fails: `npx expo start --tunnel`
+5. **Seed test data:** Settings → Developer → "Seed Test Data" (creates 5 dummy friends)
+6. **Switch accounts:** Settings → Developer → tap any account to sign in as that persona
 
 ## Key Files
 | File | Purpose |
@@ -139,3 +143,6 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | `src/config/firebase.ts` | Firebase config + emulator connection + `getEmulatorHost()` |
 | `src/lib/firestore.ts` | Firestore helpers (profile, handles, friends, location, spots) |
 | `firebase.json` | Emulators: auth@9099, firestore@8088, ui@4000 (host 0.0.0.0) |
+| `src/dev/fixtures.json` | 5 test personas with Malmö locations, spots, signals |
+| `src/dev/seedDevData.ts` | Seeds auth users + Firestore data (profiles, locations, spots, friendships) |
+| `src/dev/devAccounts.ts` | Account switcher: DEV_ACCOUNTS list, switchAccount(), getCurrentAccountId() |

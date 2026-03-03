@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  Alert,
 } from 'react-native';
 import { GeoPoint, Timestamp, doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
@@ -61,6 +62,7 @@ export default function SignalModal({
       onClose();
     } catch (err) {
       console.error('Failed to broadcast signal:', err);
+      Alert.alert('Broadcast failed', 'Could not broadcast your signal. Please try again.');
     } finally {
       setSending(false);
     }
@@ -102,11 +104,10 @@ export default function SignalModal({
               <TouchableOpacity
                 key={preset.emoji}
                 onPress={() => handlePresetSelect(preset.emoji, preset.text)}
-                className={`mr-2 px-4 py-3 rounded-xl border ${
-                  selectedEmoji === preset.emoji
+                className={`mr-2 px-4 py-3 rounded-xl border ${selectedEmoji === preset.emoji
                     ? 'border-rose bg-rose/10'
                     : 'border-glass-border bg-glass'
-                }`}
+                  }`}
               >
                 <Text className="text-2xl text-center">{preset.emoji}</Text>
                 <Text className="text-fog/50 text-xs text-center mt-1">
@@ -137,16 +138,14 @@ export default function SignalModal({
               <TouchableOpacity
                 key={duration.label}
                 onPress={() => setDurationIndex(i)}
-                className={`flex-1 rounded-xl py-3 items-center border ${
-                  durationIndex === i
+                className={`flex-1 rounded-xl py-3 items-center border ${durationIndex === i
                     ? 'border-signal bg-signal/10'
                     : 'border-glass-border bg-glass'
-                }`}
+                  }`}
               >
                 <Text
-                  className={`text-sm ${
-                    durationIndex === i ? 'text-signal' : 'text-fog/50'
-                  }`}
+                  className={`text-sm ${durationIndex === i ? 'text-signal' : 'text-fog/50'
+                    }`}
                 >
                   {duration.label}
                 </Text>
@@ -154,11 +153,17 @@ export default function SignalModal({
             ))}
           </View>
 
+          {/* Location warning */}
+          {!currentLocation && (
+            <Text className="text-rose/70 text-xs text-center mb-2">
+              ⚠️ Waiting for location — broadcast unavailable until GPS is ready
+            </Text>
+          )}
+
           {/* Actions */}
           <TouchableOpacity
-            className={`rounded-2xl py-4 items-center mb-3 ${
-              sending ? 'bg-rose/50' : 'bg-rose'
-            }`}
+            className={`rounded-2xl py-4 items-center mb-3 ${sending || !currentLocation ? 'bg-rose/30' : 'bg-rose'
+              }`}
             onPress={handleBroadcast}
             disabled={sending || !currentLocation}
           >

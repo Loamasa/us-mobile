@@ -22,7 +22,7 @@ export function useLocationTracking() {
     let profileUnsubscribe: (() => void) | null = null;
 
     const startTracking = async () => {
-      const { status } = await Location.getForegroundPermissionsAsync();
+      const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') return;
 
       if (subscriptionRef.current) return; // Already tracking
