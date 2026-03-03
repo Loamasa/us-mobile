@@ -41,6 +41,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - `react-native-svg@15.15.3` version mismatch warning (expected 15.12.1)
 - `SafeAreaView` deprecation warning — cosmetic
 - Firestore emulator has stale data from previous sessions (handles, profiles)
+- **Seeded friends don't appear on map or friends list** — test data is written to Firestore but the map/friends screens don't query or display them yet
 
 ## Next Steps
 
@@ -75,6 +76,10 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **2 friends at Rörsjögatan 8** — cluster test (Alice+Bob, both inside their spots → visible)
 - [x] **1 friend at own spot in Malmö center** — individual visible pin (Charlie at Möllevången)
 - [x] **2 friends not in spots** — hidden/ghost mode (Dana+Eve, location sharing off)
+
+#### Display Seeded Friends (wire up test data)
+- [ ] **Show seeded friends on map** — query `locations` collection for friends, render markers
+- [ ] **Show seeded friends in friends list** — query `users/{uid}/friends` subcollection, display in Chats tab
 
 #### Friends Screen
 - [ ] **Avatar component** — replace 👤 emoji with `UserAvatar` (size variants, online status dot)
