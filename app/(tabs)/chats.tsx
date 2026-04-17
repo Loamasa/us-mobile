@@ -20,7 +20,6 @@ import {
   sendFriendRequest,
   acceptFriendRequest,
   rejectFriendRequest,
-  getUserProfile,
   onUserProfile,
   deleteLocation,
 } from '@/lib/firestore';
@@ -34,8 +33,9 @@ type FriendWithProfile = Friend & { profile?: UserProfile };
 type RequestWithProfile = FriendRequest & { fromProfile?: UserProfile };
 
 export default function ChatsScreen() {
-  const [friends, setFriends] = useState<FriendWithProfile[]>([]);
-  const [requests, setRequests] = useState<RequestWithProfile[]>([]);
+  const [rawFriends, setRawFriends] = useState<Friend[]>([]);
+  const [rawRequests, setRawRequests] = useState<FriendRequest[]>([]);
+  const [profilesById, setProfilesById] = useState<Record<string, UserProfile>>({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [handleInput, setHandleInput] = useState('');
@@ -53,49 +53,57 @@ export default function ChatsScreen() {
     return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? undefined));
   }, []);
 
-  // Load friends with profiles
   useEffect(() => {
-    setFriends([]);
+    setRawFriends([]);
     if (!userId) return;
-
-    const unsubscribe = onFriends(userId, async (friendList) => {
-      const withProfiles = await Promise.all(
-        friendList.map(async (f) => {
-          try {
-            const profile = await getUserProfile(f.userId);
-            return { ...f, profile: profile ?? undefined };
-          } catch {
-            return { ...f, profile: undefined };
-          }
-        })
-      );
-      setFriends(withProfiles);
-    });
-
-    return unsubscribe;
+    return onFriends(userId, setRawFriends);
   }, [userId]);
 
-  // Load friend requests with sender profiles
   useEffect(() => {
-    setRequests([]);
+    setRawRequests([]);
     if (!userId) return;
-
-    const unsubscribe = onFriendRequests(userId, async (reqList) => {
-      const withProfiles = await Promise.all(
-        reqList.map(async (r) => {
-          try {
-            const profile = await getUserProfile(r.fromUserId);
-            return { ...r, fromProfile: profile ?? undefined };
-          } catch {
-            return { ...r, fromProfile: undefined };
-          }
-        })
-      );
-      setRequests(withProfiles);
-    });
-
-    return unsubscribe;
+    return onFriendRequests(userId, setRawRequests);
   }, [userId]);
+
+  // Subscribe live to the profile of every friend + request sender so
+  // display name, handle, and avatar stay in sync.
+  useEffect(() => {
+    const needed = new Set<string>([
+      ...rawFriends.map((f) => f.userId),
+      ...rawRequests.map((r) => r.fromUserId),
+    ]);
+    if (needed.size === 0) {
+      setProfilesById({});
+      return;
+    }
+
+    const unsubs = Array.from(needed).map((id) =>
+      onUserProfile(id, (p) => {
+        setProfilesById((prev) => {
+          if (!p) {
+            if (!(id in prev)) return prev;
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          }
+          return { ...prev, [id]: p };
+        });
+      })
+    );
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [rawFriends, rawRequests]);
+
+  const friends: FriendWithProfile[] = rawFriends.map((f) => ({
+    ...f,
+    profile: profilesById[f.userId],
+  }));
+  const requests: RequestWithProfile[] = rawRequests.map((r) => ({
+    ...r,
+    fromProfile: profilesById[r.fromUserId],
+  }));
 
   // Load own profile for settings modal
   useEffect(() => {

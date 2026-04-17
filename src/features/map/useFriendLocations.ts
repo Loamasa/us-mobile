@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
-import { onFriends, onLocation, getUserProfile } from '@/lib/firestore';
+import { onFriends, onLocation, onUserProfile } from '@/lib/firestore';
 import type { Friend, LocationPresence, UserProfile } from '@/types';
 
-interface FriendLocationData {
+export interface FriendLocationData {
   location: LocationPresence;
   profile: UserProfile;
 }
 
 /**
- * Subscribes to real-time locations of all friends.
+ * Subscribes to real-time friend locations + profiles.
  * Returns a map of userId -> { location, profile }.
- * Re-subscribes when the signed-in user changes (account switching).
+ *
+ * A friend only appears once both their profile AND location doc exist.
+ * Location docs are written only when the friend is inside an active spot
+ * (see useLocationTracking), so the presence of a doc implies visibility.
  */
 export function useFriendLocations() {
   const [userId, setUserId] = useState<string | null>(
@@ -35,52 +38,72 @@ export function useFriendLocations() {
     }
     setLoading(true);
 
-    const locationUnsubscribes: (() => void)[] = [];
-    let friendsUnsubscribe: (() => void) | null = null;
+    const perFriendUnsubs = new Map<string, () => void>();
+    const perFriendState = new Map<string, Partial<FriendLocationData>>();
 
-    friendsUnsubscribe = onFriends(userId, async (friends: Friend[]) => {
-      // Clean up old location listeners
-      locationUnsubscribes.forEach((unsub) => unsub());
-      locationUnsubscribes.length = 0;
+    const commit = (friendId: string) => {
+      const state = perFriendState.get(friendId);
+      setFriendLocations((prev) => {
+        const next = { ...prev };
+        if (!state?.location || !state.profile) {
+          delete next[friendId];
+          return next;
+        }
+        next[friendId] = {
+          location: state.location,
+          profile: state.profile,
+        };
+        return next;
+      });
+    };
 
-      // Fetch profiles for all friends
-      const profiles: Record<string, UserProfile> = {};
-      await Promise.all(
-        friends.map(async (f) => {
-          const profile = await getUserProfile(f.userId);
-          if (profile) profiles[f.userId] = profile;
-        })
-      );
+    const subscribeFriend = (friendId: string) => {
+      const unsubProfile = onUserProfile(friendId, (profile) => {
+        const s = perFriendState.get(friendId) ?? {};
+        s.profile = profile ?? undefined;
+        perFriendState.set(friendId, s);
+        commit(friendId);
+      });
+      const unsubLocation = onLocation(friendId, (location) => {
+        const s = perFriendState.get(friendId) ?? {};
+        s.location = location ?? undefined;
+        perFriendState.set(friendId, s);
+        commit(friendId);
+      });
+      perFriendUnsubs.set(friendId, () => {
+        unsubProfile();
+        unsubLocation();
+      });
+    };
 
-      // Subscribe to each friend's location
-      for (const friend of friends) {
-        const unsub = onLocation(friend.userId, (location) => {
+    const friendsUnsubscribe = onFriends(userId, (friends: Friend[]) => {
+      const incoming = new Set(friends.map((f) => f.userId));
+
+      for (const [id, unsub] of perFriendUnsubs.entries()) {
+        if (!incoming.has(id)) {
+          unsub();
+          perFriendUnsubs.delete(id);
+          perFriendState.delete(id);
           setFriendLocations((prev) => {
-            if (!location) {
-              // Friend went ghost — remove them
-              const next = { ...prev };
-              delete next[friend.userId];
-              return next;
-            }
-
-            const profile = profiles[friend.userId];
-            if (!profile) return prev;
-
-            return {
-              ...prev,
-              [friend.userId]: { location, profile },
-            };
+            const next = { ...prev };
+            delete next[id];
+            return next;
           });
-        });
-        locationUnsubscribes.push(unsub);
+        }
+      }
+
+      for (const id of incoming) {
+        if (!perFriendUnsubs.has(id)) subscribeFriend(id);
       }
 
       setLoading(false);
     });
 
     return () => {
-      friendsUnsubscribe?.();
-      locationUnsubscribes.forEach((unsub) => unsub());
+      friendsUnsubscribe();
+      for (const unsub of perFriendUnsubs.values()) unsub();
+      perFriendUnsubs.clear();
+      perFriendState.clear();
     };
   }, [userId]);
 
