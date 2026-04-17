@@ -1,7 +1,7 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-03-03 — Dev accounts & test data system implemented
+2026-04-17 — Friend subscriptions made reactive to auth state (fixes account switching)
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
@@ -24,12 +24,19 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - Profile-dependent UI in Settings now gracefully handles null auth state
 - Reorganized STATUS.md Next Steps into Phase 1 (Core MVP) / Phase 2 (Onboarding) / Phase 3 (Build)
 
-### Dev Accounts & Test Data (2026-03-03)
-- Created `src/dev/fixtures.json` — 5 test personas (Alice, Bob, Charlie, Dana, Eve) with Malmö locations
-- Created `src/dev/seedDevData.ts` — seeds Auth users (fixed UIDs via emulator admin API) + Firestore data (profiles, handles, locations, spots, friendships) in one batch
-- Created `src/dev/devAccounts.ts` — `DEV_ACCOUNTS` list, `getCurrentAccountId()`, `switchAccount()` for toggling between test personas
-- Updated `app/_layout.tsx` — `ensureDevUser()` now uses email+password auth with fixed UID "dev-user" (two-step admin API: create user, then set password)
-- Updated `app/(tabs)/settings.tsx` — Developer section with "Seed Test Data" button and 6-account switcher UI
+### My Spots System (2026-03-03)
+- Created `src/features/spots/MySpotsModal.tsx` — full-screen modal with 3 modes:
+  - **LIST** — spot cards with emoji, name, radius, eye toggle (active/inactive), edit button; empty state with hint
+  - **CREATE** — name input, 15-emoji icon grid, radius chip picker (50–1000m), draggable map marker
+  - **EDIT** — same form pre-filled + "Remove Place" (confirm alert)
+- Added to `firestore.ts`: `updateUserSpot`, `deleteUserSpot`, `toggleUserSpot`
+- Added to `constants.ts`: `SPOT_ICONS` array, `SPOT_RADIUS_RANGE`
+- Added "My Places" row in Settings Privacy section with live spot count badge → opens `MySpotsModal`
+
+### Auth-Reactive Subscriptions (2026-04-17)
+- `useFriendLocations`, `useLocationTracking`, Chats screen, and Map screen now all subscribe to `onAuthStateChanged` and re-wire Firestore listeners when the signed-in uid changes.
+- Previously captured `auth.currentUser?.uid` at render time with empty-dep `useEffect`, so switching dev accounts (Settings → tap persona) left stale subscriptions keyed to the old uid — explained why seeded friends didn't appear after switching to a persona.
+- Fresh-start flow (app boot as `dev-user` → Seed Test Data → return to Chats/Map) already worked since the MVP scaffold. No new queries were needed — the bug was a subscription-lifecycle issue.
 
 ## Known Issues / Warnings
 
@@ -41,7 +48,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - `react-native-svg@15.15.3` version mismatch warning (expected 15.12.1)
 - `SafeAreaView` deprecation warning — cosmetic
 - Firestore emulator has stale data from previous sessions (handles, profiles)
-- **Seeded friends don't appear on map or friends list** — test data is written to Firestore but the map/friends screens don't query or display them yet
+- ~~**Seeded friends don't appear on map or friends list**~~ — fixed 2026-04-17: subscriptions now react to `onAuthStateChanged` so switching accounts re-wires listeners.
 
 ## Next Steps
 
@@ -65,7 +72,15 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **Signal HUD** — floating pill with emoji + text + countdown timer + X to clear
 
 #### My Spots (manage personal visibility zones)
-- [ ] **My Spots system** — My spots on the map, show user to friends when user are in the spot, and accessed from Settings, matching the prototype `ManagePlacesModal`. List/create/edit/delete spots with emoji icon, radius, toggle active. Use the prototype as a for the system. 
+- [x] **My Spots system** — `MySpotsModal` with LIST/CREATE/EDIT; emoji grid, radius picker, draggable map marker; accessed from Settings → My Spots
+
+#### Settings Screen (redesign to match prototype)
+- [ ] **Nav list layout** — prototype-style nav list with 4 sections: My Account, Privacy & Safety, My Spots, Developer/Debug
+  - Tap item → navigate to detail view (full-screen)
+
+#### My Spots in setting (manage personal visibility zones)
+- [ ] **My Spots is called My spaces, make sure they are called spots in the documentation and code**
+- [ ] **My Spots visible in Settings** — currently not showing (Settings needs redesign first) 
 
 #### Friend Clusters (GROUP type on map)
 - [ ] **Cluster markers** — 2+ friends within 100m merge into a single cluster node
@@ -78,8 +93,9 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **2 friends not in spots** — hidden/ghost mode (Dana+Eve, location sharing off)
 
 #### Display Seeded Friends (wire up test data)
-- [ ] **Show seeded friends on map** — query `locations` collection for friends, render markers
-- [ ] **Show seeded friends in friends list** — query `users/{uid}/friends` subcollection, display in Chats tab
+- [x] **Show seeded friends on map** — `useFriendLocations` + `useMapProjection` + `FriendMarker`/`ClusterMarker`; clustering by 100m Haversine
+- [x] **Show seeded friends in friends list** — `onFriends` subscription with per-friend profile fetch; now auth-reactive for account switching
+- [ ] **Render seeded friends' spots on map** — currently only current-user spots render; friend spot circles would show where they're visible from
 
 #### Friends Screen
 - [ ] **Avatar component** — replace 👤 emoji with `UserAvatar` (size variants, online status dot)
