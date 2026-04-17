@@ -3,6 +3,7 @@ import { COLORS } from '@/config/constants';
 
 type AvatarStatus = 'online' | 'away' | 'offline';
 type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+type AvatarTint = 'signal' | 'rose';
 
 interface UserAvatarProps {
     displayName?: string;
@@ -10,8 +11,19 @@ interface UserAvatarProps {
     size?: AvatarSize;
     status?: AvatarStatus;
     showStatus?: boolean;
+    tint?: AvatarTint;
     className?: string;
 }
+
+const TINT_FILL: Record<AvatarTint, string> = {
+    signal: 'rgba(46, 92, 255, 0.2)',
+    rose: 'rgba(244, 114, 182, 0.2)',
+};
+
+const TINT_BORDER: Record<AvatarTint, string> = {
+    signal: 'rgba(46, 92, 255, 0.4)',
+    rose: 'rgba(244, 114, 182, 0.6)',
+};
 
 const SIZE_PX: Record<AvatarSize, number> = {
     xs: 24,
@@ -48,6 +60,7 @@ export default function UserAvatar({
     size = 'md',
     status,
     showStatus = false,
+    tint = 'signal',
 }: UserAvatarProps) {
     const px = SIZE_PX[size];
     const fontSize = FONT_SIZE[size];
@@ -62,9 +75,9 @@ export default function UserAvatar({
                     width: px,
                     height: px,
                     borderRadius: px / 2,
-                    backgroundColor: 'rgba(46, 92, 255, 0.2)',
-                    borderWidth: 1.5,
-                    borderColor: 'rgba(46, 92, 255, 0.4)',
+                    backgroundColor: TINT_FILL[tint],
+                    borderWidth: tint === 'rose' ? 2 : 1.5,
+                    borderColor: TINT_BORDER[tint],
                     alignItems: 'center',
                     justifyContent: 'center',
                 }}

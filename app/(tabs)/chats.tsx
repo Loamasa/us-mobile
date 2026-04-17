@@ -19,6 +19,7 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   onUserProfile,
+  onLocation,
 } from '@/lib/firestore';
 import type { Friend, FriendRequest, UserProfile } from '@/types';
 import GlassCard from '@/components/ui/GlassCard';
@@ -33,6 +34,7 @@ export default function ChatsScreen() {
   const [rawFriends, setRawFriends] = useState<Friend[]>([]);
   const [rawRequests, setRawRequests] = useState<FriendRequest[]>([]);
   const [profilesById, setProfilesById] = useState<Record<string, UserProfile>>({});
+  const [visibleFriendIds, setVisibleFriendIds] = useState<Set<string>>(new Set());
   const [showAddModal, setShowAddModal] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [addLoading, setAddLoading] = useState(false);
@@ -90,6 +92,36 @@ export default function ChatsScreen() {
       unsubs.forEach((u) => u());
     };
   }, [rawFriends, rawRequests]);
+
+  // Subscribe to each friend's location doc. Doc presence = friend is inside
+  // one of their active spots, so it's the source of truth for "visible now".
+  useEffect(() => {
+    if (rawFriends.length === 0) {
+      setVisibleFriendIds(new Set());
+      return;
+    }
+    const unsubs = rawFriends.map((f) =>
+      onLocation(f.userId, (loc) => {
+        setVisibleFriendIds((prev) => {
+          const has = prev.has(f.userId);
+          if (loc && !has) {
+            const next = new Set(prev);
+            next.add(f.userId);
+            return next;
+          }
+          if (!loc && has) {
+            const next = new Set(prev);
+            next.delete(f.userId);
+            return next;
+          }
+          return prev;
+        });
+      })
+    );
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+  }, [rawFriends]);
 
   const friends: FriendWithProfile[] = rawFriends.map((f) => ({
     ...f,
@@ -267,33 +299,36 @@ export default function ChatsScreen() {
           data={filteredFriends}
           keyExtractor={(item) => item.userId}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <GlassCard className="mb-2 flex-row items-center">
-              <UserAvatar
-                displayName={item.profile?.displayName}
-                size="md"
-                showStatus
-                status="online"
-              />
-              <View className="flex-1 ml-3">
-                <Text className="text-fog font-semibold">
-                  {item.profile?.displayName ?? 'Loading…'}
-                </Text>
-                <Text className="text-fog/50 text-xs">
-                  @{item.profile?.handle ?? '…'}
-                </Text>
-              </View>
-              {/* Online dot */}
-              <View
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: COLORS.mint,
-                }}
-              />
-            </GlassCard>
-          )}
+          renderItem={({ item }) => {
+            const visible = visibleFriendIds.has(item.userId);
+            return (
+              <GlassCard className="mb-2 flex-row items-center">
+                <UserAvatar
+                  displayName={item.profile?.displayName}
+                  size="md"
+                  showStatus
+                  status={visible ? 'online' : 'offline'}
+                />
+                <View className="flex-1 ml-3">
+                  <Text className="text-fog font-semibold">
+                    {item.profile?.displayName ?? 'Loading…'}
+                  </Text>
+                  <Text className="text-fog/50 text-xs">
+                    @{item.profile?.handle ?? '…'}
+                  </Text>
+                </View>
+                {/* Presence dot — mint when visible, muted when ghosted/in-transit */}
+                <View
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 4,
+                    backgroundColor: visible ? COLORS.mint : 'rgba(242,244,246,0.2)',
+                  }}
+                />
+              </GlassCard>
+            );
+          }}
         />
       )}
 

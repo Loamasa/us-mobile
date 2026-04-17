@@ -1,5 +1,8 @@
-import { View, Text } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { View, Text, Animated, Easing } from 'react-native';
 import { Marker, Callout } from 'react-native-maps';
+import { UsersIcon } from '@/components/ui/icons';
+import { COLORS } from '@/config/constants';
 import type { MapEntity } from '@/types';
 
 interface ClusterMarkerProps {
@@ -8,6 +11,36 @@ interface ClusterMarkerProps {
 
 export default function ClusterMarker({ entity }: ClusterMarkerProps) {
   const count = entity.friends.length;
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 1400,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  const ringScale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.8, 1.6],
+  });
+  const ringOpacity = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.45, 0],
+  });
 
   return (
     <Marker
@@ -17,37 +50,89 @@ export default function ClusterMarker({ entity }: ClusterMarkerProps) {
       }}
       anchor={{ x: 0.5, y: 0.5 }}
     >
-      <View className="items-center">
-        {/* Pulsing Glow */}
-        <View className="w-[60px] h-[60px] rounded-full bg-signal/20 items-center justify-center">
-          <View className="w-[50px] h-[50px] rounded-full bg-signal/30 items-center justify-center">
-            {/* Group Icon */}
-            <Text className="text-2xl">👥</Text>
-          </View>
+      <View style={{ alignItems: 'center', width: 72, height: 80 }}>
+        {/* Animated pulse ring */}
+        <Animated.View
+          style={{
+            position: 'absolute',
+            top: 4,
+            width: 60,
+            height: 60,
+            borderRadius: 30,
+            backgroundColor: COLORS.signal,
+            opacity: ringOpacity,
+            transform: [{ scale: ringScale }],
+          }}
+        />
+
+        {/* Core disc with group icon */}
+        <View
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: 25,
+            marginTop: 9,
+            backgroundColor: 'rgba(46, 92, 255, 0.35)',
+            borderWidth: 1.5,
+            borderColor: COLORS.signal,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <UsersIcon size={22} color={COLORS.fog} />
         </View>
 
-        {/* Count Badge */}
-        <View className="absolute -top-1 -right-1 bg-signal rounded-full w-6 h-6 items-center justify-center">
-          <Text className="text-fog text-xs font-bold">{count}</Text>
+        {/* Count badge */}
+        <View
+          style={{
+            position: 'absolute',
+            top: 4,
+            right: 6,
+            backgroundColor: COLORS.signal,
+            borderRadius: 10,
+            minWidth: 20,
+            height: 20,
+            paddingHorizontal: 4,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: COLORS.fog, fontSize: 11, fontWeight: '700' }}>
+            {count}
+          </Text>
         </View>
 
         {/* Label */}
-        <Text className="text-fog/70 text-[10px] mt-1">
+        <Text
+          style={{
+            color: 'rgba(242,244,246,0.7)',
+            fontSize: 10,
+            marginTop: 3,
+            textShadowColor: 'rgba(0,0,0,0.8)',
+            textShadowOffset: { width: 0, height: 1 },
+            textShadowRadius: 3,
+          }}
+        >
           {count} Friends
         </Text>
       </View>
 
       <Callout>
-        <View className="p-2 min-w-[150px]">
-          <Text className="text-base font-bold">{count} Friends Here</Text>
+        <View style={{ padding: 8, minWidth: 150 }}>
+          <Text style={{ fontSize: 15, fontWeight: '700' }}>
+            {count} Friends Here
+          </Text>
           {entity.friends.slice(0, 5).map((f) => (
-            <Text key={f.userId} className="text-sm text-fog/50">
+            <Text
+              key={f.userId}
+              style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}
+            >
               {f.displayName}
               {f.signal ? ` ${f.signal.emoji}` : ''}
             </Text>
           ))}
           {count > 5 && (
-            <Text className="text-sm text-fog/30">
+            <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
               +{count - 5} more
             </Text>
           )}

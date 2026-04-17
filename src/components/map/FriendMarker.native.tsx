@@ -41,12 +41,13 @@ export default function FriendMarker({ entity }: FriendMarkerProps) {
           </View>
         )}
 
-        {/* Avatar with online indicator */}
+        {/* Avatar with online indicator; rose tint when signal is active */}
         <UserAvatar
           displayName={friend.displayName}
           size="md"
           showStatus
           status={friend.isOnline ? 'online' : 'offline'}
+          tint={entity.signal ? 'rose' : 'signal'}
         />
 
         {/* Name label */}
