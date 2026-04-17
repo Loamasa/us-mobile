@@ -35,6 +35,7 @@
 - For production: switch to `@react-native-firebase/auth` (native SDK, no reCAPTCHA)
 - Metro Node 22 Windows fix persisted via `patch-package` (postinstall script)
 - babel.config.js needs: nativewind/babel preset + react-native-reanimated/plugin
+- **Firestore emulator enforces security rules against the client SDK.** Cross-user dev writes (seeding test personas, admin scripts) must go through the REST `:commit` endpoint (`/v1/projects/{pid}/databases/(default)/documents:commit`) with `Authorization: Bearer owner` — this is the documented admin-bypass token, same one already used for auth user creation. `writeBatch(db)` from the JS SDK always runs as the signed-in user.
 
 ## Web Prototype (Reference Setup)
 - Prototype source copied to `.context/prototype/src/` (82 files, finished, won't change)

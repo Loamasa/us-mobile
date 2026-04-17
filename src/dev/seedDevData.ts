@@ -1,16 +1,10 @@
-import {
-  doc,
-  writeBatch,
-  GeoPoint,
-  Timestamp,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { db, getEmulatorHost } from '@/config/firebase';
+import { GeoPoint, Timestamp } from 'firebase/firestore';
+import { getEmulatorHost } from '@/config/firebase';
 import { encodeGeohash } from '@/lib/geohash';
 import fixtures from './fixtures.json';
 
 const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
-const DEV_USER_ID = 'dev-user';
+const FIRESTORE_EMULATOR_PORT = 8088;
 
 /**
  * Create a Firebase Auth user with a specific UID via the emulator admin REST API.
@@ -67,14 +61,100 @@ async function createAuthUser(
   }
 }
 
+// Firestore REST "Value" encoding — https://firebase.google.com/docs/firestore/reference/rest/v1/Value
+type FirestoreValue =
+  | { nullValue: null }
+  | { stringValue: string }
+  | { booleanValue: boolean }
+  | { integerValue: string }
+  | { doubleValue: number }
+  | { timestampValue: string }
+  | { geoPointValue: { latitude: number; longitude: number } }
+  | { arrayValue: { values: FirestoreValue[] } }
+  | { mapValue: { fields: Record<string, FirestoreValue> } };
+
+function toFirestoreValue(v: unknown): FirestoreValue {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === 'string') return { stringValue: v };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') {
+    return Number.isInteger(v)
+      ? { integerValue: String(v) }
+      : { doubleValue: v };
+  }
+  if (v instanceof Timestamp) {
+    return { timestampValue: v.toDate().toISOString() };
+  }
+  if (v instanceof Date) {
+    return { timestampValue: v.toISOString() };
+  }
+  if (v instanceof GeoPoint) {
+    return { geoPointValue: { latitude: v.latitude, longitude: v.longitude } };
+  }
+  if (Array.isArray(v)) {
+    return { arrayValue: { values: v.map(toFirestoreValue) } };
+  }
+  if (typeof v === 'object') {
+    const fields: Record<string, FirestoreValue> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      fields[k] = toFirestoreValue(val);
+    }
+    return { mapValue: { fields } };
+  }
+  throw new Error(`Unsupported value type for Firestore REST: ${typeof v}`);
+}
+
+function toFirestoreFields(obj: Record<string, unknown>) {
+  const fields: Record<string, FirestoreValue> = {};
+  for (const [k, v] of Object.entries(obj)) fields[k] = toFirestoreValue(v);
+  return fields;
+}
+
+type SeedWrite = { path: string; data: Record<string, unknown> };
+
+/**
+ * Commit a batch of upserts to the Firestore emulator via the REST `:commit`
+ * endpoint using the `Bearer owner` admin token, which bypasses security rules.
+ */
+async function commitWritesAsOwner(writes: SeedWrite[]): Promise<void> {
+  const host = getEmulatorHost();
+  const url = `http://${host}:${FIRESTORE_EMULATOR_PORT}/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents:commit`;
+
+  const body = {
+    writes: writes.map(({ path, data }) => ({
+      update: {
+        name: `projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents/${path}`,
+        fields: toFirestoreFields(data),
+      },
+    })),
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer owner',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Firestore commit failed (${res.status}): ${errText}`);
+  }
+}
+
 /**
  * Seed all test data into Firestore emulator.
- * Idempotent — safe to call multiple times (uses setDoc via batch.set which overwrites).
+ * Idempotent — safe to call multiple times (upserts via REST commit).
+ *
+ * Writes bypass security rules by using the emulator's admin `Bearer owner`
+ * token, so seeding works regardless of which account is currently signed in.
  */
 export default async function seedDevData(): Promise<void> {
-  // 1. Create auth users for all 5 dummies
   const personaEntries = Object.entries(fixtures.personas);
 
+  // 1. Create auth users for all 5 dummies
   await Promise.all(
     personaEntries.map(([id, persona]) =>
       createAuthUser(
@@ -86,13 +166,13 @@ export default async function seedDevData(): Promise<void> {
     )
   );
 
-  // 2. Write all Firestore data in a single batch
-  const batch = writeBatch(db);
+  // 2. Assemble Firestore writes
+  const writes: SeedWrite[] = [];
+  const now = new Date();
 
   for (const [id, persona] of personaEntries) {
     const { profile, location, spots } = persona;
 
-    // Profile doc: users/{id}
     const profileData: Record<string, unknown> = {
       displayName: profile.displayName,
       handle: profile.handle,
@@ -101,7 +181,7 @@ export default async function seedDevData(): Promise<void> {
       phoneNumber: profile.phoneNumber,
       settings: profile.settings,
       currentSignal: null,
-      createdAt: new Date().toISOString(),
+      createdAt: now.toISOString(),
     };
 
     // Alice has an active signal
@@ -109,56 +189,55 @@ export default async function seedDevData(): Promise<void> {
       profileData.currentSignal = {
         emoji: profile.signal.emoji,
         text: profile.signal.text,
-        expiresAt: Timestamp.fromDate(
-          new Date(Date.now() + 60 * 60 * 1000) // 1 hour from now
-        ),
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
         location: new GeoPoint(location.lat, location.lng),
       };
     }
 
-    batch.set(doc(db, 'users', id), profileData);
+    writes.push({ path: `users/${id}`, data: profileData });
+    writes.push({ path: `handles/${profile.handle}`, data: { userId: id } });
 
-    // Handle reservation: handles/{handle}
-    batch.set(doc(db, 'handles', profile.handle), { userId: id });
-
-    // Location doc: locations/{id} — only if sharing location
     if (profile.settings.globalLocationSharing && location) {
-      batch.set(doc(db, 'locations', id), {
-        geohash: encodeGeohash(location.lat, location.lng),
-        geopoint: new GeoPoint(location.lat, location.lng),
-        lat: location.lat,
-        lng: location.lng,
-        updatedAt: serverTimestamp(),
-        precision: 'EXACT' as const,
+      writes.push({
+        path: `locations/${id}`,
+        data: {
+          geohash: encodeGeohash(location.lat, location.lng),
+          geopoint: new GeoPoint(location.lat, location.lng),
+          lat: location.lat,
+          lng: location.lng,
+          updatedAt: now,
+          precision: 'EXACT',
+        },
       });
     }
 
-    // Spots: users/{id}/spots/{spotId}
     for (const spot of spots) {
-      batch.set(doc(db, 'users', id, 'spots', spot.id), {
-        name: spot.name,
-        emoji: spot.emoji,
-        location: new GeoPoint(spot.lat, spot.lng),
-        radius: spot.radius,
-        isActive: spot.isActive,
+      writes.push({
+        path: `users/${id}/spots/${spot.id}`,
+        data: {
+          name: spot.name,
+          emoji: spot.emoji,
+          location: new GeoPoint(spot.lat, spot.lng),
+          radius: spot.radius,
+          isActive: spot.isActive,
+        },
       });
     }
   }
 
   // 3. Bilateral friendships: dev-user <-> each dummy
   for (const [userA, userB] of fixtures.friendships) {
-    batch.set(doc(db, 'users', userA, 'friends', userB), {
-      status: 'ACTIVE',
-      since: serverTimestamp(),
-      nickname: null,
+    writes.push({
+      path: `users/${userA}/friends/${userB}`,
+      data: { status: 'ACTIVE', since: now, nickname: null },
     });
-    batch.set(doc(db, 'users', userB, 'friends', userA), {
-      status: 'ACTIVE',
-      since: serverTimestamp(),
-      nickname: null,
+    writes.push({
+      path: `users/${userB}/friends/${userA}`,
+      data: { status: 'ACTIVE', since: now, nickname: null },
     });
   }
 
-  await batch.commit();
+  // 4. Commit as owner (bypasses security rules)
+  await commitWritesAsOwner(writes);
   console.log(`🌱 Seeded ${personaEntries.length} test accounts + friendships`);
 }

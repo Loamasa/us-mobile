@@ -1,7 +1,7 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-04-17 — Privacy gated on spots, settings now reachable from Chats gear, map/chats visual polish
+2026-04-17 — Seed Test Data rules bypass via admin REST, privacy gated on spots, settings now reachable from Chats gear, map/chats visual polish
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
@@ -38,6 +38,12 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - Previously captured `auth.currentUser?.uid` at render time with empty-dep `useEffect`, so switching dev accounts (Settings → tap persona) left stale subscriptions keyed to the old uid — explained why seeded friends didn't appear after switching to a persona.
 - Fresh-start flow (app boot as `dev-user` → Seed Test Data → return to Chats/Map) already worked since the MVP scaffold. No new queries were needed — the bug was a subscription-lifecycle issue.
 
+### Seed Test Data PERMISSION_DENIED Fix (2026-04-17)
+- **Bug**: Tapping "Seed Test Data" threw `FirebaseError: PERMISSION_DENIED: false for 'create' @ L8, false for 'update' @ L9` — rules only allow `users/{uid}` writes when `request.auth.uid == uid`, but the client-SDK batch ran as `dev-user` while writing profiles/handles/locations/spots for `alice`, `bob`, etc.
+- **Fix**: `src/dev/seedDevData.ts` now commits via the Firestore emulator REST endpoint `/v1/.../documents:commit` with `Authorization: Bearer owner` — the same admin-bypass pattern already used for auth-user creation. Rules get bypassed at the emulator level, so seeding works from any signed-in account.
+- Added small `toFirestoreValue` converter (strings, bools, ints/doubles, `Date`, `Timestamp`, `GeoPoint`, arrays, nested maps).
+- `npx tsc --noEmit` passes; runtime test pending physical-device verification.
+
 ### Privacy Gating + UX Polish (2026-04-17)
 - **Privacy**: `useLocationTracking` now writes the user's location doc **only when inside one of their own active spots**, and deletes it otherwise. `useFriendLocations` drops per-friend spot reads (blocked by rules anyway — spots are owner-only) and relies on location-doc presence as the visibility signal. Ghost mode still short-circuits tracking entirely.
 - **Settings reachability**: Chats gear icon now routes to `/(tabs)/settings`. The inline bottom-sheet modal (duplicated a stale subset of settings and was missing Seed Test Data / Dev Accounts / My Spots) is deleted.
@@ -56,6 +62,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - `SafeAreaView` deprecation warning — cosmetic
 - Firestore emulator has stale data from previous sessions (handles, profiles)
 - ~~**Seeded friends don't appear on map or friends list**~~ — fixed 2026-04-17: subscriptions now react to `onAuthStateChanged` so switching accounts re-wires listeners.
+- ~~**`Seed Test Data` → `PERMISSION_DENIED`**~~ — fixed 2026-04-17: seed now writes via admin REST `:commit` with `Bearer owner`, bypassing rules.
 
 ## Next Steps
 
