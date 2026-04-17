@@ -1,7 +1,7 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-04-17 — Friend subscriptions made reactive to auth state (fixes account switching)
+2026-04-17 — Privacy gated on spots, settings now reachable from Chats gear, map/chats visual polish
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
@@ -37,6 +37,13 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - `useFriendLocations`, `useLocationTracking`, Chats screen, and Map screen now all subscribe to `onAuthStateChanged` and re-wire Firestore listeners when the signed-in uid changes.
 - Previously captured `auth.currentUser?.uid` at render time with empty-dep `useEffect`, so switching dev accounts (Settings → tap persona) left stale subscriptions keyed to the old uid — explained why seeded friends didn't appear after switching to a persona.
 - Fresh-start flow (app boot as `dev-user` → Seed Test Data → return to Chats/Map) already worked since the MVP scaffold. No new queries were needed — the bug was a subscription-lifecycle issue.
+
+### Privacy Gating + UX Polish (2026-04-17)
+- **Privacy**: `useLocationTracking` now writes the user's location doc **only when inside one of their own active spots**, and deletes it otherwise. `useFriendLocations` drops per-friend spot reads (blocked by rules anyway — spots are owner-only) and relies on location-doc presence as the visibility signal. Ghost mode still short-circuits tracking entirely.
+- **Settings reachability**: Chats gear icon now routes to `/(tabs)/settings`. The inline bottom-sheet modal (duplicated a stale subset of settings and was missing Seed Test Data / Dev Accounts / My Spots) is deleted.
+- **Map polish**: `FriendMarker` avatar border turns rose when a signal is active. `ClusterMarker` pulses with an animated ring and uses the real `UsersIcon` SVG instead of 👥.
+- **Chats polish**: per-friend `onLocation` subscription — presence dot is mint when visible (location doc exists), muted grey otherwise. Matches map semantics.
+- **Types**: `UserProfile.avatarUrl` and `FriendOnMap.avatarUrl` are now `string | null` to match fixtures/bootstrap code that writes `null` before an avatar is set.
 
 ## Known Issues / Warnings
 
@@ -77,10 +84,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 #### Settings Screen (redesign to match prototype)
 - [ ] **Nav list layout** — prototype-style nav list with 4 sections: My Account, Privacy & Safety, My Spots, Developer/Debug
   - Tap item → navigate to detail view (full-screen)
-
-#### My Spots in setting (manage personal visibility zones)
-- [ ] **My Spots is called My spaces, make sure they are called spots in the documentation and code**
-- [ ] **My Spots visible in Settings** — currently not showing (Settings needs redesign first) 
+- [x] **Gear icon routes to full settings** — Chats gear now opens `/(tabs)/settings` instead of the stale inline modal (2026-04-17)
 
 #### Friend Clusters (GROUP type on map)
 - [ ] **Cluster markers** — 2+ friends within 100m merge into a single cluster node
@@ -98,8 +102,8 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [ ] **Render seeded friends' spots on map** — currently only current-user spots render; friend spot circles would show where they're visible from
 
 #### Friends Screen
-- [ ] **Avatar component** — replace 👤 emoji with `UserAvatar` (size variants, online status dot)
-- [ ] **Presence indicators** — online/away/offline status dots (green/amber/gray)
+- [x] **Avatar component** — `UserAvatar` with size variants + status dot in use on Chats screen
+- [x] **Presence indicators** — mint dot when friend is inside an active spot (location doc exists), muted grey otherwise (2026-04-17)
 
 #### Settings Screen
 - [ ] **Profile card** — proper avatar with edit button

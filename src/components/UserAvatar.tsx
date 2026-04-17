@@ -7,7 +7,7 @@ type AvatarTint = 'signal' | 'rose';
 
 interface UserAvatarProps {
     displayName?: string;
-    avatarUrl?: string;
+    avatarUrl?: string | null;
     size?: AvatarSize;
     status?: AvatarStatus;
     showStatus?: boolean;

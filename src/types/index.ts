@@ -6,7 +6,7 @@ export interface UserProfile {
   id: string;
   displayName: string;
   handle: string;
-  avatarUrl: string;
+  avatarUrl: string | null;
   bio: string;
   phoneNumber: string;
   createdAt: Timestamp;
@@ -82,7 +82,7 @@ export interface MapEntity {
 export interface FriendOnMap {
   userId: string;
   displayName: string;
-  avatarUrl: string;
+  avatarUrl: string | null;
   location: { lat: number; lng: number };
   signal: UserSignal | null;
   isOnline: boolean;
