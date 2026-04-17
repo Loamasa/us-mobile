@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
-import { onUserProfile, deleteLocation } from '@/lib/firestore';
+import { onUserProfile, deleteLocation, onUserSpots } from '@/lib/firestore';
 import { COLORS } from '@/config/constants';
-import type { UserProfile } from '@/types';
+import type { UserProfile, UserSpot } from '@/types';
 import GlassCard from '@/components/ui/GlassCard';
+import MySpotsModal from '@/features/spots/MySpotsModal';
 import {
   DEV_ACCOUNTS,
   getCurrentAccountId,
@@ -19,6 +20,8 @@ import seedDevData from '@/dev/seedDevData';
 export default function SettingsScreen() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userId, setUserId] = useState<string | undefined>(auth.currentUser?.uid);
+  const [spots, setSpots] = useState<UserSpot[]>([]);
+  const [showSpotsModal, setShowSpotsModal] = useState(false);
   const [seeding, setSeeding] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(
@@ -39,10 +42,12 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (!userId) {
       setProfile(null);
+      setSpots([]);
       return;
     }
-    const unsubscribe = onUserProfile(userId, setProfile);
-    return unsubscribe;
+    const unsubProfile = onUserProfile(userId, setProfile);
+    const unsubSpots = onUserSpots(userId, setSpots);
+    return () => { unsubProfile(); unsubSpots(); };
   }, [userId]);
 
   const toggleLocationSharing = async (value: boolean) => {
@@ -150,6 +155,34 @@ export default function SettingsScreen() {
             />
           </GlassCard>
 
+          <TouchableOpacity onPress={() => setShowSpotsModal(true)}>
+            <GlassCard className="mb-2 flex-row items-center justify-between">
+              <View className="flex-1">
+                <Text className="text-fog font-semibold">My Places</Text>
+                <Text className="text-fog/40 text-xs mt-1">
+                  Spots where friends can see you
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {spots.length > 0 && (
+                  <View
+                    style={{
+                      backgroundColor: 'rgba(46,92,255,0.15)',
+                      borderRadius: 99,
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                    }}
+                  >
+                    <Text style={{ color: COLORS.signal, fontSize: 11, fontWeight: '700' }}>
+                      {spots.length}
+                    </Text>
+                  </View>
+                )}
+                <Text className="text-fog/30 text-base">›</Text>
+              </View>
+            </GlassCard>
+          </TouchableOpacity>
+
           <GlassCard className="mb-6 flex-row items-center justify-between">
             <View className="flex-1">
               <Text className="text-fog font-semibold">Allow Friend Requests</Text>
@@ -212,9 +245,8 @@ export default function SettingsScreen() {
                 disabled={switching || isActive}
               >
                 <GlassCard
-                  className={`mb-2 flex-row items-center justify-between ${
-                    isActive ? 'border-signal' : ''
-                  }`}
+                  className={`mb-2 flex-row items-center justify-between ${isActive ? 'border-signal' : ''
+                    }`}
                 >
                   <View>
                     <Text className="text-fog font-semibold">
@@ -244,6 +276,9 @@ export default function SettingsScreen() {
           <View className="h-8" />
         </>
       )}
+
+      {/* My Spots Modal */}
+      <MySpotsModal visible={showSpotsModal} onClose={() => setShowSpotsModal(false)} />
     </ScrollView>
   );
 }

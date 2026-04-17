@@ -64,3 +64,13 @@ export const MAX_ONBOARDING_SPOTS = 3;
 
 // Default spot radius in meters
 export const DEFAULT_SPOT_RADIUS = 200;
+
+// Spot icon grid for manage-places modal (from prototype)
+export const SPOT_ICONS = [
+  '🏠', '💼', '🏋️', '🎓', '☕',
+  '🍺', '🌳', '🏖️', '🎮', '❤️',
+  '📍', '🚲', '🛒', '🍔', '📚',
+] as const;
+
+// Radius slider range for spot creation/editing
+export const SPOT_RADIUS_RANGE = { min: 50, max: 1000, step: 50 } as const;

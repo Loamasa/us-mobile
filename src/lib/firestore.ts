@@ -181,3 +181,26 @@ export async function createUserSpot(
   await setDoc(spotDoc, spot);
   return spotDoc.id;
 }
+
+export async function updateUserSpot(
+  userId: string,
+  spotId: string,
+  data: Partial<Omit<UserSpot, 'id'>>
+): Promise<void> {
+  await updateDoc(doc(db, 'users', userId, 'spots', spotId), data);
+}
+
+export async function deleteUserSpot(
+  userId: string,
+  spotId: string
+): Promise<void> {
+  await deleteDoc(doc(db, 'users', userId, 'spots', spotId));
+}
+
+export async function toggleUserSpot(
+  userId: string,
+  spotId: string,
+  isActive: boolean
+): Promise<void> {
+  await updateDoc(doc(db, 'users', userId, 'spots', spotId), { isActive });
+}
