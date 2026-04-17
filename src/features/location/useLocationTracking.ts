@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Location from 'expo-location';
+import { onAuthStateChanged } from 'firebase/auth';
 import { GeoPoint } from 'firebase/firestore';
 import { auth } from '@/config/firebase';
 import { updateLocation, deleteLocation, onUserProfile } from '@/lib/firestore';
@@ -14,9 +15,15 @@ import { MAP_DEFAULTS } from '@/config/constants';
 export function useLocationTracking() {
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const isTrackingRef = useRef(false);
+  const [userId, setUserId] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
 
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
+    return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? null));
+  }, []);
+
+  useEffect(() => {
     if (!userId) return;
 
     let profileUnsubscribe: (() => void) | null = null;
@@ -72,6 +79,7 @@ export function useLocationTracking() {
       profileUnsubscribe?.();
       subscriptionRef.current?.remove();
       subscriptionRef.current = null;
+      isTrackingRef.current = false;
     };
-  }, []);
+  }, [userId]);
 }

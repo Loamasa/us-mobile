@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import {
@@ -43,12 +43,19 @@ export default function ChatsScreen() {
   const [addError, setAddError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userId, setUserId] = useState<string | undefined>(
+    auth.currentUser?.uid
+  );
   const router = useRouter();
 
-  const userId = auth.currentUser?.uid;
+  // Track auth state so friends/requests re-subscribe on account switch
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? undefined));
+  }, []);
 
   // Load friends with profiles
   useEffect(() => {
+    setFriends([]);
     if (!userId) return;
 
     const unsubscribe = onFriends(userId, async (friendList) => {
@@ -70,6 +77,7 @@ export default function ChatsScreen() {
 
   // Load friend requests with sender profiles
   useEffect(() => {
+    setRequests([]);
     if (!userId) return;
 
     const unsubscribe = onFriendRequests(userId, async (reqList) => {
@@ -91,6 +99,7 @@ export default function ChatsScreen() {
 
   // Load own profile for settings modal
   useEffect(() => {
+    setProfile(null);
     if (!userId) return;
     return onUserProfile(userId, setProfile);
   }, [userId]);

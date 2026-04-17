@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { onFriends, onLocation, getUserProfile } from '@/lib/firestore';
 import type { Friend, LocationPresence, UserProfile } from '@/types';
@@ -11,16 +12,28 @@ interface FriendLocationData {
 /**
  * Subscribes to real-time locations of all friends.
  * Returns a map of userId -> { location, profile }.
+ * Re-subscribes when the signed-in user changes (account switching).
  */
 export function useFriendLocations() {
+  const [userId, setUserId] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
   const [friendLocations, setFriendLocations] = useState<
     Record<string, FriendLocationData>
   >({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return;
+    return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? null));
+  }, []);
+
+  useEffect(() => {
+    setFriendLocations({});
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
 
     const locationUnsubscribes: (() => void)[] = [];
     let friendsUnsubscribe: (() => void) | null = null;
@@ -69,7 +82,7 @@ export function useFriendLocations() {
       friendsUnsubscribe?.();
       locationUnsubscribes.forEach((unsub) => unsub());
     };
-  }, []);
+  }, [userId]);
 
   return { friendLocations, loading };
 }

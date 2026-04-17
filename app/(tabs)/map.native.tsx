@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Platform, Alert } from 'react-native';
 import * as Location from 'expo-location';
+import { onAuthStateChanged } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { onUserSpots, onUserProfile, deleteLocation } from '@/lib/firestore';
@@ -31,9 +32,15 @@ export default function MapScreen() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [spots, setSpots] = useState<UserSpot[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [userId, setUserId] = useState<string | undefined>(auth.currentUser?.uid);
   const [showSignalModal, setShowSignalModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const mapRef = useRef<MapView>(null);
+
+  // Track auth state so profile/spots re-subscribe on account switch
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? undefined));
+  }, []);
 
   // Start location tracking (writes to Firestore)
   useLocationTracking();
@@ -88,19 +95,17 @@ export default function MapScreen() {
 
   // Load user profile (for ghost mode + signal state)
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
+    setProfile(null);
     if (!userId) return;
-    const unsubscribe = onUserProfile(userId, setProfile);
-    return unsubscribe;
-  }, []);
+    return onUserProfile(userId, setProfile);
+  }, [userId]);
 
   // Load user spots
   useEffect(() => {
-    const userId = auth.currentUser?.uid;
+    setSpots([]);
     if (!userId) return;
-    const unsubscribe = onUserSpots(userId, setSpots);
-    return unsubscribe;
-  }, []);
+    return onUserSpots(userId, setSpots);
+  }, [userId]);
 
   // ── Visibility status ───────────────────────────────────────────────────────
   const visibilityStatus = (() => {
