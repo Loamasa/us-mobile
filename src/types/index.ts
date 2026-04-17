@@ -54,6 +54,16 @@ export interface LocationPresence {
   lng: number;
   updatedAt: Timestamp;
   precision: 'EXACT' | 'APPROXIMATE';
+  // Snapshot of the active spot containing the user at the time of this write.
+  // Friends render this circle on the map. Only leaks the current spot, not
+  // all spots, and only while the user is visible anyway.
+  spot?: {
+    id: string;
+    name: string;
+    emoji: string;
+    center: GeoPoint;
+    radius: number;
+  };
 }
 
 // ─── Spots ───────────────────────────────────────────

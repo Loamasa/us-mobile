@@ -14,11 +14,11 @@ import { haversineDistance } from '@/utils/distance';
 import { MAP_DEFAULTS } from '@/config/constants';
 import type { UserSpot } from '@/types';
 
-function isInsideAnyActiveSpot(
+function findContainingSpot(
   lat: number,
   lng: number,
   spots: UserSpot[]
-): boolean {
+): UserSpot | null {
   for (const spot of spots) {
     if (!spot.isActive) continue;
     const dist = haversineDistance(
@@ -27,9 +27,9 @@ function isInsideAnyActiveSpot(
       spot.location.latitude,
       spot.location.longitude
     );
-    if (dist <= spot.radius) return true;
+    if (dist <= spot.radius) return spot;
   }
-  return false;
+  return null;
 }
 
 /**
@@ -61,15 +61,22 @@ export function useLocationTracking() {
 
     const publishIfInSpot = async (latitude: number, longitude: number) => {
       if (!isTrackingRef.current) return;
-      const inSpot = isInsideAnyActiveSpot(latitude, longitude, spotsRef.current);
+      const spot = findContainingSpot(latitude, longitude, spotsRef.current);
 
-      if (inSpot) {
+      if (spot) {
         await updateLocation(userId, {
           geohash: encodeGeohash(latitude, longitude),
           geopoint: new GeoPoint(latitude, longitude),
           lat: latitude,
           lng: longitude,
           precision: 'EXACT',
+          spot: {
+            id: spot.id,
+            name: spot.name,
+            emoji: spot.emoji,
+            center: spot.location,
+            radius: spot.radius,
+          },
         });
         lastPublishedRef.current = true;
       } else if (lastPublishedRef.current) {

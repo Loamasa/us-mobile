@@ -51,6 +51,18 @@ export default function MapScreen() {
   // Project friends into map entities (individual + clusters)
   const mapEntities = useMapProjection(friendLocations);
 
+  // Friend spot snapshots — each visible friend's current containing spot.
+  const friendSpots = Object.values(friendLocations)
+    .map(({ location, profile }) => {
+      if (!location.spot) return null;
+      return {
+        key: `${profile.id}-${location.spot.id}`,
+        ownerName: profile.displayName,
+        spot: location.spot,
+      };
+    })
+    .filter((v): v is NonNullable<typeof v> => v !== null);
+
   const ghostMode = profile ? !profile.settings.globalLocationSharing : false;
   const activeSignal = (() => {
     const signal = profile?.currentSignal;
@@ -212,6 +224,38 @@ export default function MapScreen() {
               </View>
             </Marker>
           ))}
+
+        {/* Friend Spot Zones — mint-tinted circles for each visible friend's current spot */}
+        {friendSpots.map(({ key, spot }) => (
+          <Circle
+            key={`friend-spot-${key}`}
+            center={{
+              latitude: spot.center.latitude,
+              longitude: spot.center.longitude,
+            }}
+            radius={spot.radius}
+            fillColor="rgba(0, 224, 150, 0.06)"
+            strokeColor="rgba(0, 224, 150, 0.28)"
+            strokeWidth={1}
+          />
+        ))}
+        {friendSpots.map(({ key, ownerName, spot }) => (
+          <Marker
+            key={`friend-spot-label-${key}`}
+            coordinate={{
+              latitude: spot.center.latitude,
+              longitude: spot.center.longitude,
+            }}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View className="items-center opacity-50">
+              <Text className="text-base">{spot.emoji}</Text>
+              <Text className="text-mint/70 text-[9px]">
+                {ownerName.split(' ')[0]}'s {spot.name}
+              </Text>
+            </View>
+          </Marker>
+        ))}
 
         {/* Friend Markers & Clusters */}
         {mapEntities.map((entity) =>

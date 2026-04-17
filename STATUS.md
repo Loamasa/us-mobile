@@ -1,7 +1,7 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-04-17 — Seed Test Data rules bypass via admin REST, privacy gated on spots, settings now reachable from Chats gear, map/chats visual polish
+2026-04-17 — Friend spot zones rendered on map (embedded in location doc, privacy-preserving)
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
@@ -42,6 +42,16 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - **Bug**: Tapping "Seed Test Data" threw `FirebaseError: PERMISSION_DENIED: false for 'create' @ L8, false for 'update' @ L9` — rules only allow `users/{uid}` writes when `request.auth.uid == uid`, but the client-SDK batch ran as `dev-user` while writing profiles/handles/locations/spots for `alice`, `bob`, etc.
 - **Fix**: `src/dev/seedDevData.ts` now commits via the Firestore emulator REST endpoint `/v1/.../documents:commit` with `Authorization: Bearer owner` — the same admin-bypass pattern already used for auth-user creation. Rules get bypassed at the emulator level, so seeding works from any signed-in account.
 - Added small `toFirestoreValue` converter (strings, bools, ints/doubles, `Date`, `Timestamp`, `GeoPoint`, arrays, nested maps).
+- `npx tsc --noEmit` passes; runtime test pending physical-device verification.
+
+### Friend Spot Zones on Map (2026-04-17)
+- **Problem**: Map showed only the current user's spots. Friend locations appeared as isolated pins with no visual context for *why* they were visible or *where they could move* without disappearing.
+- **Approach**: Embed a snapshot of the containing spot (`id`, `name`, `emoji`, `center`, `radius`) directly in the friend's `locations/{uid}` doc. The user's own tracker already computes this to decide whether to publish — just include it in the write.
+- **Privacy**: No rules change needed. Spots remain owner-only at `users/{uid}/spots`. The location doc leaks *only the current containing spot* and *only while the friend is already visible*. Ghost mode or leaving the spot removes the doc entirely.
+- Extended `LocationPresence` with optional `spot` field (`src/types/index.ts`).
+- `useLocationTracking`: `isInsideAnyActiveSpot` → `findContainingSpot`; embeds the matching spot in `updateLocation`.
+- `seedDevData`: seeded location docs now include the containing spot (Alice→Home, Bob→Home, Charlie→Hangout). Dana/Eve remain ghost, no location doc.
+- `map.native.tsx`: per-friend spot zones render as mint-tinted `Circle` + emoji+`"Alice's Home"`-style label. Sits between own spots and friend markers in the layer stack.
 - `npx tsc --noEmit` passes; runtime test pending physical-device verification.
 
 ### Privacy Gating + UX Polish (2026-04-17)
@@ -106,7 +116,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 #### Display Seeded Friends (wire up test data)
 - [x] **Show seeded friends on map** — `useFriendLocations` + `useMapProjection` + `FriendMarker`/`ClusterMarker`; clustering by 100m Haversine
 - [x] **Show seeded friends in friends list** — `onFriends` subscription with per-friend profile fetch; now auth-reactive for account switching
-- [ ] **Render seeded friends' spots on map** — currently only current-user spots render; friend spot circles would show where they're visible from
+- [x] **Render seeded friends' spots on map** — each visible friend's current containing spot renders as a mint-tinted circle + emoji label; spot snapshot embedded in `locations/{uid}` doc at publish time (2026-04-17)
 
 #### Friends Screen
 - [x] **Avatar component** — `UserAvatar` with size variants + status dot in use on Chats screen

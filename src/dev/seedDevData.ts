@@ -1,6 +1,7 @@
 import { GeoPoint, Timestamp } from 'firebase/firestore';
 import { getEmulatorHost } from '@/config/firebase';
 import { encodeGeohash } from '@/lib/geohash';
+import { haversineDistance } from '@/utils/distance';
 import fixtures from './fixtures.json';
 
 const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
@@ -198,17 +199,35 @@ export default async function seedDevData(): Promise<void> {
     writes.push({ path: `handles/${profile.handle}`, data: { userId: id } });
 
     if (profile.settings.globalLocationSharing && location) {
-      writes.push({
-        path: `locations/${id}`,
-        data: {
-          geohash: encodeGeohash(location.lat, location.lng),
-          geopoint: new GeoPoint(location.lat, location.lng),
-          lat: location.lat,
-          lng: location.lng,
-          updatedAt: now,
-          precision: 'EXACT',
-        },
-      });
+      // Match real tracking: only publish a location doc if the persona is
+      // inside one of their own active spots. Embed that spot so friends can
+      // render its zone on the map.
+      const containingSpot = spots.find(
+        (s) =>
+          s.isActive &&
+          haversineDistance(location.lat, location.lng, s.lat, s.lng) <= s.radius
+      );
+
+      if (containingSpot) {
+        writes.push({
+          path: `locations/${id}`,
+          data: {
+            geohash: encodeGeohash(location.lat, location.lng),
+            geopoint: new GeoPoint(location.lat, location.lng),
+            lat: location.lat,
+            lng: location.lng,
+            updatedAt: now,
+            precision: 'EXACT',
+            spot: {
+              id: containingSpot.id,
+              name: containingSpot.name,
+              emoji: containingSpot.emoji,
+              center: new GeoPoint(containingSpot.lat, containingSpot.lng),
+              radius: containingSpot.radius,
+            },
+          },
+        });
+      }
     }
 
     for (const spot of spots) {
