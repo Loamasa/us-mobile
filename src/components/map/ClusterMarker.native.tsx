@@ -1,15 +1,16 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, Animated, Easing } from 'react-native';
-import { Marker, Callout } from 'react-native-maps';
+import { Marker } from 'react-native-maps';
 import { UsersIcon } from '@/components/ui/icons';
 import { COLORS } from '@/config/constants';
 import type { MapEntity } from '@/types';
 
 interface ClusterMarkerProps {
   entity: MapEntity;
+  onPress?: (entity: MapEntity) => void;
 }
 
-export default function ClusterMarker({ entity }: ClusterMarkerProps) {
+export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
   const count = entity.friends.length;
   const pulse = useRef(new Animated.Value(0)).current;
 
@@ -49,6 +50,8 @@ export default function ClusterMarker({ entity }: ClusterMarkerProps) {
         longitude: entity.location.lng,
       }}
       anchor={{ x: 0.5, y: 0.5 }}
+      onPress={onPress ? () => onPress(entity) : undefined}
+      tracksViewChanges={false}
     >
       <View style={{ alignItems: 'center', width: 72, height: 80 }}>
         {/* Animated pulse ring */}
@@ -101,43 +104,7 @@ export default function ClusterMarker({ entity }: ClusterMarkerProps) {
             {count}
           </Text>
         </View>
-
-        {/* Label */}
-        <Text
-          style={{
-            color: 'rgba(242,244,246,0.7)',
-            fontSize: 10,
-            marginTop: 3,
-            textShadowColor: 'rgba(0,0,0,0.8)',
-            textShadowOffset: { width: 0, height: 1 },
-            textShadowRadius: 3,
-          }}
-        >
-          {count} Friends
-        </Text>
       </View>
-
-      <Callout>
-        <View style={{ padding: 8, minWidth: 150 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700' }}>
-            {count} Friends Here
-          </Text>
-          {entity.friends.slice(0, 5).map((f) => (
-            <Text
-              key={f.userId}
-              style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}
-            >
-              {f.displayName}
-              {f.signal ? ` ${f.signal.emoji}` : ''}
-            </Text>
-          ))}
-          {count > 5 && (
-            <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-              +{count - 5} more
-            </Text>
-          )}
-        </View>
-      </Callout>
     </Marker>
   );
 }

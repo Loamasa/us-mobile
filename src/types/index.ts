@@ -87,6 +87,8 @@ export interface MapEntity {
   location: { lat: number; lng: number };
   friends: FriendOnMap[];
   signal?: { emoji: string; text: string };
+  // Set when a named group chat (mapVisibility = 'ALWAYS') matches this cluster.
+  groupChat?: { id: string; name: string };
 }
 
 export interface FriendOnMap {
@@ -96,4 +98,32 @@ export interface FriendOnMap {
   location: { lat: number; lng: number };
   signal: UserSignal | null;
   isOnline: boolean;
+}
+
+// ─── Chats ───────────────────────────────────────────
+
+export type ChatType = 'DM' | 'GROUP';
+export type MapVisibility = 'ALWAYS' | 'ASK' | 'NEVER';
+
+export interface ChatSummary {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  type: ChatType;
+  memberIds: string[];
+  createdBy: string;
+  createdAt: Timestamp;
+  lastMessage: string | null;
+  lastMessageAt: Timestamp | null;
+  // Named groups that pin to the map even without proximity clustering.
+  mapVisibility?: MapVisibility;
+  fixedLocation?: GeoPoint;
+}
+
+export interface Message {
+  id: string;
+  chatId: string;
+  senderId: string;
+  content: string;
+  createdAt: Timestamp;
 }

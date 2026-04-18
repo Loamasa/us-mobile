@@ -15,9 +15,9 @@
         },
         "signal": { "emoji": "☕", "text": "Getting coffee, come join!" }
       },
-      "location": { "lat": 55.5953, "lng": 13.0115 },
+      "location": { "lat": 55.5978, "lng": 13.0076 },
       "spots": [
-        { "id": "home", "name": "Home", "emoji": "🏠", "lat": 55.5953, "lng": 13.0115, "radius": 100, "isActive": true }
+        { "id": "home", "name": "Home", "emoji": "🏠", "lat": 55.5978, "lng": 13.0076, "radius": 100, "isActive": true }
       ]
     },
     "bob": {
@@ -35,9 +35,9 @@
         },
         "signal": null
       },
-      "location": { "lat": 55.5954, "lng": 13.0116 },
+      "location": { "lat": 55.5979, "lng": 13.0077 },
       "spots": [
-        { "id": "home", "name": "Home", "emoji": "🏠", "lat": 55.5954, "lng": 13.0116, "radius": 100, "isActive": true }
+        { "id": "home", "name": "Home", "emoji": "🏠", "lat": 55.5979, "lng": 13.0077, "radius": 100, "isActive": true }
       ]
     },
     "charlie": {
@@ -103,5 +103,18 @@
     ["dev-user", "charlie"],
     ["dev-user", "dana"],
     ["dev-user", "eve"]
+  ],
+  "chats": [
+    {
+      "id": "chat_mollevangen",
+      "name": "Möllevången Crew",
+      "type": "GROUP",
+      "memberIds": ["dev-user", "alice", "bob"],
+      "createdBy": "dev-user",
+      "mapVisibility": "ALWAYS",
+      "fixedLocation": { "lat": 55.5917, "lng": 13.0070 },
+      "lastMessage": "Anyone near the square?",
+      "avatarUrl": null
+    }
   ]
 }

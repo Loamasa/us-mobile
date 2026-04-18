@@ -256,7 +256,28 @@ export default async function seedDevData(): Promise<void> {
     });
   }
 
-  // 4. Commit as owner (bypasses security rules)
+  // 4. Seeded chats (named group crews). Fixtures are optional — skip if absent.
+  const chats = (fixtures as { chats?: Array<Record<string, unknown>> }).chats ?? [];
+  for (const chat of chats) {
+    const data: Record<string, unknown> = {
+      name: chat.name,
+      avatarUrl: chat.avatarUrl ?? null,
+      type: chat.type,
+      memberIds: chat.memberIds,
+      createdBy: chat.createdBy,
+      createdAt: now,
+      lastMessage: chat.lastMessage ?? null,
+      lastMessageAt: null,
+    };
+    if (chat.mapVisibility) data.mapVisibility = chat.mapVisibility;
+    const fixed = chat.fixedLocation as { lat: number; lng: number } | undefined;
+    if (fixed) data.fixedLocation = new GeoPoint(fixed.lat, fixed.lng);
+    writes.push({ path: `chats/${chat.id}`, data });
+  }
+
+  // 5. Commit as owner (bypasses security rules)
   await commitWritesAsOwner(writes);
-  console.log(`🌱 Seeded ${personaEntries.length} test accounts + friendships`);
+  console.log(
+    `🌱 Seeded ${personaEntries.length} test accounts + friendships + ${chats.length} chats`
+  );
 }

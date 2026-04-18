@@ -1,13 +1,38 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-04-17 — Friend spot zones rendered on map (embedded in location doc, privacy-preserving)
+2026-04-18 — Group chat data model + chat detail screen + Möllevången Crew seeded; "Open Group Chat" now navigates to a live chat room
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
 Web preview is fallback only — NativeWind styling and react-native-maps don't work on web.
 
 ## What Was Done This Session
+
+### Group Chat Data Model + Chat Detail Screen (2026-04-18)
+- **Goal**: Wire the "Open Group Chat" CTA end-to-end — a tap on a cluster's CTA should open a real chat room with the crew. Named crews (e.g. "Möllevången Crew") should also be recognized on the map.
+- **Types** (`src/types/index.ts`): added `ChatType`, `MapVisibility`, `ChatSummary`, `Message`. Extended `MapEntity` with optional `groupChat: { id, name }` so clusters decorated with a matching named chat can surface the name.
+- **Security rules** (`firestore.rules`): added `chats/{chatId}` + `chats/{chatId}/messages/{messageId}` blocks. Summary is readable/writable only by members; messages are writable only by members and require `senderId == auth.uid`. Nested message rules use `get(...)` to fetch the parent chat's `memberIds`.
+- **Firestore helpers** (`src/lib/firestore.ts`): `onChats` (array-contains with client-side sort to avoid a composite index), `onChatSummary`, `onMessages` (desc + limit 100), `sendMessage` (adds message doc + updates `lastMessage` + `lastMessageAt` on the chat), `getOrCreateGroupChat` (deterministic by sorted memberIds + type).
+- **Chat detail screen** (`app/chat/[chatId].tsx`): header with back button + name + member count; inverted `FlatList` of messages; my bubbles signal-blue right-aligned, peers' bubbles glass left-aligned with avatar + name (for GROUP); multiline `TextInput` + disabled-when-empty Send button; `KeyboardAvoidingView` for iOS; loading / "Chat not found" / empty states; per-member profile subscriptions for name resolution.
+- **Map wiring** (`app/(tabs)/map.native.tsx`):
+  - Subscribes to `onChats(userId)` and decorates each CLUSTER entity with `groupChat` when a chat with `mapVisibility = 'ALWAYS'` has exactly matching `memberIds` (viewer + cluster friends, sorted).
+  - `handleOpenGroupChat`: named cluster → `router.push('/chat/' + entity.groupChat.id)`; unnamed cluster → `getOrCreateGroupChat` with `{ memberIds: [...friends, viewer], name: "Alice, Bob + crew" }` → `router.push`.
+- **Cluster card** (`src/components/map/ClusterCard.tsx`): title uses `entity.groupChat.name` when present; badge flips to "GROUP"; description switches copy for named groups.
+- **Seed** (`src/dev/fixtures.json` + `src/dev/seedDevData.ts`): seeded `chats/chat_mollevangen` → "Möllevången Crew", members `[dev-user, alice, bob]`, `mapVisibility: 'ALWAYS'`, `fixedLocation` at Möllevångstorget. When alice+bob cluster (they're already at the same coords in fixtures), the card shows "Möllevången Crew" + GROUP badge, and tapping opens the seeded chat.
+- `npx tsc --noEmit` passes; runtime test pending physical-device verification.
+
+### Cluster Card UI + Absorbed Friend Markers (2026-04-18)
+- **Goal**: Match the prototype's cluster popup (name + CLUSTER badge + facepile + "Open Group Chat" CTA) and make the cluster the single source of truth when it forms — individual friend pins AND their spot zones disappear into it.
+- `src/components/map/ClusterCard.tsx` (new) — floating bottom-anchored glass card: signal-blue title, CLUSTER pill, overlapping avatar facepile (max 5 + overflow badge), friend-count description, solid signal-blue "Open Group Chat" button, X close. Matches the prototype's `getPopupContent` GROUP branch visually.
+- `src/components/map/ClusterMarker.native.tsx` — dropped the built-in `<Callout>` (flaky with rich content on Android) in favor of `onPress` that propagates up to the map screen.
+- `app/(tabs)/map.native.tsx`:
+  - `selectedClusterId` state + `selectedCluster` derived from `mapEntities`.
+  - `clusteredUserIds: Set<string>` built once per projection — used to filter `friendSpots` so a friend absorbed into a cluster no longer renders their spot circle + label.
+  - Tapping a `ClusterMarker` selects; tapping the map or the X closes; the selection auto-clears if the cluster stops existing (friends drift apart, go ghost).
+  - "Open Group Chat" stubbed with `Alert` until the chat data model + detail screen land.
+- `useMapProjection` already excluded clustered friends from individual `FRIEND` entities, so their avatar pins were already hidden — this pass finishes the job for the mint-tinted spot zones + emoji labels.
+- `npx tsc --noEmit` passes; runtime test pending physical-device verification.
 
 ### Tab Layout Fixed (2026-03-02)
 - Renamed `app/(tabs)/friends.tsx` → `chats.tsx`; function renamed `ChatsScreen`
@@ -104,8 +129,12 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **Gear icon routes to full settings** — Chats gear now opens `/(tabs)/settings` instead of the stale inline modal (2026-04-17)
 
 #### Friend Clusters (GROUP type on map)
-- [ ] **Cluster markers** — 2+ friends within 100m merge into a single cluster node
-- [ ] **Cluster callout** — tap cluster to see member list + count
+- [x] **Cluster markers** — 2+ friends within 100m merge into a single cluster node (pulsing signal-blue disc, count badge)
+- [x] **Cluster callout** — tap cluster → floating card with name, CLUSTER badge, facepile, "Open Group Chat" CTA (2026-04-18)
+- [x] **Absorb clustered members** — individual pins + spot zones hide while members are in the cluster (2026-04-18)
+- [x] **Open Group Chat wiring** — chat data model + `app/chat/[chatId].tsx` detail screen + `getOrCreateGroupChat` + `router.push('/chat/...')` (2026-04-18)
+- [x] **Named group clusters — partial** — `ChatSummary` with `mapVisibility: 'ALWAYS'` decorates a matching proximity cluster with the chat's name + GROUP badge (seeded "Möllevången Crew"). (2026-04-18)
+- [ ] **Named group pins without proximity** — a named group with `fixedLocation` should render as a cluster on the map even when its members aren't actually clustered (prototype parity: "Möllevången Crew" always visible at Möllevångstorget).
 
 #### Dev Mock Friends (testing infrastructure)
 - [x] **Seed 5 mock friends** — profiles, spots, locations, friendships in Firestore emulator
@@ -179,8 +208,10 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | `app/(auth)/spots.tsx` | Spots fallback (web placeholder) |
 | `app/(tabs)/chats.tsx` | Chats tab — friends list + gear icon opens settings modal |
 | `app/(tabs)/communities.tsx` | Communities tab — placeholder |
-| `app/(tabs)/map.native.tsx` | Map screen (native, uses react-native-maps) |
+| `app/(tabs)/map.native.tsx` | Map screen (native, uses react-native-maps); wires chats → named cluster decoration + "Open Group Chat" → `/chat/[id]` |
 | `app/(tabs)/map.tsx` | Map fallback (web placeholder) |
+| `app/chat/[chatId].tsx` | Chat detail screen — inverted FlatList of messages, member-count header, send input |
+| `src/components/map/ClusterCard.tsx` | Floating glass card for a selected cluster (prototype parity); renders GROUP badge + named chat title when matched |
 | `src/config/mapStyles.ts` | Shared dark map style constant (`DARK_MAP_STYLE`) |
 | `src/config/firebase.ts` | Firebase config + emulator connection + `getEmulatorHost()` |
 | `src/lib/firestore.ts` | Firestore helpers (profile, handles, friends, location, spots) |
