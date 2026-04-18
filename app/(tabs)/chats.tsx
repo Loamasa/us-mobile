@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,11 @@ import {
   FlatList,
   Modal,
   Alert,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import {
   onFriends,
@@ -20,63 +21,126 @@ import {
   rejectFriendRequest,
   onUserProfile,
   onLocation,
+  onChats,
+  getOrCreateDmChat,
+  getOrCreateGroupChat,
 } from '@/lib/firestore';
-import type { Friend, FriendRequest, UserProfile } from '@/types';
+import type { ChatSummary, Friend, FriendRequest, UserProfile } from '@/types';
 import GlassCard from '@/components/ui/GlassCard';
 import UserAvatar from '@/components/UserAvatar';
-import { SearchIcon, UserPlusIcon, UsersIcon, SettingsIcon } from '@/components/ui/icons';
+import {
+  SearchIcon,
+  UserPlusIcon,
+  UsersIcon,
+  SettingsIcon,
+  MessageSquareIcon,
+  XIcon,
+} from '@/components/ui/icons';
 import { COLORS } from '@/config/constants';
 
-type FriendWithProfile = Friend & { profile?: UserProfile };
-type RequestWithProfile = FriendRequest & { fromProfile?: UserProfile };
+type ChatRow = {
+  chat: ChatSummary;
+  title: string;
+  subtitle: string;
+  timestampLabel: string;
+  peerId?: string;
+  peerVisible?: boolean;
+};
+
+function formatTimestamp(t: Timestamp | null | undefined): string {
+  if (!t) return '';
+  const now = Date.now();
+  const then = t.toMillis();
+  const diffMs = now - then;
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return 'now';
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h`;
+  const diffDay = Math.round(diffHr / 24);
+  if (diffDay === 1) return 'Yesterday';
+  if (diffDay < 7) return `${diffDay}d`;
+  return new Date(then).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+}
 
 export default function ChatsScreen() {
-  const [rawFriends, setRawFriends] = useState<Friend[]>([]);
-  const [rawRequests, setRawRequests] = useState<FriendRequest[]>([]);
-  const [profilesById, setProfilesById] = useState<Record<string, UserProfile>>({});
-  const [visibleFriendIds, setVisibleFriendIds] = useState<Set<string>>(new Set());
+  const router = useRouter();
+  const [userId, setUserId] = useState<string | undefined>(
+    auth.currentUser?.uid
+  );
+
+  const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [requests, setRequests] = useState<FriendRequest[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Modals
   const [showAddModal, setShowAddModal] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [userId, setUserId] = useState<string | undefined>(
-    auth.currentUser?.uid
-  );
-  const router = useRouter();
 
-  // Track auth state so friends/requests re-subscribe on account switch
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [composeMode, setComposeMode] = useState<'DM' | 'GROUP'>('DM');
+  const [groupName, setGroupName] = useState('');
+  const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
+  const [composeSearch, setComposeSearch] = useState('');
+  const [composeBusy, setComposeBusy] = useState(false);
+
+  // Track auth — re-wire subscriptions on account switch.
   useEffect(() => {
-    return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? undefined));
+    return onAuthStateChanged(auth, (u) => setUserId(u?.uid ?? undefined));
   }, []);
 
   useEffect(() => {
-    setRawFriends([]);
+    setChats([]);
     if (!userId) return;
-    return onFriends(userId, setRawFriends);
+    return onChats(userId, setChats);
   }, [userId]);
 
   useEffect(() => {
-    setRawRequests([]);
+    setFriends([]);
     if (!userId) return;
-    return onFriendRequests(userId, setRawRequests);
+    return onFriends(userId, setFriends);
   }, [userId]);
 
-  // Subscribe live to the profile of every friend + request sender so
-  // display name, handle, and avatar stay in sync.
   useEffect(() => {
-    const needed = new Set<string>([
-      ...rawFriends.map((f) => f.userId),
-      ...rawRequests.map((r) => r.fromUserId),
-    ]);
-    if (needed.size === 0) {
-      setProfilesById({});
+    setRequests([]);
+    if (!userId) return;
+    return onFriendRequests(userId, setRequests);
+  }, [userId]);
+
+  // Stable string key for the set of user ids that need profile subscriptions
+  // (DM peers + friends + request senders + group members). Using a joined
+  // string rather than the array keeps the subscription effect from tearing
+  // down and re-creating N listeners on every onSnapshot fire.
+  const profileIdKey = useMemo(() => {
+    const set = new Set<string>();
+    friends.forEach((f) => set.add(f.userId));
+    requests.forEach((r) => set.add(r.fromUserId));
+    chats.forEach((c) => {
+      c.memberIds.forEach((id) => {
+        if (id !== userId) set.add(id);
+      });
+    });
+    return Array.from(set).sort().join('|');
+  }, [friends, requests, chats, userId]);
+
+  useEffect(() => {
+    if (!profileIdKey) {
+      setProfiles({});
       return;
     }
-
-    const unsubs = Array.from(needed).map((id) =>
+    const ids = profileIdKey.split('|');
+    const unsubs = ids.map((id) =>
       onUserProfile(id, (p) => {
-        setProfilesById((prev) => {
+        setProfiles((prev) => {
           if (!p) {
             if (!(id in prev)) return prev;
             const next = { ...prev };
@@ -87,77 +151,127 @@ export default function ChatsScreen() {
         });
       })
     );
+    return () => unsubs.forEach((u) => u());
+  }, [profileIdKey]);
 
-    return () => {
-      unsubs.forEach((u) => u());
-    };
-  }, [rawFriends, rawRequests]);
+  // Same stable-key trick for presence (friends + DM peers).
+  const presenceIdKey = useMemo(() => {
+    const set = new Set<string>();
+    friends.forEach((f) => set.add(f.userId));
+    chats
+      .filter((c) => c.type === 'DM')
+      .forEach((c) => {
+        c.memberIds.forEach((id) => {
+          if (id !== userId) set.add(id);
+        });
+      });
+    return Array.from(set).sort().join('|');
+  }, [friends, chats, userId]);
 
-  // Subscribe to each friend's location doc. Doc presence = friend is inside
-  // one of their active spots, so it's the source of truth for "visible now".
   useEffect(() => {
-    if (rawFriends.length === 0) {
-      setVisibleFriendIds(new Set());
+    if (!presenceIdKey) {
+      setVisibleIds(new Set());
       return;
     }
-    const unsubs = rawFriends.map((f) =>
-      onLocation(f.userId, (loc) => {
-        setVisibleFriendIds((prev) => {
-          const has = prev.has(f.userId);
+    const ids = presenceIdKey.split('|');
+    const unsubs = ids.map((id) =>
+      onLocation(id, (loc) => {
+        setVisibleIds((prev) => {
+          const has = prev.has(id);
           if (loc && !has) {
             const next = new Set(prev);
-            next.add(f.userId);
+            next.add(id);
             return next;
           }
           if (!loc && has) {
             const next = new Set(prev);
-            next.delete(f.userId);
+            next.delete(id);
             return next;
           }
           return prev;
         });
       })
     );
-    return () => {
-      unsubs.forEach((u) => u());
-    };
-  }, [rawFriends]);
+    return () => unsubs.forEach((u) => u());
+  }, [presenceIdKey]);
 
-  const friends: FriendWithProfile[] = rawFriends.map((f) => ({
-    ...f,
-    profile: profilesById[f.userId],
-  }));
-  const requests: RequestWithProfile[] = rawRequests.map((r) => ({
-    ...r,
-    fromProfile: profilesById[r.fromUserId],
-  }));
+  // Build view model — resolve DM titles/avatars from peer profile.
+  const chatRows: ChatRow[] = useMemo(() => {
+    if (!userId) return [];
+    return chats.map<ChatRow>((chat) => {
+      if (chat.type === 'DM') {
+        const peerId = chat.memberIds.find((id) => id !== userId);
+        const peer = peerId ? profiles[peerId] : undefined;
+        return {
+          chat,
+          title: peer?.displayName ?? 'Unknown',
+          subtitle: chat.lastMessage ?? 'Say hi…',
+          timestampLabel: formatTimestamp(chat.lastMessageAt ?? chat.createdAt),
+          peerId,
+          peerVisible: peerId ? visibleIds.has(peerId) : false,
+        };
+      }
+      const memberCount = chat.memberIds.length;
+      return {
+        chat,
+        title: chat.name ?? 'Group',
+        subtitle:
+          chat.lastMessage ??
+          `${memberCount} member${memberCount === 1 ? '' : 's'}`,
+        timestampLabel: formatTimestamp(chat.lastMessageAt ?? chat.createdAt),
+      };
+    });
+  }, [chats, profiles, visibleIds, userId]);
 
+  const filteredChats: ChatRow[] = searchQuery.trim()
+    ? chatRows.filter((row) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          row.title.toLowerCase().includes(q) ||
+          row.subtitle.toLowerCase().includes(q)
+        );
+      })
+    : chatRows;
+
+  // Compose: friends filtered for picker
+  const friendsForPicker = useMemo(() => {
+    const q = composeSearch.trim().toLowerCase();
+    return friends
+      .map((f) => ({ friend: f, profile: profiles[f.userId] }))
+      .filter(({ profile }) =>
+        !q
+          ? true
+          : (profile?.displayName?.toLowerCase().includes(q) ?? false) ||
+            (profile?.handle?.toLowerCase().includes(q) ?? false)
+      );
+  }, [friends, profiles, composeSearch]);
+
+  // Handlers
   const handleAddFriend = async () => {
     if (!userId || !handleInput.trim()) return;
-
-    const sanitized = handleInput.toLowerCase().replace(/[^a-z0-9_]/g, '').replace(/^@/, '');
+    const sanitized = handleInput
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '')
+      .replace(/^@/, '');
     setAddLoading(true);
     setAddError('');
-
     try {
       const handleDoc = await getDoc(doc(db, 'handles', sanitized));
       if (!handleDoc.exists()) {
         setAddError('User not found');
         return;
       }
-
       const targetUserId = handleDoc.data().userId;
       if (targetUserId === userId) {
         setAddError("That's you!");
         return;
       }
-
       await sendFriendRequest(userId, targetUserId);
       setShowAddModal(false);
       setHandleInput('');
       Alert.alert('Request Sent', `Friend request sent to @${sanitized}`);
-    } catch (err: any) {
-      setAddError(err.message ?? 'Failed to send request');
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Failed to send request');
     } finally {
       setAddLoading(false);
     }
@@ -173,40 +287,92 @@ export default function ChatsScreen() {
     await rejectFriendRequest(userId, request.id);
   };
 
-  const filteredFriends = searchQuery.trim()
-    ? friends.filter((f) => {
-      const q = searchQuery.toLowerCase();
-      return (
-        f.profile?.displayName?.toLowerCase().includes(q) ||
-        f.profile?.handle?.toLowerCase().includes(q)
-      );
-    })
-    : friends;
+  const openCompose = (mode: 'DM' | 'GROUP') => {
+    setComposeMode(mode);
+    setGroupName('');
+    setSelectedFriendIds([]);
+    setComposeSearch('');
+    setShowComposeModal(true);
+  };
+
+  const closeCompose = () => {
+    setShowComposeModal(false);
+    setGroupName('');
+    setSelectedFriendIds([]);
+    setComposeSearch('');
+  };
+
+  const handleStartDm = async (peerId: string) => {
+    if (!userId || composeBusy) return;
+    setComposeBusy(true);
+    try {
+      const chatId = await getOrCreateDmChat({ viewerId: userId, peerId });
+      closeCompose();
+      router.push(`/chat/${chatId}`);
+    } catch (e) {
+      Alert.alert('Could not start chat', e instanceof Error ? e.message : '');
+    } finally {
+      setComposeBusy(false);
+    }
+  };
+
+  const handleCreateGroup = async () => {
+    if (!userId || composeBusy) return;
+    const trimmed = groupName.trim();
+    if (!trimmed || selectedFriendIds.length === 0) return;
+    setComposeBusy(true);
+    try {
+      const chatId = await getOrCreateGroupChat({
+        memberIds: [userId, ...selectedFriendIds],
+        createdBy: userId,
+        name: trimmed,
+      });
+      closeCompose();
+      router.push(`/chat/${chatId}`);
+    } catch (e) {
+      Alert.alert('Could not create group', e instanceof Error ? e.message : '');
+    } finally {
+      setComposeBusy(false);
+    }
+  };
+
+  const toggleSelectedFriend = (id: string) => {
+    setSelectedFriendIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   return (
     <View className="flex-1 bg-void pt-16 px-4">
       {/* Header */}
-      <View className="flex-row items-center justify-between mb-5 px-1">
+      <View className="flex-row items-center justify-between mb-4 px-1">
         <Text className="text-fog text-2xl font-bold">Chats</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <TouchableOpacity
-            style={{
-              backgroundColor: COLORS.signal,
-              borderRadius: 999,
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-            }}
-            onPress={() => setShowAddModal(true)}
+            onPress={() => openCompose('DM')}
+            style={{ padding: 8 }}
+            hitSlop={8}
           >
-            <UserPlusIcon size={15} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600' }}>Add</Text>
+            <MessageSquareIcon size={22} color={COLORS.fog} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => openCompose('GROUP')}
+            style={{ padding: 8 }}
+            hitSlop={8}
+          >
+            <UsersIcon size={22} color={COLORS.fog} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowAddModal(true)}
+            style={{ padding: 8 }}
+            hitSlop={8}
+          >
+            <UserPlusIcon size={20} color={COLORS.fog} />
           </TouchableOpacity>
           <TouchableOpacity
             style={{ padding: 8 }}
             onPress={() => router.push('/(tabs)/settings')}
+            hitSlop={8}
           >
             <SettingsIcon size={22} color="rgba(242,244,246,0.5)" />
           </TouchableOpacity>
@@ -231,7 +397,7 @@ export default function ChatsScreen() {
         <SearchIcon size={16} color="#6B7280" />
         <TextInput
           style={{ flex: 1, color: '#F2F4F6', fontSize: 15 }}
-          placeholder="Search by name or handle…"
+          placeholder="Search chats…"
           placeholderTextColor="rgba(242,244,246,0.3)"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -240,99 +406,151 @@ export default function ChatsScreen() {
         />
       </View>
 
-      {/* Friend Requests */}
+      {/* Friend requests */}
       {requests.length > 0 && (
         <View className="mb-6">
           <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-1">
             Pending ({requests.length})
           </Text>
-          {requests.map((req) => (
-            <GlassCard key={req.id} className="mb-2 flex-row items-center">
-              <UserAvatar
-                displayName={req.fromProfile?.displayName}
-                size="md"
-                showStatus
-                status="online"
-              />
-              <View className="flex-1 ml-3">
-                <Text className="text-fog font-semibold">
-                  {req.fromProfile?.displayName ?? 'Unknown'}
-                </Text>
-                <Text className="text-fog/50 text-xs">
-                  @{req.fromProfile?.handle ?? '…'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                className="bg-mint/20 rounded-lg px-3 py-2 mr-2"
-                onPress={() => handleAccept(req)}
-              >
-                <Text className="text-mint text-xs font-semibold">Accept</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="bg-glass border border-glass-border rounded-lg px-3 py-2"
-                onPress={() => handleReject(req)}
-              >
-                <Text className="text-fog/50 text-xs">Ignore</Text>
-              </TouchableOpacity>
-            </GlassCard>
-          ))}
-        </View>
-      )}
-
-      {/* Friends List */}
-      <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-1">
-        {searchQuery ? `Results (${filteredFriends.length})` : `Friends (${friends.length})`}
-      </Text>
-
-      {filteredFriends.length === 0 ? (
-        <View className="flex-1 items-center justify-center">
-          <UsersIcon size={48} color="rgba(242,244,246,0.15)" />
-          <Text className="text-fog/40 text-base text-center mt-4">
-            {searchQuery ? 'No matches found' : 'No friends yet'}
-          </Text>
-          <Text className="text-fog/25 text-sm text-center mt-1">
-            {searchQuery ? 'Try a different search' : 'Add friends by their handle'}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredFriends}
-          keyExtractor={(item) => item.userId}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const visible = visibleFriendIds.has(item.userId);
+          {requests.map((req) => {
+            const profile = profiles[req.fromUserId];
             return (
-              <GlassCard className="mb-2 flex-row items-center">
+              <GlassCard key={req.id} className="mb-2 flex-row items-center">
                 <UserAvatar
-                  displayName={item.profile?.displayName}
+                  displayName={profile?.displayName}
                   size="md"
                   showStatus
-                  status={visible ? 'online' : 'offline'}
+                  status="online"
                 />
                 <View className="flex-1 ml-3">
                   <Text className="text-fog font-semibold">
-                    {item.profile?.displayName ?? 'Loading…'}
+                    {profile?.displayName ?? 'Unknown'}
                   </Text>
                   <Text className="text-fog/50 text-xs">
-                    @{item.profile?.handle ?? '…'}
+                    @{profile?.handle ?? '…'}
                   </Text>
                 </View>
-                {/* Presence dot — mint when visible, muted when ghosted/in-transit */}
-                <View
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: visible ? COLORS.mint : 'rgba(242,244,246,0.2)',
-                  }}
-                />
+                <TouchableOpacity
+                  className="bg-mint/20 rounded-lg px-3 py-2 mr-2"
+                  onPress={() => handleAccept(req)}
+                >
+                  <Text className="text-mint text-xs font-semibold">Accept</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="bg-glass border border-glass-border rounded-lg px-3 py-2"
+                  onPress={() => handleReject(req)}
+                >
+                  <Text className="text-fog/50 text-xs">Ignore</Text>
+                </TouchableOpacity>
               </GlassCard>
             );
-          }}
+          })}
+        </View>
+      )}
+
+      {/* Chats list */}
+      <Text className="text-fog/50 text-xs uppercase tracking-widest mb-3 px-1">
+        {searchQuery
+          ? `Results (${filteredChats.length})`
+          : `Chats (${chatRows.length})`}
+      </Text>
+
+      {filteredChats.length === 0 ? (
+        <View className="flex-1 items-center justify-center pb-16">
+          <MessageSquareIcon size={48} color="rgba(242,244,246,0.15)" />
+          <Text className="text-fog/40 text-base text-center mt-4">
+            {searchQuery ? 'No matches found' : 'No chats yet'}
+          </Text>
+          <Text className="text-fog/25 text-sm text-center mt-1 mb-4">
+            {searchQuery
+              ? 'Try a different search'
+              : 'Start a conversation with a friend'}
+          </Text>
+          {!searchQuery && friends.length > 0 && (
+            <TouchableOpacity
+              onPress={() => openCompose('DM')}
+              style={{
+                backgroundColor: COLORS.signal,
+                borderRadius: 999,
+                paddingHorizontal: 20,
+                paddingVertical: 10,
+              }}
+            >
+              <Text style={{ color: COLORS.fog, fontWeight: '600', fontSize: 14 }}>
+                New Message
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredChats}
+          keyExtractor={(item) => item.chat.id}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => router.push(`/chat/${item.chat.id}`)}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
+              <GlassCard className="mb-2 flex-row items-center">
+                <UserAvatar
+                  displayName={item.title}
+                  size="md"
+                  showStatus={item.chat.type === 'DM'}
+                  status={item.peerVisible ? 'online' : 'offline'}
+                />
+                <View className="flex-1 ml-3">
+                  <View className="flex-row items-center justify-between">
+                    <Text
+                      className="text-fog font-semibold flex-1"
+                      numberOfLines={1}
+                    >
+                      {item.title}
+                    </Text>
+                    {item.timestampLabel ? (
+                      <Text className="text-fog/40 text-xs ml-2">
+                        {item.timestampLabel}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <View className="flex-row items-center mt-0.5">
+                    {item.chat.type === 'GROUP' && (
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(46,92,255,0.15)',
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                          marginRight: 6,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: COLORS.signal,
+                            fontSize: 9,
+                            fontWeight: '800',
+                            letterSpacing: 0.5,
+                          }}
+                        >
+                          GROUP
+                        </Text>
+                      </View>
+                    )}
+                    <Text
+                      className="text-fog/50 text-xs flex-1"
+                      numberOfLines={1}
+                    >
+                      {item.subtitle}
+                    </Text>
+                  </View>
+                </View>
+              </GlassCard>
+            </Pressable>
+          )}
         />
       )}
 
-      {/* Add Friend Modal */}
+      {/* Add Friend modal (by handle) */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <View className="flex-1 justify-end">
           <View className="bg-void border-t border-glass-border rounded-t-3xl p-6">
@@ -344,7 +562,7 @@ export default function ChatsScreen() {
               <TextInput
                 className="flex-1 text-fog text-lg"
                 placeholder="theirhandle"
-                placeholderTextColor="rgba(242, 244, 246, 0.3)"
+                placeholderTextColor="rgba(242,244,246,0.3)"
                 value={handleInput}
                 onChangeText={setHandleInput}
                 autoCapitalize="none"
@@ -382,6 +600,267 @@ export default function ChatsScreen() {
         </View>
       </Modal>
 
+      {/* Compose modal (new DM / new group) */}
+      <Modal visible={showComposeModal} transparent animationType="slide">
+        <View className="flex-1 justify-end">
+          <View
+            style={{
+              backgroundColor: COLORS.void,
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              borderTopWidth: 1,
+              borderColor: 'rgba(255,255,255,0.08)',
+              paddingHorizontal: 20,
+              paddingTop: 16,
+              paddingBottom: 24,
+              maxHeight: '85%',
+            }}
+          >
+            {/* Header */}
+            <View className="flex-row items-center justify-between mb-4">
+              <Text className="text-fog text-xl font-bold">
+                {composeMode === 'DM' ? 'New Message' : 'New Group'}
+              </Text>
+              <TouchableOpacity onPress={closeCompose} hitSlop={10}>
+                <XIcon size={20} color="rgba(242,244,246,0.5)" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Mode toggle */}
+            <View
+              style={{
+                flexDirection: 'row',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                borderRadius: 12,
+                padding: 4,
+                marginBottom: 14,
+              }}
+            >
+              <TouchableOpacity
+                onPress={() => {
+                  setComposeMode('DM');
+                  setSelectedFriendIds([]);
+                }}
+                style={{
+                  flex: 1,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  backgroundColor:
+                    composeMode === 'DM' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    color: composeMode === 'DM' ? COLORS.fog : 'rgba(242,244,246,0.4)',
+                    fontSize: 12,
+                    fontWeight: '700',
+                  }}
+                >
+                  Message
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setComposeMode('GROUP')}
+                style={{
+                  flex: 1,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  backgroundColor:
+                    composeMode === 'GROUP' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{
+                    color: composeMode === 'GROUP' ? COLORS.fog : 'rgba(242,244,246,0.4)',
+                    fontSize: 12,
+                    fontWeight: '700',
+                  }}
+                >
+                  Group
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Group name input */}
+            {composeMode === 'GROUP' && (
+              <TextInput
+                value={groupName}
+                onChangeText={setGroupName}
+                placeholder="Group name"
+                placeholderTextColor="rgba(242,244,246,0.3)"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  color: COLORS.fog,
+                  fontSize: 15,
+                  marginBottom: 12,
+                }}
+              />
+            )}
+
+            {/* Friend search */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: 'rgba(255,255,255,0.05)',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.1)',
+                borderRadius: 12,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                gap: 8,
+                marginBottom: 12,
+              }}
+            >
+              <SearchIcon size={14} color="#6B7280" />
+              <TextInput
+                style={{ flex: 1, color: COLORS.fog, fontSize: 14 }}
+                placeholder={
+                  composeMode === 'DM'
+                    ? 'Pick a friend to message'
+                    : 'Select members'
+                }
+                placeholderTextColor="rgba(242,244,246,0.3)"
+                value={composeSearch}
+                onChangeText={setComposeSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+
+            {friends.length === 0 ? (
+              <View style={{ paddingVertical: 28, alignItems: 'center' }}>
+                <Text className="text-fog/40 text-sm text-center">
+                  No friends yet. Add someone first.
+                </Text>
+              </View>
+            ) : friendsForPicker.length === 0 ? (
+              <View style={{ paddingVertical: 28, alignItems: 'center' }}>
+                <Text className="text-fog/40 text-sm text-center">No matches</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={friendsForPicker}
+                keyExtractor={(item) => item.friend.userId}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+                style={{ maxHeight: 320 }}
+                renderItem={({ item }) => {
+                  const selected = selectedFriendIds.includes(item.friend.userId);
+                  const onTap = () => {
+                    if (composeMode === 'DM') {
+                      handleStartDm(item.friend.userId);
+                    } else {
+                      toggleSelectedFriend(item.friend.userId);
+                    }
+                  };
+                  return (
+                    <Pressable
+                      onPress={onTap}
+                      style={({ pressed }) => ({
+                        opacity: pressed ? 0.6 : 1,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: 10,
+                        paddingHorizontal: 6,
+                        borderRadius: 12,
+                        backgroundColor:
+                          selected && composeMode === 'GROUP'
+                            ? 'rgba(46,92,255,0.12)'
+                            : 'transparent',
+                      })}
+                    >
+                      <UserAvatar
+                        displayName={item.profile?.displayName}
+                        size="sm"
+                        showStatus
+                        status={
+                          visibleIds.has(item.friend.userId) ? 'online' : 'offline'
+                        }
+                      />
+                      <View style={{ flex: 1, marginLeft: 10 }}>
+                        <Text
+                          style={{ color: COLORS.fog, fontSize: 14, fontWeight: '600' }}
+                        >
+                          {item.profile?.displayName ?? 'Loading…'}
+                        </Text>
+                        <Text
+                          style={{ color: 'rgba(242,244,246,0.45)', fontSize: 11 }}
+                        >
+                          @{item.profile?.handle ?? '…'}
+                        </Text>
+                      </View>
+                      {composeMode === 'GROUP' && (
+                        <View
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 11,
+                            borderWidth: 1.5,
+                            borderColor: selected ? COLORS.signal : 'rgba(255,255,255,0.25)',
+                            backgroundColor: selected ? COLORS.signal : 'transparent',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {selected && (
+                            <Text
+                              style={{ color: COLORS.fog, fontSize: 12, fontWeight: '700' }}
+                            >
+                              ✓
+                            </Text>
+                          )}
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                }}
+              />
+            )}
+
+            {/* Group create footer */}
+            {composeMode === 'GROUP' && (
+              <View style={{ marginTop: 12 }}>
+                <Text className="text-fog/40 text-xs mb-3">
+                  {selectedFriendIds.length} selected
+                </Text>
+                <TouchableOpacity
+                  onPress={handleCreateGroup}
+                  disabled={
+                    composeBusy ||
+                    !groupName.trim() ||
+                    selectedFriendIds.length === 0
+                  }
+                  style={{
+                    backgroundColor:
+                      composeBusy ||
+                      !groupName.trim() ||
+                      selectedFriendIds.length === 0
+                        ? 'rgba(46,92,255,0.3)'
+                        : COLORS.signal,
+                    paddingVertical: 14,
+                    borderRadius: 16,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text
+                    style={{ color: COLORS.fog, fontWeight: '700', fontSize: 14 }}
+                  >
+                    {composeBusy ? 'Creating…' : 'Create Group'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

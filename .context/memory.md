@@ -25,6 +25,8 @@
 - `users/{uid}/spots/{spotId}` — user's named places
 - `locations/{uid}` — real-time GPS with geohash (top-level for fast queries)
 - `handles/{handle}` — unique handle lookup
+- `chats/{chatId}` — chat summary (name, type, memberIds, createdBy, lastMessage, mapVisibility, fixedLocation)
+- `chats/{chatId}/messages/{messageId}` — individual messages (senderId, content, createdAt)
 
 ## Known Gotchas
 - `--legacy-peer-deps` required for all npm installs (React 19 conflicts)
@@ -36,6 +38,7 @@
 - Metro Node 22 Windows fix persisted via `patch-package` (postinstall script)
 - babel.config.js needs: nativewind/babel preset + react-native-reanimated/plugin
 - **Firestore emulator enforces security rules against the client SDK.** Cross-user dev writes (seeding test personas, admin scripts) must go through the REST `:commit` endpoint (`/v1/projects/{pid}/databases/(default)/documents:commit`) with `Authorization: Bearer owner` — this is the documented admin-bypass token, same one already used for auth user creation. `writeBatch(db)` from the JS SDK always runs as the signed-in user.
+- **Chats model** (added 2026-04-18): `onChats` uses `array-contains` on `memberIds` and sorts client-side by `lastMessageAt ?? createdAt` — avoids a composite index. Subcollection rules (`chats/{id}/messages/{id}`) authorize with `get(/databases/$(database)/documents/chats/$(chatId)).data.memberIds`. Named group clusters match proximity clusters by sorted `[viewer, ...cluster.friends]` == `chat.memberIds` and decorate the cluster with `groupChat: { id, name }`. Fixture: `chats[]` in `src/dev/fixtures.json` seeds via `src/dev/seedDevData.ts`.
 
 ## Web Prototype (Reference Setup)
 - Prototype source copied to `.context/prototype/src/` (82 files, finished, won't change)

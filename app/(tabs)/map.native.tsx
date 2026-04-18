@@ -1,10 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Platform, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
-import { onUserSpots, onUserProfile, deleteLocation } from '@/lib/firestore';
+import {
+  onUserSpots,
+  onUserProfile,
+  deleteLocation,
+  onChats,
+  getOrCreateGroupChat,
+} from '@/lib/firestore';
 import { haversineDistance } from '@/utils/distance';
 import { COLORS, MAP_DEFAULTS } from '@/config/constants';
 import { DARK_MAP_STYLE } from '@/config/mapStyles';
@@ -14,6 +21,7 @@ import { useMapProjection } from '@/features/map/useMapProjection';
 import { BlurView } from 'expo-blur';
 import FriendMarker from '@/components/map/FriendMarker';
 import ClusterMarker from '@/components/map/ClusterMarker';
+import ClusterCard from '@/components/map/ClusterCard';
 import SignalModal from '@/features/signals/SignalModal';
 import ActiveSignalHUD from '@/features/signals/ActiveSignalHUD';
 import {
@@ -23,17 +31,21 @@ import {
   NavigationIcon,
   GhostIcon,
 } from '@/components/ui/icons';
-import type { UserSpot, UserProfile } from '@/types';
+import type { UserSpot, UserProfile, ChatSummary, MapEntity } from '@/types';
 import type MapView from 'react-native-maps';
 
 
 
 export default function MapScreen() {
+  const router = useRouter();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [spots, setSpots] = useState<UserSpot[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userId, setUserId] = useState<string | undefined>(auth.currentUser?.uid);
   const [showSignalModal, setShowSignalModal] = useState(false);
+  const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
+  const [chats, setChats] = useState<ChatSummary[]>([]);
+  const [openingChat, setOpeningChat] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const mapRef = useRef<MapView>(null);
 
@@ -49,12 +61,48 @@ export default function MapScreen() {
   const { friendLocations } = useFriendLocations();
 
   // Project friends into map entities (individual + clusters)
-  const mapEntities = useMapProjection(friendLocations);
+  const rawEntities = useMapProjection(friendLocations);
+
+  // Decorate clusters with a matching named group chat (mapVisibility = ALWAYS).
+  // Match = chat.memberIds (sorted) equals cluster.friends' userIds + viewer.
+  const mapEntities: MapEntity[] = (() => {
+    const namedGroups = chats.filter(
+      (c): c is ChatSummary & { name: string } =>
+        c.type === 'GROUP' && c.mapVisibility === 'ALWAYS' && c.name !== null
+    );
+    if (!namedGroups.length || !userId) return rawEntities;
+    return rawEntities.map((e) => {
+      if (e.type !== 'CLUSTER') return e;
+      const clusterIds = [...e.friends.map((f) => f.userId), userId].sort();
+      const match = namedGroups.find((g) => {
+        const ids = [...g.memberIds].sort();
+        if (ids.length !== clusterIds.length) return false;
+        return ids.every((id, i) => id === clusterIds[i]);
+      });
+      if (!match) return e;
+      return { ...e, groupChat: { id: match.id, name: match.name } };
+    });
+  })();
+
+  // UserIds absorbed into a cluster — their individual pins + spot zones are hidden
+  // so the cluster is the single source of truth for the group's location.
+  const clusteredUserIds = new Set(
+    mapEntities
+      .filter((e) => e.type === 'CLUSTER')
+      .flatMap((e) => e.friends.map((f) => f.userId))
+  );
+
+  // Selected cluster — the one whose card is currently shown.
+  const selectedCluster =
+    mapEntities.find((e) => e.id === selectedClusterId && e.type === 'CLUSTER') ??
+    null;
 
   // Friend spot snapshots — each visible friend's current containing spot.
+  // Friends inside a cluster are omitted so the cluster absorbs them fully.
   const friendSpots = Object.values(friendLocations)
     .map(({ location, profile }) => {
       if (!location.spot) return null;
+      if (clusteredUserIds.has(profile.id)) return null;
       return {
         key: `${profile.id}-${location.spot.id}`,
         ownerName: profile.displayName,
@@ -77,6 +125,11 @@ export default function MapScreen() {
     const timer = setInterval(() => setCurrentTime(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
+
+  // Clear selected cluster if it stops existing (members moved apart, went ghost, etc.)
+  useEffect(() => {
+    if (selectedClusterId && !selectedCluster) setSelectedClusterId(null);
+  }, [selectedClusterId, selectedCluster]);
 
   // Get user location for local display
   useEffect(() => {
@@ -117,6 +170,13 @@ export default function MapScreen() {
     setSpots([]);
     if (!userId) return;
     return onUserSpots(userId, setSpots);
+  }, [userId]);
+
+  // Subscribe to my chats — used to tag clusters with a named group chat.
+  useEffect(() => {
+    setChats([]);
+    if (!userId) return;
+    return onChats(userId, setChats);
   }, [userId]);
 
   // ── Visibility status ───────────────────────────────────────────────────────
@@ -160,6 +220,42 @@ export default function MapScreen() {
     await updateDoc(doc(db, 'users', userId), { currentSignal: null });
   };
 
+  const handleOpenGroupChat = async (entity: MapEntity) => {
+    if (entity.type !== 'CLUSTER' || !userId || openingChat) return;
+
+    // Named cluster already has a chat — open it directly.
+    if (entity.groupChat) {
+      setSelectedClusterId(null);
+      router.push(`/chat/${entity.groupChat.id}`);
+      return;
+    }
+
+    setOpeningChat(true);
+    try {
+      const memberIds = [...entity.friends.map((f) => f.userId), userId];
+      const name =
+        entity.friends
+          .map((f) => f.displayName.split(' ')[0])
+          .slice(0, 3)
+          .join(', ') + (entity.friends.length > 3 ? ' + crew' : '');
+      const chatId = await getOrCreateGroupChat({
+        memberIds,
+        createdBy: userId,
+        name: name || 'Group',
+      });
+      setSelectedClusterId(null);
+      router.push(`/chat/${chatId}`);
+    } catch (e: unknown) {
+      console.error('getOrCreateGroupChat failed', e);
+      Alert.alert(
+        'Could not open chat',
+        e instanceof Error ? e.message : 'Check emulator connection.'
+      );
+    } finally {
+      setOpeningChat(false);
+    }
+  };
+
   const initialRegion = userLocation
     ? {
       latitude: userLocation.lat,
@@ -190,6 +286,7 @@ export default function MapScreen() {
         showsUserLocation={!ghostMode}
         showsMyLocationButton={false}
         showsCompass={false}
+        onPress={() => setSelectedClusterId(null)}
       >
         {/* User Spots (translucent circles) */}
         {spots
@@ -260,7 +357,11 @@ export default function MapScreen() {
         {/* Friend Markers & Clusters */}
         {mapEntities.map((entity) =>
           entity.type === 'CLUSTER' ? (
-            <ClusterMarker key={entity.id} entity={entity} />
+            <ClusterMarker
+              key={entity.id}
+              entity={entity}
+              onPress={(e) => setSelectedClusterId(e.id)}
+            />
           ) : (
             <FriendMarker key={entity.id} entity={entity} />
           )
@@ -481,6 +582,15 @@ export default function MapScreen() {
           <NavigationIcon size={18} color="#F2F4F6" />
         </BlurView>
       </TouchableOpacity>
+
+      {/* ── Cluster Card ── */}
+      {selectedCluster && (
+        <ClusterCard
+          entity={selectedCluster}
+          onClose={() => setSelectedClusterId(null)}
+          onOpenGroupChat={handleOpenGroupChat}
+        />
+      )}
 
       {/* ── Signal Modal ── */}
       <SignalModal

@@ -1,6 +1,8 @@
 import {
+  addDoc,
   doc,
   getDoc,
+  getDocs,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -9,13 +11,23 @@ import {
   query,
   where,
   orderBy,
+  limit,
   writeBatch,
   serverTimestamp,
+  GeoPoint,
   type DocumentReference,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { UserProfile, Friend, FriendRequest, LocationPresence, UserSpot } from '@/types';
+import type {
+  UserProfile,
+  Friend,
+  FriendRequest,
+  LocationPresence,
+  UserSpot,
+  ChatSummary,
+  Message,
+} from '@/types';
 
 // ─── User Profile ────────────────────────────────────
 
@@ -203,4 +215,174 @@ export async function toggleUserSpot(
   isActive: boolean
 ): Promise<void> {
   await updateDoc(doc(db, 'users', userId, 'spots', spotId), { isActive });
+}
+
+// ─── Chats ───────────────────────────────────────────
+
+export function onChats(
+  userId: string,
+  callback: (chats: ChatSummary[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, 'chats'),
+    where('memberIds', 'array-contains', userId)
+  );
+  return onSnapshot(q, (snap) => {
+    const chats = snap.docs.map(
+      (d) => ({ id: d.id, ...d.data() } as ChatSummary)
+    );
+    // Sort client-side to avoid a composite index on (memberIds, lastMessageAt).
+    chats.sort((a, b) => {
+      const aT = a.lastMessageAt?.toMillis() ?? a.createdAt?.toMillis() ?? 0;
+      const bT = b.lastMessageAt?.toMillis() ?? b.createdAt?.toMillis() ?? 0;
+      return bT - aT;
+    });
+    callback(chats);
+  });
+}
+
+export function onChatSummary(
+  chatId: string,
+  callback: (chat: ChatSummary | null) => void
+): Unsubscribe {
+  return onSnapshot(doc(db, 'chats', chatId), (snap) => {
+    if (!snap.exists()) return callback(null);
+    callback({ id: snap.id, ...snap.data() } as ChatSummary);
+  });
+}
+
+export function onMessages(
+  chatId: string,
+  callback: (messages: Message[]) => void,
+  max = 100
+): Unsubscribe {
+  const q = query(
+    collection(db, 'chats', chatId, 'messages'),
+    orderBy('createdAt', 'desc'),
+    limit(max)
+  );
+  return onSnapshot(q, (snap) => {
+    callback(
+      snap.docs.map(
+        (d) => ({ id: d.id, chatId, ...d.data() } as Message)
+      )
+    );
+  });
+}
+
+export async function sendMessage(
+  chatId: string,
+  senderId: string,
+  content: string
+): Promise<void> {
+  const trimmed = content.trim();
+  if (!trimmed) return;
+
+  const msgRef = await addDoc(collection(db, 'chats', chatId, 'messages'), {
+    senderId,
+    content: trimmed,
+    createdAt: serverTimestamp(),
+  });
+
+  // Update chat's lastMessage for list previews. Non-fatal if it fails.
+  try {
+    await updateDoc(doc(db, 'chats', chatId), {
+      lastMessage: trimmed,
+      lastMessageAt: serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn('sendMessage: failed to update lastMessage', e);
+  }
+
+  return void msgRef;
+}
+
+/**
+ * Find an existing GROUP chat whose memberIds exactly match the given set,
+ * or create a new one. Deterministic on (memberIds, type), so tapping
+ * "Open Group Chat" for the same cluster reuses the chat.
+ */
+export async function getOrCreateGroupChat(params: {
+  memberIds: string[];
+  createdBy: string;
+  name: string;
+  mapVisibility?: 'ALWAYS' | 'ASK' | 'NEVER';
+  fixedLocation?: { latitude: number; longitude: number };
+}): Promise<string> {
+  const { memberIds, createdBy, name, mapVisibility, fixedLocation } = params;
+  const sorted = [...memberIds].sort();
+
+  // Look up existing chat by membership + type.
+  const q = query(
+    collection(db, 'chats'),
+    where('type', '==', 'GROUP'),
+    where('memberIds', 'array-contains', createdBy)
+  );
+  const snap = await getDocs(q);
+  const existing = snap.docs.find((d) => {
+    const data = d.data() as ChatSummary;
+    const theirs = [...(data.memberIds ?? [])].sort();
+    if (theirs.length !== sorted.length) return false;
+    return theirs.every((id, i) => id === sorted[i]);
+  });
+  if (existing) return existing.id;
+
+  const ref = await addDoc(collection(db, 'chats'), {
+    name,
+    avatarUrl: null,
+    type: 'GROUP',
+    memberIds: sorted,
+    createdBy,
+    createdAt: serverTimestamp(),
+    lastMessage: null,
+    lastMessageAt: null,
+    ...(mapVisibility ? { mapVisibility } : {}),
+    ...(fixedLocation
+      ? { fixedLocation: new GeoPoint(fixedLocation.latitude, fixedLocation.longitude) }
+      : {}),
+  });
+  return ref.id;
+}
+
+/**
+ * Find or create a DM chat between two users. Deterministic on sorted
+ * memberIds + type=DM so repeated taps on "Message" reuse the same chat.
+ * Stores `name: null` — the viewer derives the title from the peer's profile.
+ */
+export async function getOrCreateDmChat(params: {
+  viewerId: string;
+  peerId: string;
+}): Promise<string> {
+  const { viewerId, peerId } = params;
+  if (viewerId === peerId) throw new Error('Cannot DM yourself');
+  const sorted = [viewerId, peerId].sort();
+
+  const q = query(
+    collection(db, 'chats'),
+    where('type', '==', 'DM'),
+    where('memberIds', 'array-contains', viewerId)
+  );
+  const snap = await getDocs(q);
+  const existing = snap.docs.find((d) => {
+    const data = d.data() as ChatSummary;
+    const theirs = [...(data.memberIds ?? [])].sort();
+    return (
+      theirs.length === 2 &&
+      theirs[0] === sorted[0] &&
+      theirs[1] === sorted[1]
+    );
+  });
+  if (existing) return existing.id;
+
+  const ref = await addDoc(collection(db, 'chats'), {
+    name: null,
+    avatarUrl: null,
+    type: 'DM',
+    memberIds: sorted,
+    createdBy: viewerId,
+    createdAt: serverTimestamp(),
+    lastMessage: null,
+    lastMessageAt: null,
+  });
+  return ref.id;
 }
