@@ -115,6 +115,24 @@
       "fixedLocation": { "lat": 55.5917, "lng": 13.0070 },
       "lastMessage": "Anyone near the square?",
       "avatarUrl": null
+    },
+    {
+      "id": "chat_study_crew",
+      "name": "Study Crew",
+      "type": "GROUP",
+      "memberIds": ["dev-user", "charlie", "dana"],
+      "createdBy": "dev-user",
+      "lastMessage": "Library at 3?",
+      "avatarUrl": null
+    },
+    {
+      "id": "chat_dm_alice",
+      "name": null,
+      "type": "DM",
+      "memberIds": ["alice", "dev-user"],
+      "createdBy": "dev-user",
+      "lastMessage": "See you at the café ☕",
+      "avatarUrl": null
     }
   ]
 }

@@ -107,7 +107,8 @@ export type MapVisibility = 'ALWAYS' | 'ASK' | 'NEVER';
 
 export interface ChatSummary {
   id: string;
-  name: string;
+  // DMs store null and derive the title per-viewer from the peer's profile.
+  name: string | null;
   avatarUrl: string | null;
   type: ChatType;
   memberIds: string[];

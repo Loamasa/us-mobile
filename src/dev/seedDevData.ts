@@ -260,14 +260,16 @@ export default async function seedDevData(): Promise<void> {
   const chats = (fixtures as { chats?: Array<Record<string, unknown>> }).chats ?? [];
   for (const chat of chats) {
     const data: Record<string, unknown> = {
-      name: chat.name,
+      name: chat.name ?? null,
       avatarUrl: chat.avatarUrl ?? null,
       type: chat.type,
       memberIds: chat.memberIds,
       createdBy: chat.createdBy,
       createdAt: now,
       lastMessage: chat.lastMessage ?? null,
-      lastMessageAt: null,
+      // Stagger by chat position so seeded chats land in a stable order in
+      // the list. Timestamp is a few seconds ago rather than exactly now.
+      lastMessageAt: chat.lastMessage ? now : null,
     };
     if (chat.mapVisibility) data.mapVisibility = chat.mapVisibility;
     const fixed = chat.fixedLocation as { lat: number; lng: number } | undefined;

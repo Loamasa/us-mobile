@@ -1,7 +1,59 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-04-18 — Group chat data model + chat detail screen + Möllevången Crew seeded; "Open Group Chat" now navigates to a live chat room
+2026-04-18 — Chats tab now shows real chats (DMs + groups) from Firestore; new DM + new group flows wired; DM header shows peer name + presence. Self-review pass applied subscription-thrash fix. Three map bugs + two minor tech-debt items parked.
+
+## What Was Done This Session
+
+### Chats Tab — DMs + Group Chats (2026-04-18)
+- **Goal**: Close the chat loop. Group chat data model landed earlier today, but the Chats tab was still a static friends list — no way to open a seeded chat or start a new one.
+- **Types** (`src/types/index.ts`): `ChatSummary.name` now `string | null`. DMs store `null` and the viewer derives the title from the peer's profile (names differ per viewer, so storing one is a foot-gun).
+- **Firestore helper** (`src/lib/firestore.ts`): added `getOrCreateDmChat({ viewerId, peerId })` — mirrors `getOrCreateGroupChat` but deterministic on sorted 2-member match with `type: 'DM'`. Name/avatar stored as null.
+- **Chats screen** (`app/(tabs)/chats.tsx`): full rewrite.
+  - Primary content is now the chat list (`onChats(userId)`), not the friends list. Rows show title, last-message preview or member count, relative timestamp ("5m", "2h", "Yesterday"), GROUP pill on group rows.
+  - Dedup subscribes to every member profile and DM-peer location once — DM row title + presence dot are derived from those. Group chats show `chat.name` directly.
+  - Header: compose-DM (MessageSquare) + compose-group (Users) + add-friend (UserPlus) + settings (gear) icons.
+  - Compose modal: `DM` / `Group` segmented control, group-name input (group only), searchable friend picker. DM mode = single tap → `getOrCreateDmChat` → `router.push('/chat/[id]')`. Group mode = multi-select + name → `getOrCreateGroupChat` → push.
+  - Friend requests + add-friend-by-handle modal preserved from the previous screen.
+  - Empty state: message + "New Message" CTA when friends exist.
+- **Chat detail** (`app/chat/[chatId].tsx`): DM header now resolves peer name from `members[peerId]` and subscribes to `onLocation(peerId)` — shows a mint/grey presence dot + "Online"/"Offline" subtitle. Group chats unchanged (member count).
+- **Map decoration guard** (`app/(tabs)/map.native.tsx`): `namedGroups` filter now type-predicates `c.name !== null`, so the `MapEntity.groupChat.name: string` slot still gets a string.
+- **Seed** (`src/dev/fixtures.json` + `src/dev/seedDevData.ts`): added `chat_study_crew` (dev-user + charlie + dana, plain group) and `chat_dm_alice` (dev-user ↔ alice DM with `name: null`). `lastMessageAt` now defaults to `now` when a seeded `lastMessage` exists so relative timestamps render.
+- **Self-review fix applied** (subscription thrash, Important): first pass built `neededProfileIds` / `presenceIds` as array memos, so every `onSnapshot` fire returned a fresh array identity and the fan-out `useEffect` tore down + re-subscribed N profile + location listeners every time any chat/friend doc changed. Switched to joined-string keys (`profileIdKey` / `presenceIdKey`) memoized to a sorted-pipe-delimited string — strings compare by value under `Object.is`, so dependencies only invalidate when the actual id *set* changes. Saved a gotcha entry in MEMORY.md.
+- `npx tsc --noEmit` passes; runtime test pending physical-device verification.
+
+## Known Bugs — Up Next
+
+> Three behavioral bugs in the map/cluster/friend-tap flow. Chat work (above) landed first so the Message CTA has something to wire into.
+
+1. **Friend spot zones leaking as "My Spots"** *(regression from 2026-04-17 "Friend Spot Zones on Map")*
+   - Symptom: mint-tinted circle + emoji label renders around every visible friend (see screenshot, Charlie's spot zone is drawn on the map).
+   - Expected (prototype parity): only the *viewer's own* spot zones render as circles. Friends appear as avatar pins only. The friend's containing spot is metadata for the pin popup, not a map zone.
+   - Likely fix: gut the `friendSpots` circle/label render in `app/(tabs)/map.native.tsx`. Keep the `spot` field on `LocationPresence` — it's still useful for the friend card ("At Home" / "At Deep Focus Cafe"), just don't draw a zone for it.
+
+2. **Friend marker tap — missing prototype popup UI**
+   - Symptom: tapping a friend pin currently does… whatever it does (no polished card).
+   - Expected: floating glass card identical in structure to `ClusterCard` but for a single friend — name, status line (`At Deep Focus Cafe`), `ONLINE`/`AWAY`/`OFFLINE` in mint/amber/grey, full-width signal-blue **Message** button. See screenshot 1 (David Kim, "At Deep Focus Cafe", ONLINE, Message).
+   - Implementation sketch: new `FriendCard.tsx` mirroring `ClusterCard.tsx`; `selectedFriendId` state in `map.native.tsx`; "Message" → `getOrCreateDmChat` + `router.push('/chat/' + chatId)` (depends on chat work above).
+
+3. **Seeded pair not clustering**
+   - Symptom: Alice + Bob are at the same fixture coords (inside their shared spot), but the map only shows "Charlie Öberg" — no 2-friend cluster node.
+   - Hypothesis: either (a) only one of Alice/Bob is producing a visible `locations/{uid}` doc after seed, (b) their coords drifted in fixtures and they're outside the 100m clustering threshold, or (c) `useMapProjection` is deduping them into a single FRIEND entity. Needs a console-log pass on the projection pipeline.
+   - Check: `src/dev/fixtures.json` coords for `alice`/`bob`, then log `mapEntities` after seed.
+
+## Tech Debt — Deferred
+
+> From self-review after the Chats Tab landing. Both are Minor — worth logging so they don't get lost, not worth blocking other work on.
+
+1. **DM get-or-create race**
+   - Symptom (latent, not yet observed): two devices tapping "Message" on each other at ~the same moment can both see `undefined` from the query for the sorted 2-member match and each create their own DM doc. Result is two parallel DM rooms for the same pair.
+   - Fix: make the DM doc ID deterministic — `dm_${[a, b].sort().join('_')}` — and use `setDoc(..., { merge: true })` on creation instead of `addDoc` + post-query. Same pattern would apply to `getOrCreateGroupChat` if we ever hit the race there (less likely with 3+ members).
+   - Location: `src/lib/firestore.ts` → `getOrCreateDmChat`.
+
+2. **Inline styles drift from NativeWind convention**
+   - Symptom: compose modal + a couple of the new header icon buttons in `app/(tabs)/chats.tsx` use `style={{ ... }}` literals where other screens use NativeWind `className`. CLAUDE.md style guide says `className` everywhere, no inline styles.
+   - Fix: port the remaining inline style props to NativeWind classes. Pure cosmetic — no behavior change.
+   - Location: `app/(tabs)/chats.tsx` (compose modal + header icons).
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi).
@@ -206,7 +258,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | `app/(auth)/permissions.tsx` | Location permission request |
 | `app/(auth)/spots.native.tsx` | Spots setup (native, uses react-native-maps) |
 | `app/(auth)/spots.tsx` | Spots fallback (web placeholder) |
-| `app/(tabs)/chats.tsx` | Chats tab — friends list + gear icon opens settings modal |
+| `app/(tabs)/chats.tsx` | Chats tab — real chat list (DMs + groups), compose-DM / compose-group / add-friend / settings icons, pending friend requests |
 | `app/(tabs)/communities.tsx` | Communities tab — placeholder |
 | `app/(tabs)/map.native.tsx` | Map screen (native, uses react-native-maps); wires chats → named cluster decoration + "Open Group Chat" → `/chat/[id]` |
 | `app/(tabs)/map.tsx` | Map fallback (web placeholder) |

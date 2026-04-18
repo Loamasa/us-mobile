@@ -67,7 +67,8 @@ export default function MapScreen() {
   // Match = chat.memberIds (sorted) equals cluster.friends' userIds + viewer.
   const mapEntities: MapEntity[] = (() => {
     const namedGroups = chats.filter(
-      (c) => c.type === 'GROUP' && c.mapVisibility === 'ALWAYS'
+      (c): c is ChatSummary & { name: string } =>
+        c.type === 'GROUP' && c.mapVisibility === 'ALWAYS' && c.name !== null
     );
     if (!namedGroups.length || !userId) return rawEntities;
     return rawEntities.map((e) => {

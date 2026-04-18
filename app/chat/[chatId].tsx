@@ -15,6 +15,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import {
   onChatSummary,
+  onLocation,
   onMessages,
   onUserProfile,
   sendMessage,
@@ -33,6 +34,7 @@ export default function ChatDetailScreen() {
   const [chat, setChat] = useState<ChatSummary | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<Record<string, UserProfile>>({});
+  const [peerVisible, setPeerVisible] = useState(false);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -71,10 +73,33 @@ export default function ChatDetailScreen() {
     return () => unsubs.forEach((u) => u());
   }, [chat?.memberIds]);
 
-  const otherMemberCount = useMemo(() => {
-    if (!chat || !userId) return 0;
-    return chat.memberIds.filter((id) => id !== userId).length;
+  const peerId = useMemo(() => {
+    if (!chat || chat.type !== 'DM' || !userId) return null;
+    return chat.memberIds.find((id) => id !== userId) ?? null;
   }, [chat, userId]);
+
+  // For DMs, subscribe to the peer's location doc to show presence.
+  useEffect(() => {
+    if (!peerId) {
+      setPeerVisible(false);
+      return;
+    }
+    return onLocation(peerId, (loc) => setPeerVisible(!!loc));
+  }, [peerId]);
+
+  const headerTitle = useMemo(() => {
+    if (!chat) return loaded ? 'Chat' : 'Loading…';
+    if (chat.type === 'DM' && peerId) {
+      return members[peerId]?.displayName ?? 'Direct message';
+    }
+    return chat.name ?? 'Chat';
+  }, [chat, peerId, members, loaded]);
+
+  const headerSubtitle = useMemo(() => {
+    if (!chat) return '';
+    if (chat.type === 'GROUP') return `${chat.memberIds.length} members`;
+    return peerVisible ? 'Online' : 'Offline';
+  }, [chat, peerVisible]);
 
   const handleSend = useCallback(async () => {
     if (!chatId || !userId) return;
@@ -194,16 +219,26 @@ export default function ChatDetailScreen() {
             numberOfLines={1}
             style={{ color: COLORS.fog, fontSize: 17, fontWeight: '700' }}
           >
-            {chat?.name ?? (loaded ? 'Chat' : 'Loading…')}
+            {headerTitle}
           </Text>
           {chat && (
-            <Text style={{ color: 'rgba(242,244,246,0.5)', fontSize: 11 }}>
-              {chat.type === 'GROUP'
-                ? `${chat.memberIds.length} members`
-                : otherMemberCount === 1
-                ? 'Direct message'
-                : `${chat.memberIds.length} members`}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {chat.type === 'DM' && (
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: peerVisible
+                      ? COLORS.mint
+                      : 'rgba(242,244,246,0.25)',
+                  }}
+                />
+              )}
+              <Text style={{ color: 'rgba(242,244,246,0.5)', fontSize: 11 }}>
+                {headerSubtitle}
+              </Text>
+            </View>
           )}
         </View>
       </View>
