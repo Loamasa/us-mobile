@@ -1,9 +1,20 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-04-18 — Chats tab now shows real chats (DMs + groups) from Firestore; new DM + new group flows wired; DM header shows peer name + presence. Self-review pass applied subscription-thrash fix. Three map bugs + two minor tech-debt items parked.
+2026-04-23 — Friend marker popup (`FriendCard`) landed with Message → DM wiring; friend spot-zone leak gutted; Alice+Bob clustering diagnostics instrumented (pending device run). Two map bugs closed, one diagnosed. Tech-debt items still parked.
 
 ## What Was Done This Session
+
+### Map Bug Cleanup — Friend Popup + Spot-Zone Gut + Cluster Diagnostics (2026-04-23)
+- **Goal**: Close the three map/cluster/friend-tap bugs parked at the end of the 2026-04-18 session so the map→chat loop behaves like the prototype.
+- **Bug #2 — Friend marker popup (fixed)**:
+  - `FriendOnMap` now carries an optional `spot: { name, emoji } | null` populated by `useMapProjection` so the popup can show "At {spot.name}" without re-reading `friendLocations`.
+  - New `src/components/map/FriendCard.tsx` mirrors `ClusterCard` — bottom-anchored glass card, name, optional rose-tinted signal pill, optional `"At 🏠 Home"` spot pill, `ONLINE`/`OFFLINE` status line (mint/grey), full-width signal-blue **Message** CTA, X close.
+  - `FriendMarker.native.tsx` dropped its `<Callout>` (same flakiness fix as ClusterMarker) and exposes an `onPress` prop.
+  - `app/(tabs)/map.native.tsx` now tracks `selectedFriendId`, derives `selectedFriend`, renders `<FriendCard>`, and wires **Message** → `getOrCreateDmChat({ viewerId, peerId })` → `router.push('/chat/' + chatId)`. Friend and cluster selection are mutex — tapping either clears the other; tapping the map clears both.
+- **Bug #1 — Friend spot zones (fixed)**: gutted the `friendSpots` circle+label render block plus the now-dead `clusteredUserIds` set in `map.native.tsx`. `useMapProjection` already excludes clustered friends from individual `FRIEND` entities, so no visibility regression. Viewer's own spot circles + labels still render. Friend's containing spot survives only as `FriendOnMap.spot` for the popup status line.
+- **Bug #3 — Seeded pair not clustering (diagnostics, pending device run)**: unable to repro without physical device. Added `[map-diag]` console logs in `useFriendLocations.commit` (per-friend profile/location arrival) and `useMapProjection` (input userIds + projected entities). Next device run will reveal which of (a) missing location doc, (b) distance > 100m threshold, (c) projection dedup is actually firing. Logs are tagged for easy strip.
+- `npx tsc --noEmit` passes; runtime test (FriendCard tap, Message CTA → DM, spot-zone removal, cluster diagnostics) pending physical-device verification.
 
 ### Chats Tab — DMs + Group Chats (2026-04-18)
 - **Goal**: Close the chat loop. Group chat data model landed earlier today, but the Chats tab was still a static friends list — no way to open a seeded chat or start a new one.
@@ -24,22 +35,14 @@
 
 ## Known Bugs — Up Next
 
-> Three behavioral bugs in the map/cluster/friend-tap flow. Chat work (above) landed first so the Message CTA has something to wire into.
+> Two of the three map bugs are closed. Bug #3 is instrumented with `[map-diag]` console logs — the next device run should reveal the root cause.
 
-1. **Friend spot zones leaking as "My Spots"** *(regression from 2026-04-17 "Friend Spot Zones on Map")*
-   - Symptom: mint-tinted circle + emoji label renders around every visible friend (see screenshot, Charlie's spot zone is drawn on the map).
-   - Expected (prototype parity): only the *viewer's own* spot zones render as circles. Friends appear as avatar pins only. The friend's containing spot is metadata for the pin popup, not a map zone.
-   - Likely fix: gut the `friendSpots` circle/label render in `app/(tabs)/map.native.tsx`. Keep the `spot` field on `LocationPresence` — it's still useful for the friend card ("At Home" / "At Deep Focus Cafe"), just don't draw a zone for it.
-
-2. **Friend marker tap — missing prototype popup UI**
-   - Symptom: tapping a friend pin currently does… whatever it does (no polished card).
-   - Expected: floating glass card identical in structure to `ClusterCard` but for a single friend — name, status line (`At Deep Focus Cafe`), `ONLINE`/`AWAY`/`OFFLINE` in mint/amber/grey, full-width signal-blue **Message** button. See screenshot 1 (David Kim, "At Deep Focus Cafe", ONLINE, Message).
-   - Implementation sketch: new `FriendCard.tsx` mirroring `ClusterCard.tsx`; `selectedFriendId` state in `map.native.tsx`; "Message" → `getOrCreateDmChat` + `router.push('/chat/' + chatId)` (depends on chat work above).
-
-3. **Seeded pair not clustering**
-   - Symptom: Alice + Bob are at the same fixture coords (inside their shared spot), but the map only shows "Charlie Öberg" — no 2-friend cluster node.
-   - Hypothesis: either (a) only one of Alice/Bob is producing a visible `locations/{uid}` doc after seed, (b) their coords drifted in fixtures and they're outside the 100m clustering threshold, or (c) `useMapProjection` is deduping them into a single FRIEND entity. Needs a console-log pass on the projection pipeline.
-   - Check: `src/dev/fixtures.json` coords for `alice`/`bob`, then log `mapEntities` after seed.
+1. **Seeded pair not clustering** *(diagnostics landed, root cause pending device test)*
+   - Symptom: Alice + Bob are at nearly identical fixture coords (~13m apart, well inside the 100m cluster threshold), but previous device runs showed only Charlie — no 2-friend cluster.
+   - Ruled out by reading code: (b) coord drift is NOT the issue — haversine between (55.5978, 13.0076) and (55.5979, 13.0077) is ~13m. The seed writes location docs for both (both have `globalLocationSharing: true` and are inside their own active spots).
+   - Remaining hypotheses: (a) only one of `locations/alice` / `locations/bob` actually lands, (c) `useFriendLocations.commit` is dropping one of them due to a profile/location arrival race.
+   - Diagnostics now in place (tagged `[map-diag]`): per-friend commit log in `useFriendLocations` (reports hasProfile/hasLocation on every commit) + input/output logs in `useMapProjection` (lists userIds going in and entities coming out).
+   - Next step: run on device, Seed Test Data, filter console for `[map-diag]`. Strip the logs once diagnosed.
 
 ## Tech Debt — Deferred
 
@@ -197,7 +200,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 #### Display Seeded Friends (wire up test data)
 - [x] **Show seeded friends on map** — `useFriendLocations` + `useMapProjection` + `FriendMarker`/`ClusterMarker`; clustering by 100m Haversine
 - [x] **Show seeded friends in friends list** — `onFriends` subscription with per-friend profile fetch; now auth-reactive for account switching
-- [x] **Render seeded friends' spots on map** — each visible friend's current containing spot renders as a mint-tinted circle + emoji label; spot snapshot embedded in `locations/{uid}` doc at publish time (2026-04-17)
+- [x] **Render seeded friends' spots on map** — ~~mint-tinted circle + emoji label per friend~~ reverted 2026-04-23 (prototype parity: only viewer's own spots render as zones). Spot snapshot still embedded in `locations/{uid}` and surfaces as "At {spot.name}" in the friend popup card.
 
 #### Friends Screen
 - [x] **Avatar component** — `UserAvatar` with size variants + status dot in use on Chats screen
@@ -264,6 +267,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | `app/(tabs)/map.tsx` | Map fallback (web placeholder) |
 | `app/chat/[chatId].tsx` | Chat detail screen — inverted FlatList of messages, member-count header, send input |
 | `src/components/map/ClusterCard.tsx` | Floating glass card for a selected cluster (prototype parity); renders GROUP badge + named chat title when matched |
+| `src/components/map/FriendCard.tsx` | Floating glass card for a tapped friend marker — name, optional signal + spot pills, ONLINE/OFFLINE status, Message → `getOrCreateDmChat` → `/chat/[id]` |
 | `src/config/mapStyles.ts` | Shared dark map style constant (`DARK_MAP_STYLE`) |
 | `src/config/firebase.ts` | Firebase config + emulator connection + `getEmulatorHost()` |
 | `src/lib/firestore.ts` | Firestore helpers (profile, handles, friends, location, spots) |

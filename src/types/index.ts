@@ -98,6 +98,8 @@ export interface FriendOnMap {
   location: { lat: number; lng: number };
   signal: UserSignal | null;
   isOnline: boolean;
+  // Name + emoji of the friend's current containing spot, for the popup status line.
+  spot: { name: string; emoji: string } | null;
 }
 
 // ─── Chats ───────────────────────────────────────────

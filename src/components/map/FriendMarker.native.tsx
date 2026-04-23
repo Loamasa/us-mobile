@@ -1,13 +1,14 @@
 import { View, Text } from 'react-native';
-import { Marker, Callout } from 'react-native-maps';
+import { Marker } from 'react-native-maps';
 import UserAvatar from '@/components/UserAvatar';
 import type { MapEntity } from '@/types';
 
 interface FriendMarkerProps {
   entity: MapEntity;
+  onPress?: (entity: MapEntity) => void;
 }
 
-export default function FriendMarker({ entity }: FriendMarkerProps) {
+export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
   const friend = entity.friends[0];
   if (!friend) return null;
 
@@ -18,6 +19,8 @@ export default function FriendMarker({ entity }: FriendMarkerProps) {
         longitude: entity.location.lng,
       }}
       anchor={{ x: 0.5, y: 0.5 }}
+      onPress={onPress ? () => onPress(entity) : undefined}
+      tracksViewChanges={false}
     >
       <View style={{ alignItems: 'center' }}>
         {/* Signal Badge */}
@@ -64,17 +67,6 @@ export default function FriendMarker({ entity }: FriendMarkerProps) {
           {friend.displayName.split(' ')[0]}
         </Text>
       </View>
-
-      <Callout>
-        <View style={{ padding: 8, minWidth: 120 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700' }}>{friend.displayName}</Text>
-          {entity.signal && (
-            <Text style={{ fontSize: 13, color: '#9CA3AF', marginTop: 4 }}>
-              {entity.signal.emoji} {entity.signal.text}
-            </Text>
-          )}
-        </View>
-      </Callout>
     </Marker>
   );
 }

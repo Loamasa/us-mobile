@@ -24,6 +24,12 @@ export function useMapProjection(
     const processed = new Set<string>();
     const entries = Object.entries(friendLocations);
 
+    // [map-diag] remove after Alice+Bob cluster bug is diagnosed
+    console.log(
+      '[map-diag] projection input userIds:',
+      entries.map(([id, d]) => `${id}@(${d.location.lat.toFixed(4)},${d.location.lng.toFixed(4)})`)
+    );
+
     if (entries.length === 0) return entities;
 
     // Step 1: Find clusters (2+ friends within radius)
@@ -60,6 +66,9 @@ export function useMapProjection(
             location: { lat: data.location.lat, lng: data.location.lng },
             signal: data.profile.currentSignal,
             isOnline: true,
+            spot: data.location.spot
+              ? { name: data.location.spot.name, emoji: data.location.spot.emoji }
+              : null,
           };
         });
 
@@ -102,6 +111,9 @@ export function useMapProjection(
             location: { lat: data.location.lat, lng: data.location.lng },
             signal: !isExpired ? signal : null,
             isOnline: true,
+            spot: data.location.spot
+              ? { name: data.location.spot.name, emoji: data.location.spot.emoji }
+              : null,
           },
         ],
         signal:
@@ -110,6 +122,16 @@ export function useMapProjection(
             : undefined,
       });
     }
+
+    // [map-diag] remove after Alice+Bob cluster bug is diagnosed
+    console.log(
+      '[map-diag] projection output entities:',
+      entities.map((e) =>
+        e.type === 'CLUSTER'
+          ? `CLUSTER(${e.friends.map((f) => f.userId).join('+')})`
+          : `FRIEND(${e.friends[0]?.userId})`
+      )
+    );
 
     return entities;
   }, [friendLocations]);
