@@ -1,9 +1,22 @@
 # us-mobile — Status
 
 ## Last Updated
-2026-04-23 — Friend marker popup (`FriendCard`) landed with Message → DM wiring; friend spot-zone leak gutted; Alice+Bob clustering diagnostics instrumented (pending device run). Two map bugs closed, one diagnosed. Tech-debt items still parked.
+2026-06-02 — **Bug #3 (Alice+Bob not clustering) resolved by device-free verification.** Built a Node harness (`runSeed.js` + `verifyProjection.js`) that seeds the emulator and replays the exact app read path; it produces `CLUSTER(alice+bob) + FRIEND(charlie)` against real seeded data. Root cause was NOT in seed/data/commit/projection — all proven correct. `[map-diag]` logs stripped. All three original map bugs now closed.
 
 ## What Was Done This Session
+
+### Bug #3 — Seeded Pair Clustering: Resolved by Device-Free Verification (2026-06-02)
+- **Goal**: Diagnose why a previous device run "showed only Charlie — no Alice+Bob cluster" without needing a physical device.
+- **Approach**: The prior session left two untracked Node scripts (`src/dev/runSeed.js`, `src/dev/testProjection.js`) — a device-free path. Completed that path:
+  - `testProjection.js` (mock coords) → confirms the clustering math: alice↔bob = **12.77m** (≪ 100m threshold) → produces a CLUSTER. Projection logic is correct.
+  - Started the emulator (`firebase emulators:start --project us-v1-ff6b3 --only auth,firestore`), ran `node src/dev/runSeed.js` → seeded fresh.
+  - Queried `locations` via REST: **all three docs land** — `alice`, `bob`, `charlie` with correct coords + spot; `dana`/`eve` correctly absent (location sharing off). **Hypothesis (a) — missing location doc — refuted.**
+  - New `src/dev/verifyProjection.js` — reads LIVE emulator data the way the app does (`users/dev-user/friends` → per-friend `users/{id}` + `locations/{id}`), assembles `friendLocations` exactly as `useFriendLocations.commit` (both profile AND location required), runs the projection. **Result: `CLUSTER(alice+bob), FRIEND(charlie)` ✅ PASS.**
+- **Conclusion**: The entire pipeline — seed, friend list, profile/location reads, commit dedup, clustering projection — is verified correct end-to-end against real data. The original "only Charlie" symptom is attributable to **stale emulator data** from a prior session (see Warnings) or the **pre-fix subscription thrash** (fixed 2026-04-18 with string keys) / **stale auth-keyed subscriptions** (fixed 2026-04-17) — both of which predate-or-explain that observation.
+- **Cleanup**: Stripped the `[map-diag]` console logs from `useFriendLocations.ts` (commit) and `useMapProjection.ts` (input + output). `npx tsc --noEmit` passes.
+- **Remaining uncertainty**: The bug was only ever *observed* on device, and this verification is device-free. A confirmatory device run (seed → open map) is the only thing left to make it 100% — but there is no longer any code/data defect to find.
+
+### Map Bug Cleanup — Friend Popup + Spot-Zone Gut + Cluster Diagnostics (2026-04-23)
 
 ### Map Bug Cleanup — Friend Popup + Spot-Zone Gut + Cluster Diagnostics (2026-04-23)
 - **Goal**: Close the three map/cluster/friend-tap bugs parked at the end of the 2026-04-18 session so the map→chat loop behaves like the prototype.
@@ -35,14 +48,14 @@
 
 ## Known Bugs — Up Next
 
-> Two of the three map bugs are closed. Bug #3 is instrumented with `[map-diag]` console logs — the next device run should reveal the root cause.
+> All three map bugs are closed. Bug #3 was resolved 2026-06-02 by device-free verification — no code/data defect remains.
 
-1. **Seeded pair not clustering** *(diagnostics landed, root cause pending device test)*
-   - Symptom: Alice + Bob are at nearly identical fixture coords (~13m apart, well inside the 100m cluster threshold), but previous device runs showed only Charlie — no 2-friend cluster.
-   - Ruled out by reading code: (b) coord drift is NOT the issue — haversine between (55.5978, 13.0076) and (55.5979, 13.0077) is ~13m. The seed writes location docs for both (both have `globalLocationSharing: true` and are inside their own active spots).
-   - Remaining hypotheses: (a) only one of `locations/alice` / `locations/bob` actually lands, (c) `useFriendLocations.commit` is dropping one of them due to a profile/location arrival race.
-   - Diagnostics now in place (tagged `[map-diag]`): per-friend commit log in `useFriendLocations` (reports hasProfile/hasLocation on every commit) + input/output logs in `useMapProjection` (lists userIds going in and entities coming out).
-   - Next step: run on device, Seed Test Data, filter console for `[map-diag]`. Strip the logs once diagnosed.
+1. ~~**Seeded pair not clustering**~~ *(RESOLVED 2026-06-02 — verified, not a code/data bug)*
+   - Symptom (historical): a previous device run showed only Charlie — no Alice+Bob cluster.
+   - Verified correct end-to-end against real seeded emulator data via `src/dev/runSeed.js` + `src/dev/verifyProjection.js`: all three `locations/*` docs land, the commit dedup includes alice/bob/charlie, and the projection yields `CLUSTER(alice+bob) + FRIEND(charlie)`. alice↔bob distance is 12.77m (≪ 100m).
+   - Root cause attribution: stale emulator data from a prior session, or the subscription thrash / stale-auth-keyed listeners fixed on 2026-04-18 / 2026-04-17 (both predate-or-explain the observation).
+   - Only outstanding item: an optional confirmatory device run (seed → open map). There is no longer a defect to fix.
+   - **Repro the verification anytime**: start emulator → `node src/dev/runSeed.js` → `node src/dev/verifyProjection.js` (expects `✅ PASS`).
 
 ## Tech Debt — Deferred
 
@@ -273,5 +286,8 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | `src/lib/firestore.ts` | Firestore helpers (profile, handles, friends, location, spots) |
 | `firebase.json` | Emulators: auth@9099, firestore@8088, ui@4000 (host 0.0.0.0) |
 | `src/dev/fixtures.json` | 5 test personas with Malmö locations, spots, signals |
-| `src/dev/seedDevData.ts` | Seeds auth users + Firestore data (profiles, locations, spots, friendships) |
+| `src/dev/seedDevData.ts` | Seeds auth users + Firestore data (profiles, locations, spots, friendships) — in-app version |
 | `src/dev/devAccounts.ts` | Account switcher: DEV_ACCOUNTS list, switchAccount(), getCurrentAccountId() |
+| `src/dev/runSeed.js` | Node-only seed (no RN deps) — writes fixtures to emulator via admin REST `:commit`. Run: `node src/dev/runSeed.js` |
+| `src/dev/verifyProjection.js` | Device-free Bug #3 check — reads live emulator data through the app's read path + projection; expects `CLUSTER(alice+bob) + FRIEND(charlie)` |
+| `src/dev/testProjection.js` | Pure-logic projection test with mock coords (proves clustering math) |

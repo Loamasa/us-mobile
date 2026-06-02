@@ -11,7 +11,7 @@
 - Package: `com.us.mobile`
 - Auth: Phone enabled + test numbers configured
 - Firestore: Created in test mode
-- Emulators: Auth 9099, Firestore 8080, UI 4000
+- Emulators: Auth 9099, Firestore 8088, UI 4000 (per `firebase.json`)
 - `google-services.json` exists for Android
 
 ## Testing
@@ -39,6 +39,7 @@
 - babel.config.js needs: nativewind/babel preset + react-native-reanimated/plugin
 - **Firestore emulator enforces security rules against the client SDK.** Cross-user dev writes (seeding test personas, admin scripts) must go through the REST `:commit` endpoint (`/v1/projects/{pid}/databases/(default)/documents:commit`) with `Authorization: Bearer owner` — this is the documented admin-bypass token, same one already used for auth user creation. `writeBatch(db)` from the JS SDK always runs as the signed-in user.
 - **Chats model** (added 2026-04-18): `onChats` uses `array-contains` on `memberIds` and sorts client-side by `lastMessageAt ?? createdAt` — avoids a composite index. Subcollection rules (`chats/{id}/messages/{id}`) authorize with `get(/databases/$(database)/documents/chats/$(chatId)).data.memberIds`. Named group clusters match proximity clusters by sorted `[viewer, ...cluster.friends]` == `chat.memberIds` and decorate the cluster with `groupChat: { id, name }`. Fixture: `chats[]` in `src/dev/fixtures.json` seeds via `src/dev/seedDevData.ts`.
+- **Map/cluster bugs are verifiable WITHOUT a device** (added 2026-06-02): start the emulator → `node src/dev/runSeed.js` (Node-only seed via REST `:commit`, mirrors `seedDevData.ts`) → `node src/dev/verifyProjection.js`. The verify script reads LIVE emulator data through the app's exact read path (`users/dev-user/friends` → per-friend `users/{id}` + `locations/{id}`), assembles `friendLocations` like `useFriendLocations.commit` (needs BOTH profile + location), and runs the same clustering as `useMapProjection`. Expects `CLUSTER(alice+bob) + FRIEND(charlie)`. This resolved Bug #3 (Alice+Bob not clustering): the whole pipeline was correct — the device symptom was stale emulator data / pre-fix subscription thrash. Far faster than chasing device console logs.
 
 ## Web Prototype (Reference Setup)
 - Prototype source copied to `.context/prototype/src/` (82 files, finished, won't change)

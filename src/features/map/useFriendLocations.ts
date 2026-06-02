@@ -43,10 +43,6 @@ export function useFriendLocations() {
 
     const commit = (friendId: string) => {
       const state = perFriendState.get(friendId);
-      // [map-diag] remove after Alice+Bob cluster bug is diagnosed
-      console.log(
-        `[map-diag] commit(${friendId}) hasProfile=${!!state?.profile} hasLocation=${!!state?.location}`
-      );
       setFriendLocations((prev) => {
         const next = { ...prev };
         if (!state?.location || !state.profile) {
