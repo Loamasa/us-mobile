@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -19,6 +19,8 @@ import { DARK_MAP_STYLE } from '@/config/mapStyles';
 import { useLocationTracking } from '@/features/location/useLocationTracking';
 import { useFriendLocations } from '@/features/map/useFriendLocations';
 import { useMapProjection } from '@/features/map/useMapProjection';
+import { useGroupMemberProfiles } from '@/features/map/useGroupMemberProfiles';
+import { buildGroupPins } from '@/features/map/groupPins';
 import { BlurView } from 'expo-blur';
 import FriendMarker from '@/components/map/FriendMarker';
 import ClusterMarker from '@/components/map/ClusterMarker';
@@ -66,26 +68,26 @@ export default function MapScreen() {
   // Project friends into map entities (individual + clusters)
   const rawEntities = useMapProjection(friendLocations);
 
-  // Decorate clusters with a matching named group chat (mapVisibility = ALWAYS).
-  // Match = chat.memberIds (sorted) equals cluster.friends' userIds + viewer.
-  const mapEntities: MapEntity[] = (() => {
-    const namedGroups = chats.filter(
-      (c): c is ChatSummary & { name: string } =>
-        c.type === 'GROUP' && c.mapVisibility === 'ALWAYS' && c.name !== null
-    );
-    if (!namedGroups.length || !userId) return rawEntities;
-    return rawEntities.map((e) => {
-      if (e.type !== 'CLUSTER') return e;
-      const clusterIds = [...e.friends.map((f) => f.userId), userId].sort();
-      const match = namedGroups.find((g) => {
-        const ids = [...g.memberIds].sort();
-        if (ids.length !== clusterIds.length) return false;
-        return ids.every((id, i) => id === clusterIds[i]);
-      });
-      if (!match) return e;
-      return { ...e, groupChat: { id: match.id, name: match.name } };
-    });
-  })();
+  // Member profiles for named always-on groups — power the facepile of a resting
+  // fixed-location pin, whose members may be ghost / absent from friendLocations.
+  const groupMemberProfiles = useGroupMemberProfiles(chats, userId);
+
+  // Reconcile named groups (mapVisibility = ALWAYS) with the live projection:
+  // decorate a live proximity cluster with the group name when its members are
+  // actually together, otherwise synthesize a persistent pin at the chat's
+  // fixedLocation. Proximity wins when both apply. (See buildGroupPins.)
+  const mapEntities: MapEntity[] = useMemo(
+    () =>
+      userId
+        ? buildGroupPins({
+            rawEntities,
+            chats,
+            userId,
+            memberProfiles: groupMemberProfiles,
+          })
+        : rawEntities,
+    [rawEntities, chats, userId, groupMemberProfiles]
+  );
 
   // Selected cluster — the one whose card is currently shown.
   const selectedCluster =

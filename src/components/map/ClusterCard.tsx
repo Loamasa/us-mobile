@@ -21,10 +21,14 @@ export default function ClusterCard({
   const friends = entity.friends;
   const count = friends.length;
   const named = !!entity.groupChat;
+  const fixed = entity.groupChat?.fixed === true;
   const title = entity.groupChat?.name ?? deriveClusterTitle(entity);
   const shown = friends.slice(0, FACEPILE_MAX);
   const overflow = Math.max(0, count - FACEPILE_MAX);
-  const description = named
+  const member = count === 1 ? 'member' : 'members';
+  const description = fixed
+    ? `This group's spot · ${count} ${member}. Always on the map here.`
+    : named
     ? `${count} friends from this group are here.`
     : `${count} friends are gathered nearby.`;
   const badgeLabel = named ? 'GROUP' : 'CLUSTER';

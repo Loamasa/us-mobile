@@ -1,6 +1,8 @@
 # us-mobile — Status
 
 ## Last Updated
+2026-06-03 — **Named group pins without proximity landed (Phase 1 Friend-Clusters: last open item).** A named GROUP chat with `mapVisibility:'ALWAYS'` + `fixedLocation` now renders as a persistent cluster pin even when its members aren't physically together. Rule is **proximity wins**: when the members actually cluster, the live cluster is decorated at their real centroid; otherwise a resting pin synthesizes at `fixedLocation`. New `src/features/map/groupPins.ts` (`buildGroupPins`) + `useGroupMemberProfiles.ts` (facepile profiles for ghost/away members, stable-string-key). Verified device-free with new `src/dev/verifyGroupPins.js` (both branches PASS) and the existing `verifyProjection.js` regression still PASSes. `npx tsc --noEmit` clean.
+
 2026-06-02 — **Bug #3 (Alice+Bob not clustering) resolved by device-free verification.** Built a Node harness (`runSeed.js` + `verifyProjection.js`) that seeds the emulator and replays the exact app read path; it produces `CLUSTER(alice+bob) + FRIEND(charlie)` against real seeded data. Root cause was NOT in seed/data/commit/projection — all proven correct. `[map-diag]` logs stripped. All three original map bugs now closed.
 
 ## What Was Done This Session
@@ -202,7 +204,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **Absorb clustered members** — individual pins + spot zones hide while members are in the cluster (2026-04-18)
 - [x] **Open Group Chat wiring** — chat data model + `app/chat/[chatId].tsx` detail screen + `getOrCreateGroupChat` + `router.push('/chat/...')` (2026-04-18)
 - [x] **Named group clusters — partial** — `ChatSummary` with `mapVisibility: 'ALWAYS'` decorates a matching proximity cluster with the chat's name + GROUP badge (seeded "Möllevången Crew"). (2026-04-18)
-- [ ] **Named group pins without proximity** — a named group with `fixedLocation` should render as a cluster on the map even when its members aren't actually clustered (prototype parity: "Möllevången Crew" always visible at Möllevångstorget).
+- [x] **Named group pins without proximity** — a named group with `fixedLocation` renders as a cluster on the map even when its members aren't actually clustered (prototype parity: "Möllevången Crew" always visible at Möllevångstorget). **Rule: proximity wins** — a live proximity cluster of the group's members is decorated at their real centroid; only when they're NOT clustered does a resting pin synthesize at `fixedLocation`. Non-absorbing: an individually-visible member keeps their own real-time pin. (`buildGroupPins` + `useGroupMemberProfiles`; verified device-free via `verifyGroupPins.js`.) (2026-06-03)
 
 #### Dev Mock Friends (testing infrastructure)
 - [x] **Seed 5 mock friends** — profiles, spots, locations, friendships in Firestore emulator
@@ -290,4 +292,7 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | `src/dev/devAccounts.ts` | Account switcher: DEV_ACCOUNTS list, switchAccount(), getCurrentAccountId() |
 | `src/dev/runSeed.js` | Node-only seed (no RN deps) — writes fixtures to emulator via admin REST `:commit`. Run: `node src/dev/runSeed.js` |
 | `src/dev/verifyProjection.js` | Device-free Bug #3 check — reads live emulator data through the app's read path + projection; expects `CLUSTER(alice+bob) + FRIEND(charlie)` |
+| `src/dev/verifyGroupPins.js` | Device-free named-group-pin check — mirrors `buildGroupPins`; asserts proximity-wins (Case A) and resting fixed pin at `fixedLocation` (Case B). Run after `runSeed.js` |
 | `src/dev/testProjection.js` | Pure-logic projection test with mock coords (proves clustering math) |
+| `src/features/map/groupPins.ts` | `buildGroupPins` — decorates live proximity clusters with a named group + synthesizes a resting pin at `fixedLocation` when members aren't clustered |
+| `src/features/map/useGroupMemberProfiles.ts` | Subscribes to profiles of named always-on group members (facepile source for the fixed pin); stable-string-key to avoid subscription thrash |

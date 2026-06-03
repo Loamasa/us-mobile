@@ -88,7 +88,10 @@ export interface MapEntity {
   friends: FriendOnMap[];
   signal?: { emoji: string; text: string };
   // Set when a named group chat (mapVisibility = 'ALWAYS') matches this cluster.
-  groupChat?: { id: string; name: string };
+  // `fixed` = the cluster was synthesized at the chat's fixedLocation because its
+  // members are NOT physically clustered right now (resting "home base" pin),
+  // as opposed to a live proximity cluster decorated with the group's name.
+  groupChat?: { id: string; name: string; fixed?: boolean };
 }
 
 export interface FriendOnMap {
