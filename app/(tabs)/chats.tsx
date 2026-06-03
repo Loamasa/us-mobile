@@ -487,6 +487,7 @@ export default function ChatsScreen() {
           data={filteredChats}
           keyExtractor={(item) => item.chat.id}
           showsVerticalScrollIndicator={false}
+          contentContainerClassName="pb-24"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => router.push(`/chat/${item.chat.id}`)}

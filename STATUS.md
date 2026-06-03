@@ -1,6 +1,8 @@
 # us-mobile — Status
 
 ## Last Updated
+2026-06-03 — **Tab navigation polish landed (Phase 1 Tab Navigation: all 3 items).** Floating glass tab bar (`app/(tabs)/_layout.tsx`): `position: absolute` + `tabBarBackground` BlurView under a `bg-void/80` overlay so map/list content blurs through. Active tab scales 1.12 with a signal-blue glow (halo + iOS shadow); icons already SVG. Screens pad to clear the now-floating bar — chats FlatList + settings ScrollView `pb-24`, map controls raised to `bottom: 96`, and the map's my-location button hides while a cluster/friend card is open (cards also sit at `bottom: 96`). `npx tsc --noEmit` clean. **This closes every Phase 1 map/UI item the session set out to do.**
+
 2026-06-03 — **Settings redesign landed (Phase 1 Settings: nav-list + detail views).** Replaced the single-scroll settings with a prototype-style nav list: tappable profile card (→ account editor), grouped `SettingsGroup`/`SettingRow` rows, and full-screen detail routes `app/settings/{account,privacy,developer}.tsx` (own back-header via `SettingsDetailLayout`, no tab bar — same pattern as chat detail). My Account edits name/bio; Privacy holds the sharing/requests/status toggles; Developer holds Seed / account switcher / Test Onboarding (→ `/(auth)/phone`). My Spots reuses `MySpotsModal`. New SVG icons (ChevronRight, ArrowLeft, Terminal, LogOut, Camera, Check, PlayCircle). `npx tsc --noEmit` clean.
 
 2026-06-03 — **Named group pins without proximity landed (Phase 1 Friend-Clusters: last open item).** A named GROUP chat with `mapVisibility:'ALWAYS'` + `fixedLocation` now renders as a persistent cluster pin even when its members aren't physically together. Rule is **proximity wins**: when the members actually cluster, the live cluster is decorated at their real centroid; otherwise a resting pin synthesizes at `fixedLocation`. New `src/features/map/groupPins.ts` (`buildGroupPins`) + `useGroupMemberProfiles.ts` (facepile profiles for ghost/away members, stable-string-key). Verified device-free with new `src/dev/verifyGroupPins.js` (both branches PASS) and the existing `verifyProjection.js` regression still PASSes. `npx tsc --noEmit` clean.
@@ -228,9 +230,9 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **"Test Onboarding" button** — in Developer / Debug detail, navigates to `/(auth)/phone`. (2026-06-03)
 
 #### Tab Navigation
-- [ ] **Tab icons** — replace emoji with Lucide SVG icons
-- [ ] **Active tab indicator** — scale + signal-blue glow
-- [ ] **Tab bar styling** — `backdrop-blur-xl` + `bg-void/80` glass effect
+- [x] **Tab icons** — Lucide-style SVG icons (`MapIcon`/`UsersIcon`/`MessageSquareIcon`), no emoji. (2026-06-03)
+- [x] **Active tab indicator** — focused icon scales 1.12 + signal-blue glow (halo for Android, shadow for iOS). (2026-06-03)
+- [x] **Tab bar styling** — floating glass bar: `position: absolute` + `tabBarBackground` BlurView (intensity 40) under a `bg-void/80` overlay. Screens pad to clear it (chats/settings `pb-24`; map controls at `bottom: 96`, my-location button hidden while a card is open). (2026-06-03)
 
 ---
 

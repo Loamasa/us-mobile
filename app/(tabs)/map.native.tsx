@@ -539,11 +539,13 @@ export default function MapScreen() {
         )}
       </View>
 
-      {/* ── My location button ── */}
+      {/* ── My location button (hidden while a card is open; both sit above the
+            floating glass tab bar at bottom: 96) ── */}
+      {!selectedCluster && !selectedFriend && (
       <TouchableOpacity
         style={{
           position: 'absolute',
-          bottom: 24,
+          bottom: 96,
           right: 16,
           zIndex: 40,
         }}
@@ -577,6 +579,7 @@ export default function MapScreen() {
           <NavigationIcon size={18} color="#F2F4F6" />
         </BlurView>
       </TouchableOpacity>
+      )}
 
       {/* ── Cluster Card ── */}
       {selectedCluster && (

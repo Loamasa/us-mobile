@@ -58,7 +58,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-void" contentContainerClassName="px-4 pt-16 pb-12">
+    <ScrollView className="flex-1 bg-void" contentContainerClassName="px-4 pt-16 pb-24">
       <Text className="text-fog text-2xl font-bold mb-6 px-2">Settings</Text>
 
       {/* Profile card — tap to edit */}
