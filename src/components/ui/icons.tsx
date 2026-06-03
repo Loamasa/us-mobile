@@ -144,3 +144,58 @@ export const UserIcon = ({ size = 20, color = '#9CA3AF' }: IconProps) => (
         <Circle cx={12} cy={7} r={4} />
     </Svg>
 );
+
+// Chevron Right icon (nav-row affordance)
+export const ChevronRightIcon = ({ size = 18, color = '#9CA3AF' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M9 18l6-6-6-6" />
+    </Svg>
+);
+
+// Arrow Left icon (back button)
+export const ArrowLeftIcon = ({ size = 22, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Line x1={19} y1={12} x2={5} y2={12} />
+        <Path d="M12 19l-7-7 7-7" />
+    </Svg>
+);
+
+// Terminal icon (developer section)
+export const TerminalIcon = ({ size = 20, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M4 17l6-6-6-6" />
+        <Line x1={12} y1={19} x2={20} y2={19} />
+    </Svg>
+);
+
+// Log Out icon
+export const LogOutIcon = ({ size = 20, color = '#F472B6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <Path d="M16 17l5-5-5-5" />
+        <Line x1={21} y1={12} x2={9} y2={12} />
+    </Svg>
+);
+
+// Camera icon (edit avatar)
+export const CameraIcon = ({ size = 16, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+        <Circle cx={12} cy={13} r={4} />
+    </Svg>
+);
+
+// Check icon
+export const CheckIcon = ({ size = 18, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M20 6L9 17l-5-5" />
+    </Svg>
+);
+
+// Play Circle icon (test onboarding / replay)
+export const PlayCircleIcon = ({ size = 20, color = '#2E5CFF' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Circle cx={12} cy={12} r={10} />
+        <Path d="M10 8l6 4-6 4V8z" />
+    </Svg>
+);

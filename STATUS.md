@@ -1,6 +1,8 @@
 # us-mobile — Status
 
 ## Last Updated
+2026-06-03 — **Settings redesign landed (Phase 1 Settings: nav-list + detail views).** Replaced the single-scroll settings with a prototype-style nav list: tappable profile card (→ account editor), grouped `SettingsGroup`/`SettingRow` rows, and full-screen detail routes `app/settings/{account,privacy,developer}.tsx` (own back-header via `SettingsDetailLayout`, no tab bar — same pattern as chat detail). My Account edits name/bio; Privacy holds the sharing/requests/status toggles; Developer holds Seed / account switcher / Test Onboarding (→ `/(auth)/phone`). My Spots reuses `MySpotsModal`. New SVG icons (ChevronRight, ArrowLeft, Terminal, LogOut, Camera, Check, PlayCircle). `npx tsc --noEmit` clean.
+
 2026-06-03 — **Named group pins without proximity landed (Phase 1 Friend-Clusters: last open item).** A named GROUP chat with `mapVisibility:'ALWAYS'` + `fixedLocation` now renders as a persistent cluster pin even when its members aren't physically together. Rule is **proximity wins**: when the members actually cluster, the live cluster is decorated at their real centroid; otherwise a resting pin synthesizes at `fixedLocation`. New `src/features/map/groupPins.ts` (`buildGroupPins`) + `useGroupMemberProfiles.ts` (facepile profiles for ghost/away members, stable-string-key). Verified device-free with new `src/dev/verifyGroupPins.js` (both branches PASS) and the existing `verifyProjection.js` regression still PASSes. `npx tsc --noEmit` clean.
 
 2026-06-02 — **Bug #3 (Alice+Bob not clustering) resolved by device-free verification.** Built a Node harness (`runSeed.js` + `verifyProjection.js`) that seeds the emulator and replays the exact app read path; it produces `CLUSTER(alice+bob) + FRIEND(charlie)` against real seeded data. Root cause was NOT in seed/data/commit/projection — all proven correct. `[map-diag]` logs stripped. All three original map bugs now closed.
@@ -194,8 +196,8 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **My Spots system** — `MySpotsModal` with LIST/CREATE/EDIT; emoji grid, radius picker, draggable map marker; accessed from Settings → My Spots
 
 #### Settings Screen (redesign to match prototype)
-- [ ] **Nav list layout** — prototype-style nav list with 4 sections: My Account, Privacy & Safety, My Spots, Developer/Debug
-  - Tap item → navigate to detail view (full-screen)
+- [x] **Nav list layout** — prototype-style nav list: profile card (avatar + Edit) + grouped `SettingsGroup`/`SettingRow` rows for My Account, Privacy & Safety, My Spots, Developer/Debug. (2026-06-03)
+  - [x] Tap item → full-screen detail view. New routes `app/settings/{account,privacy,developer}.tsx` render outside `(tabs)` (no tab bar) with a back-header `SettingsDetailLayout`, mirroring `app/chat/[chatId].tsx`. My Spots reuses `MySpotsModal`.
 - [x] **Gear icon routes to full settings** — Chats gear now opens `/(tabs)/settings` instead of the stale inline modal (2026-04-17)
 
 #### Friend Clusters (GROUP type on map)
@@ -222,8 +224,8 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 - [x] **Presence indicators** — mint dot when friend is inside an active spot (location doc exists), muted grey otherwise (2026-04-17)
 
 #### Settings Screen
-- [ ] **Profile card** — proper avatar with edit button
-- [ ] **"Test Onboarding" button** — in Developer section, navigates to `/(auth)/phone`
+- [x] **Profile card** — `UserAvatar` + name/handle/bio, whole card taps through to `/settings/account` (Edit affordance); account detail has avatar w/ camera badge + editable name & bio + Save. (2026-06-03)
+- [x] **"Test Onboarding" button** — in Developer / Debug detail, navigates to `/(auth)/phone`. (2026-06-03)
 
 #### Tab Navigation
 - [ ] **Tab icons** — replace emoji with Lucide SVG icons
@@ -281,6 +283,13 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | `app/(tabs)/map.native.tsx` | Map screen (native, uses react-native-maps); wires chats → named cluster decoration + "Open Group Chat" → `/chat/[id]` |
 | `app/(tabs)/map.tsx` | Map fallback (web placeholder) |
 | `app/chat/[chatId].tsx` | Chat detail screen — inverted FlatList of messages, member-count header, send input |
+| `app/(tabs)/settings.tsx` | Settings home — profile card + nav list (My Account, Privacy & Safety, My Spots, Developer) + Sign Out |
+| `app/settings/account.tsx` | My Account detail — avatar (camera badge), editable name + bio, read-only handle, Save |
+| `app/settings/privacy.tsx` | Privacy & Safety detail — location sharing / friend requests / online status toggles |
+| `app/settings/developer.tsx` | Developer / Debug detail — Seed Test Data, account switcher, Test Onboarding → `/(auth)/phone` |
+| `src/components/settings/SettingRow.tsx` | Nav-list row (icon + label + subtitle + value/badge/chevron or custom right accessory) |
+| `src/components/settings/SettingsGroup.tsx` | Titled glass card grouping `SettingRow`s with hairline dividers |
+| `src/components/settings/SettingsDetailLayout.tsx` | Full-screen detail scaffold — back-header + title + scroll body |
 | `src/components/map/ClusterCard.tsx` | Floating glass card for a selected cluster (prototype parity); renders GROUP badge + named chat title when matched |
 | `src/components/map/FriendCard.tsx` | Floating glass card for a tapped friend marker — name, optional signal + spot pills, ONLINE/OFFLINE status, Message → `getOrCreateDmChat` → `/chat/[id]` |
 | `src/config/mapStyles.ts` | Shared dark map style constant (`DARK_MAP_STYLE`) |
