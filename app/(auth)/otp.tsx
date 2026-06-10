@@ -1,16 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { getUserProfile } from '@/lib/firestore';
+import AuthLayout from '@/components/auth/AuthLayout';
 
 export default function OtpScreen() {
   const [code, setCode] = useState('');
@@ -63,44 +57,46 @@ export default function OtpScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-void"
+    <AuthLayout
+      accent="signal"
+      ctaLabel={loading ? 'Verifying...' : 'Verify'}
+      onCta={handleVerify}
+      ctaDisabled={loading}
     >
-      <View className="flex-1 justify-center px-8">
-        {/* Header */}
-        <Text className="text-fog text-3xl font-bold text-center mb-2">
-          Verify
+      <View className="w-full max-w-[340px]">
+        <Text className="text-white text-3xl font-black uppercase tracking-tight mb-2">
+          Verify.
         </Text>
-        <Text className="text-fog/50 text-sm text-center mb-12">
-          Enter the code sent to {phone}
-        </Text>
+        <Text className="text-fog/40 text-sm mb-8">Signal sent to {phone}</Text>
 
         {/* Dev hint */}
         {__DEV__ && devCode && (
-          <Text className="text-mint/60 text-xs text-center mb-6">
+          <Text className="text-mint/60 text-xs text-center mb-4">
             🧪 Auto-filled code: {devCode}
           </Text>
         )}
 
-        {/* Code Input — hidden input behind visual boxes */}
+        {/* Code input — hidden input behind visual boxes (6 digits: Firebase emulator codes) */}
         <TouchableOpacity
           activeOpacity={1}
           onPress={() => inputRef.current?.focus()}
-          className="mb-6"
+          className="mb-8"
         >
-          <View className="flex-row justify-center gap-3">
+          <View className="flex-row justify-center gap-2">
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <View
                 key={i}
-                className={`w-12 h-14 rounded-xl items-center justify-center border ${code.length === i
-                  ? 'border-signal bg-signal/10'
-                  : code[i]
-                    ? 'border-fog/30 bg-glass'
-                    : 'border-glass-border bg-glass'
-                  }`}
+                className={`w-12 h-16 rounded-xl items-center justify-center border ${
+                  code[i]
+                    ? 'bg-white border-white'
+                    : code.length === i
+                      ? 'border-signal bg-signal/10'
+                      : 'border-glass-border bg-glass'
+                }`}
               >
-                <Text className="text-fog text-2xl font-bold">
+                <Text
+                  className={`text-2xl font-bold ${code[i] ? 'text-black' : 'text-fog'}`}
+                >
                   {code[i] ?? ''}
                 </Text>
               </View>
@@ -127,29 +123,13 @@ export default function OtpScreen() {
           <Text className="text-red-400 text-sm text-center mb-4">{error}</Text>
         ) : null}
 
-        {/* Verify Button */}
-        <TouchableOpacity
-          className={`rounded-2xl py-4 items-center ${loading ? 'bg-signal/50' : 'bg-signal'
-            }`}
-          onPress={handleVerify}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          <Text className="text-fog font-semibold text-base">
-            {loading ? 'Verifying...' : 'Verify'}
-          </Text>
-        </TouchableOpacity>
-
         {/* Back */}
-        <TouchableOpacity
-          className="mt-4 py-2"
-          onPress={() => router.back()}
-        >
-          <Text className="text-fog/50 text-sm text-center">
-            Wrong number? Go back
+        <TouchableOpacity className="py-2" onPress={() => router.back()}>
+          <Text className="text-fog/40 text-xs text-center">
+            Wrong number? Retarget.
           </Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+    </AuthLayout>
   );
 }

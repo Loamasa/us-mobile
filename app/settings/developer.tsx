@@ -108,9 +108,9 @@ export default function DeveloperSettingsScreen() {
       <SettingsGroup title="Onboarding">
         <SettingRow
           label="Test Onboarding"
-          subtitle="Walk through the phone → OTP → profile flow"
+          subtitle="Carousel → phone → OTP → profile flow"
           icon={<PlayCircleIcon size={20} color={COLORS.signal} />}
-          onPress={() => router.push('/(auth)/phone')}
+          onPress={() => router.push('/(auth)/onboarding')}
         />
       </SettingsGroup>
 

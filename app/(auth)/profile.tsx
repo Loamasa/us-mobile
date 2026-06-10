@@ -1,18 +1,12 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { auth } from '@/config/firebase';
 import { isHandleAvailable, reserveHandle } from '@/lib/firestore';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import AuthLayout from '@/components/auth/AuthLayout';
+import { UserIcon, ZapIcon } from '@/components/ui/icons';
 
 export default function ProfileScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -92,37 +86,37 @@ export default function ProfileScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-void"
+    <AuthLayout
+      accent="signal"
+      ctaLabel={loading ? 'Creating...' : 'Initialize Profile'}
+      onCta={handleContinue}
+      ctaDisabled={loading}
     >
-      <ScrollView
-        contentContainerClassName="flex-1 justify-center px-8"
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Header */}
-        <Text className="text-fog text-3xl font-bold text-center mb-2">
-          Identity
+      <View className="w-full max-w-[320px]">
+        <Text className="text-white text-3xl font-black uppercase tracking-tight mb-2">
+          Identity.
         </Text>
-        <Text className="text-fog/50 text-sm text-center tracking-[2px] uppercase mb-12">
-          Who are you in the dark?
-        </Text>
+        <Text className="text-fog/40 text-sm mb-8">Who are you in the dark?</Text>
 
-        {/* Avatar Placeholder */}
-        <TouchableOpacity className="self-center mb-8">
-          <View className="w-24 h-24 rounded-full bg-glass border-2 border-glass-border items-center justify-center">
-            <Text className="text-4xl">👤</Text>
+        {/* Avatar — dashed border + Zap badge (prototype parity) */}
+        <TouchableOpacity className="self-center mb-8" activeOpacity={0.7}>
+          <View className="w-24 h-24 rounded-full bg-glass border-2 border-dashed border-white/20 items-center justify-center">
+            <UserIcon size={32} color="#9CA3AF" />
           </View>
-          <Text className="text-signal text-xs text-center mt-2">Add Photo</Text>
+          <View className="absolute bottom-0 right-0 bg-signal p-1.5 rounded-full">
+            <ZapIcon size={12} color="#FFFFFF" fill="#FFFFFF" />
+          </View>
         </TouchableOpacity>
 
         {/* Display Name */}
-        <View className="mb-4">
-          <Text className="text-fog/70 text-sm mb-2 ml-1">Display Name</Text>
-          <View className="bg-glass border border-glass-border rounded-2xl px-4 py-4">
+        <View className="mb-6">
+          <Text className="text-signal text-xs font-bold uppercase tracking-[3px] mb-2">
+            Display Name
+          </Text>
+          <View className="bg-glass border border-glass-border rounded-2xl px-4 py-3">
             <TextInput
               className="text-fog text-lg"
-              placeholder="Your name"
+              placeholder="Jane Doe"
               placeholderTextColor="rgba(242, 244, 246, 0.3)"
               value={displayName}
               onChangeText={setDisplayName}
@@ -132,13 +126,15 @@ export default function ProfileScreen() {
         </View>
 
         {/* Handle */}
-        <View className="mb-6">
-          <Text className="text-fog/70 text-sm mb-2 ml-1">Handle</Text>
-          <View className="bg-glass border border-glass-border rounded-2xl px-4 py-4 flex-row items-center">
+        <View className="mb-2">
+          <Text className="text-signal text-xs font-bold uppercase tracking-[3px] mb-2">
+            Handle
+          </Text>
+          <View className="bg-glass border border-glass-border rounded-2xl px-4 py-3 flex-row items-center">
             <Text className="text-fog/50 text-lg mr-1">@</Text>
             <TextInput
               className="flex-1 text-fog text-lg"
-              placeholder="yourhandle"
+              placeholder="jane"
               placeholderTextColor="rgba(242, 244, 246, 0.3)"
               value={handle}
               onChangeText={checkHandle}
@@ -159,22 +155,9 @@ export default function ProfileScreen() {
 
         {/* Error */}
         {error ? (
-          <Text className="text-red-400 text-sm text-center mb-4">{error}</Text>
+          <Text className="text-red-400 text-sm text-center mt-4">{error}</Text>
         ) : null}
-
-        {/* Continue */}
-        <TouchableOpacity
-          className={`rounded-2xl py-4 items-center ${loading ? 'bg-signal/50' : 'bg-signal'
-            }`}
-          onPress={handleContinue}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          <Text className="text-fog font-semibold text-base">
-            {loading ? 'Creating...' : 'Continue'}
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </AuthLayout>
   );
 }

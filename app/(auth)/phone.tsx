@@ -1,19 +1,15 @@
 import { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, Text, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { getEmulatorHost } from '@/config/firebase';
+import AuthLayout from '@/components/auth/AuthLayout';
+import { SmartphoneIcon } from '@/components/ui/icons';
 
 export default function PhoneScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [focused, setFocused] = useState(false);
   const router = useRouter();
 
   const handleSendCode = async () => {
@@ -80,65 +76,54 @@ export default function PhoneScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1 bg-void"
+    <AuthLayout
+      accent="signal"
+      ctaLabel={loading ? 'Sending...' : 'Send Code'}
+      onCta={handleSendCode}
+      ctaDisabled={loading}
     >
-      <View className="flex-1 justify-center px-8">
-        {/* Logo */}
-        <Text className="text-fog text-5xl font-bold text-center mb-2">us</Text>
-        <Text className="text-fog/50 text-sm text-center tracking-[4px] uppercase mb-16">
-          Enter the Void
+      <View className="w-full max-w-[320px]">
+        <Text className="text-white text-3xl font-black uppercase tracking-tight mb-2">
+          Enter the{'\n'}Void.
+        </Text>
+        <Text className="text-fog/40 text-xs uppercase tracking-[3px] mb-8">
+          No passwords. Just you.
         </Text>
 
-        {/* Phone Input */}
-        <View className="mb-6">
-          <Text className="text-fog/70 text-sm mb-2 ml-1">Phone Number</Text>
-          <View className="bg-glass border border-glass-border rounded-2xl px-4 py-4 flex-row items-center">
-            <Text className="text-fog/50 text-lg mr-2">📱</Text>
-            <TextInput
-              className="flex-1 text-fog text-lg"
-              placeholder="+46 70 123 4567"
-              placeholderTextColor="rgba(242, 244, 246, 0.3)"
-              keyboardType="phone-pad"
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              autoFocus
-            />
-          </View>
+        <Text className="text-signal text-xs font-bold uppercase tracking-[3px] mb-2">
+          Mobile Number
+        </Text>
+        <View
+          className={`bg-glass border rounded-2xl px-4 py-4 flex-row items-center gap-3 ${
+            focused ? 'border-signal/50 bg-white/10' : 'border-glass-border'
+          }`}
+        >
+          <SmartphoneIcon size={20} color="#6B7280" />
+          <TextInput
+            className="flex-1 text-fog text-lg"
+            placeholder="+46 70 123 4567"
+            placeholderTextColor="rgba(242, 244, 246, 0.3)"
+            keyboardType="phone-pad"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            autoFocus
+          />
         </View>
 
         {/* Dev hint */}
         {__DEV__ && (
-          <Text className="text-mint/60 text-xs text-center mb-4">
+          <Text className="text-mint/60 text-xs text-center mt-4">
             🧪 Dev mode — uses Firebase Auth Emulator (port 9099)
           </Text>
         )}
 
         {/* Error */}
         {error ? (
-          <Text className="text-red-400 text-sm text-center mb-4">{error}</Text>
+          <Text className="text-red-400 text-sm text-center mt-4">{error}</Text>
         ) : null}
-
-        {/* Send Code Button */}
-        <TouchableOpacity
-          className={`rounded-2xl py-4 items-center ${loading ? 'bg-signal/50' : 'bg-signal'
-            }`}
-          onPress={handleSendCode}
-          disabled={loading}
-          activeOpacity={0.8}
-        >
-          <Text className="text-fog font-semibold text-base">
-            {loading ? 'Sending...' : 'Send Code'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Privacy Note */}
-        <Text className="text-fog/30 text-xs text-center mt-8 px-4">
-          Your phone number is only used for authentication.{'\n'}
-          We never share your data with third parties.
-        </Text>
       </View>
-    </KeyboardAvoidingView>
+    </AuthLayout>
   );
 }

@@ -15,6 +15,8 @@ module.exports = {
                 glass: 'rgba(255, 255, 255, 0.05)',
                 'glass-border': 'rgba(255, 255, 255, 0.1)',
                 rose: '#F472B6',
+                orange: '#F97316',
+                purple: '#A855F7',
             },
         },
     },

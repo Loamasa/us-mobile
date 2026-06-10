@@ -1,6 +1,19 @@
 # us-mobile — Status
 
+## Phase 2 Pre-Flight Review (2026-06-10)
+
+> Full Phase 1 ↔ prototype parity audit done before starting Phase 2. **Verdict: prototype is ready.**
+
+- **Prototype sources are complete**: `.context/prototype/src/features/onboarding/Onboarding.tsx` (5 slides, all copy/accents/layout) + `.context/prototype/src/features/auth/AuthFlow.tsx` (4-step wizard). Nothing missing on the prototype side.
+- **Phase 1 parity confirmed**: tab order/floating nav (production exceeds prototype — BlurView vs plain bar), map HUD set, cluster cards, named group pins, chats list/detail, settings nav-list (route-based adaptation of the prototype's 9-tab modal). Intentional divergences on record: friend spot zones reverted (2026-04-23), settings as tab instead of modal.
+- **The Phase 2 gap is smaller than the checklist implies**: all four auth screens already exist and work end-to-end (`app/(auth)/{phone,otp,profile,permissions}.tsx` — emulator REST auth, handle uniqueness, location permissions). Phase 2 = visual polish + ONE new screen (onboarding carousel).
+- **Adaptation decisions**: keep **6-digit OTP** (Firebase emulator issues 6 digits; prototype's 4× `w-16 h-20` boxes don't fit six across a phone — size down, keep the look). Carousel gets route `app/(auth)/onboarding.tsx`; Settings → Developer → "Test Onboarding" retargets there from `/(auth)/phone`. `app/index.tsx` keeps the dev auth bypass.
+- **Checklist correction**: "Add your starting spots" already exists (`app/(auth)/spots.native.tsx`) — needs polish at most, not a build.
+- **Unscheduled prototype feature flagged**: tutorial overlay chain (`tutorialData.tsx`, 7 definitions, fires after onboarding) is in NO phase checklist — triage later.
+
 ## Last Updated
+2026-06-10 — **Phase 2 onboarding & auth polish BUILT (carousel + all 4 auth screens).** New 5-slide onboarding carousel at `app/(auth)/onboarding.tsx` (anti-ads/culture/events/map/control, per-slide accent + RN Animated orbits/radar/pulses, "Enter the Void" → phone). New shared `src/components/auth/AuthLayout.tsx` (SVG radial-gradient glow blob corner/center, "us" logo chip, step dots, accent/white CTA + secondary link) — phone/otp/profile rebuilt on it with prototype headline treatments ("ENTER THE VOID." / "VERIFY." / "IDENTITY." / "SYNCHRONIZE."), SVG icons replacing emoji (Smartphone/User+Zap/MapPin/Shield), dashed avatar border, mint Shield privacy pill. Kept 6-digit OTP (emulator codes) with bigger boxes + "Wrong number? Retarget." All auth *logic* untouched (emulator REST, handle uniqueness, expo-location). Settings → Developer → Test Onboarding now opens the carousel. Added flat `orange`/`purple` to tailwind + 7 new icons. Verified: `npx tsc --noEmit` clean + full Android Metro export succeeds (1509 modules, 5.35 MB hbc). Device UI sign-off via Expo Go still recommended. **Remaining Phase 2: spots-step polish (optional) + tutorial-chain triage.**
+
 2026-06-03 — **Phase 1 Core MVP map/UI COMPLETE — merged to `main` + pushed.** This session closed the last three open Phase 1 items (named group pins without proximity, settings redesign, tab-nav polish). Each verified device-free: `npx tsc --noEmit` clean, `verifyProjection.js` (regression) + `verifyGroupPins.js` (8/8) PASS, and a full Android Metro bundle succeeds (HTTP 200, ~11 MB, all new modules compiled). Work landed on `feat/phase1-map-ui` then fast-forwarded into `main`. **Next focus: Phase 2 — onboarding & auth polish.** Per-task detail in the three entries below; device UI sign-off still recommended via Expo Go.
 
 2026-06-03 — **Tab navigation polish landed (Phase 1 Tab Navigation: all 3 items).** Floating glass tab bar (`app/(tabs)/_layout.tsx`): `position: absolute` + `tabBarBackground` BlurView under a `bg-void/80` overlay so map/list content blurs through. Active tab scales 1.12 with a signal-blue glow (halo + iOS shadow); icons already SVG. Screens pad to clear the now-floating bar — chats FlatList + settings ScrollView `pb-24`, map controls raised to `bottom: 96`, and the map's my-location button hides while a cluster/friend card is open (cards also sit at `bottom: 96`). `npx tsc --noEmit` clean. **This closes every Phase 1 map/UI item the session set out to do.**
@@ -243,19 +256,17 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 > After MVP core is solid. Access via Settings → "Test Onboarding".
 
 #### Onboarding Carousel (NEW)
-- [ ] **5-slide carousel** before auth flow (prototype: `Onboarding.tsx`)
-  - Slides: anti-ads, culture, events, map, control — color-coded accents
-  - Step dots, CTA buttons, final "Enter the Void" → transitions to auth
+- [x] **5-slide carousel** before auth flow — `app/(auth)/onboarding.tsx`; anti-ads (rose) / culture (purple) / events (orange) / map (signal) / control (mint); step dots, per-slide accent CTA, RN Animated orbit/radar/pulse illustrations, "Enter the Void" → `/(auth)/phone`. Developer → Test Onboarding retargeted here. (2026-06-10)
 
 #### Auth Screens (phone → OTP → profile → permissions)
-- [ ] **Shared AuthLayout wrapper** — gradient blob, "us" logo, full-width CTA button
-- [ ] **Phone screen** — "Enter the Void" layout with proper icons
-- [ ] **OTP screen** — larger code boxes, "Wrong number? Retarget." link
-- [ ] **Profile screen** — "Identity." layout with dashed avatar border
-- [ ] **Permissions screen** — "Synchronize." with radial glow and privacy pill
+- [x] **Shared AuthLayout wrapper** — `src/components/auth/AuthLayout.tsx`: SVG radial-gradient glow blob (corner/center), "us" logo chip, step dots, accent/white CTA variants, secondary link. (2026-06-10)
+- [x] **Phone screen** — "ENTER THE VOID." headline, Smartphone SVG icon, focus-reactive glass input, signal uppercase labels. (2026-06-10)
+- [x] **OTP screen** — bigger boxes (kept 6 digits — emulator codes; filled = white bg/black text like prototype), "Wrong number? Retarget." (2026-06-10)
+- [x] **Profile screen** — "IDENTITY." layout, dashed avatar border + Zap badge, signal uppercase labels, "Initialize Profile" CTA. (2026-06-10)
+- [x] **Permissions screen** — "SYNCHRONIZE." with centered radial glow, white CTA, mint Shield privacy pill. (2026-06-10)
 
 #### My Spots (Onboarding & Management)
-- [ ] **Add your starting spots** — integrated into the onboarding flow after permissions
+- [ ] **Spots step polish** — `app/(auth)/spots.native.tsx` already exists in the flow after permissions (pre-flight finding: build done, polish optional)
 
 ---
 
@@ -276,6 +287,8 @@ Web preview is fallback only — NativeWind styling and react-native-maps don't 
 | File | Purpose |
 |------|---------|
 | `app/_layout.tsx` | Root layout with auth guard + real-time profile listener |
+| `app/(auth)/onboarding.tsx` | 5-slide onboarding carousel — per-slide accent, animated illustrations, "Enter the Void" → phone |
+| `src/components/auth/AuthLayout.tsx` | Shared onboarding/auth scaffold — glow blob (exported `GlowBlob`), logo chip, dots, CTA |
 | `app/(auth)/phone.tsx` | Phone auth via emulator REST API |
 | `app/(auth)/otp.tsx` | OTP verification with auto-fill |
 | `app/(auth)/profile.tsx` | Profile creation with handle uniqueness check |

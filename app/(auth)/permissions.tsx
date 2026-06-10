@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import { GlowBlob } from '@/components/auth/AuthLayout';
+import { MapPinIcon, ShieldIcon } from '@/components/ui/icons';
+import { COLORS } from '@/config/constants';
 
 export default function PermissionsScreen() {
   const [loading, setLoading] = useState(false);
@@ -31,54 +35,61 @@ export default function PermissionsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-void justify-center px-8">
-      {/* Icon */}
-      <View className="self-center mb-8">
-        <View className="w-32 h-32 rounded-full bg-signal/10 border-2 border-signal/30 items-center justify-center">
-          <Text className="text-6xl">📍</Text>
+    <SafeAreaView className="flex-1 bg-void">
+      <GlowBlob hex={COLORS.signal} position="center" />
+
+      <View className="flex-1 items-center justify-center px-6">
+        {/* Icon */}
+        <View
+          className="w-24 h-24 rounded-full bg-glass border border-glass-border items-center justify-center mb-8"
+          style={{
+            shadowColor: COLORS.signal,
+            shadowOpacity: 0.3,
+            shadowRadius: 30,
+            shadowOffset: { width: 0, height: 0 },
+            elevation: 12,
+          }}
+        >
+          <MapPinIcon size={40} color="#FFFFFF" />
+        </View>
+
+        {/* Header */}
+        <Text className="text-white text-4xl font-black uppercase tracking-tight text-center mb-4">
+          Synchronize.
+        </Text>
+        <Text className="text-fog/50 text-lg text-center mb-10 max-w-[300px]">
+          We need your location to show you the world around you.
+        </Text>
+
+        {/* Allow Button */}
+        <View className="w-full max-w-[320px]">
+          <TouchableOpacity
+            className={`w-full py-4 bg-white rounded-2xl items-center ${loading ? 'opacity-50' : ''}`}
+            onPress={handleAllow}
+            disabled={loading}
+            activeOpacity={0.8}
+          >
+            <Text className="text-black font-bold text-lg">
+              {loading ? 'Requesting...' : 'Allow Location'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Skip */}
+          <TouchableOpacity className="w-full py-4" onPress={handleSkip} activeOpacity={0.7}>
+            <Text className="text-fog/40 text-sm font-bold text-center">Skip for now</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
-      {/* Header */}
-      <Text className="text-fog text-3xl font-bold text-center mb-2">
-        Synchronize.
-      </Text>
-      <Text className="text-fog/50 text-base text-center mb-12 px-4">
-        Allow location access so your friends can see where you are on the map — and you can see them.
-      </Text>
-
-      {/* Allow Button */}
-      <TouchableOpacity
-        className={`rounded-2xl py-4 items-center mb-3 ${
-          loading ? 'bg-signal/50' : 'bg-signal'
-        }`}
-        onPress={handleAllow}
-        disabled={loading}
-        activeOpacity={0.8}
-      >
-        <Text className="text-fog font-semibold text-base">
-          {loading ? 'Requesting...' : 'Allow Location'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Skip */}
-      <TouchableOpacity
-        className="py-3"
-        onPress={handleSkip}
-      >
-        <Text className="text-fog/40 text-sm text-center">
-          Skip for now
-        </Text>
-      </TouchableOpacity>
-
-      {/* Privacy Note */}
-      <View className="mt-12 bg-glass border border-glass-border rounded-2xl p-4">
-        <Text className="text-fog/70 text-xs text-center leading-5">
-          🔒 YOUR DATA STAYS ON YOUR DEVICE{'\n'}
-          Location is only shared with your friends while you choose.{'\n'}
-          Toggle ghost mode anytime to disappear.
-        </Text>
+      {/* Privacy pill */}
+      <View className="items-center pb-6">
+        <View className="flex-row items-center gap-2 bg-glass border border-glass-border px-4 py-2 rounded-full">
+          <ShieldIcon size={14} color={COLORS.mint} />
+          <Text className="text-fog/50 text-[10px] font-bold">
+            YOUR DATA STAYS ON YOUR DEVICE
+          </Text>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

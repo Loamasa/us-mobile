@@ -9,9 +9,9 @@ type IconProps = {
     color?: string;
 };
 
-// Ghost icon (active ghost mode)
-export const GhostIcon = ({ size = 20, color = '#F2F4F6' }: IconProps) => (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+// Ghost icon (active ghost mode; onboarding trust slide uses strokeWidth 1 at size 100)
+export const GhostIcon = ({ size = 20, color = '#F2F4F6', strokeWidth = 2 }: IconProps & { strokeWidth?: number }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
         <Path d="M9 10h.01" />
         <Path d="M15 10h.01" />
         <Path d="M12 2a8 8 0 0 0-8 8v12l3-3 2.5 2.5L12 19l2.5 2.5L17 19l3 3V10a8 8 0 0 0-8-8z" />
@@ -197,5 +197,65 @@ export const PlayCircleIcon = ({ size = 20, color = '#2E5CFF' }: IconProps) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <Circle cx={12} cy={12} r={10} />
         <Path d="M10 8l6 4-6 4V8z" />
+    </Svg>
+);
+
+// Heart icon (onboarding anti-ad slide)
+export const HeartIcon = ({ size = 20, color = '#F2F4F6', fill = 'none' }: IconProps & { fill?: string }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </Svg>
+);
+
+// Music icon (onboarding culture slide)
+export const MusicIcon = ({ size = 20, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M9 18V5l12-2v13" />
+        <Circle cx={6} cy={18} r={3} />
+        <Circle cx={18} cy={16} r={3} />
+    </Svg>
+);
+
+// Gamepad icon (onboarding culture slide)
+export const GamepadIcon = ({ size = 20, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Line x1={6} y1={12} x2={10} y2={12} />
+        <Line x1={8} y1={10} x2={8} y2={14} />
+        <Line x1={15} y1={13} x2={15.01} y2={13} />
+        <Line x1={18} y1={11} x2={18.01} y2={11} />
+        <Path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z" />
+    </Svg>
+);
+
+// Calendar icon (onboarding events slide)
+export const CalendarIcon = ({ size = 20, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" />
+        <Line x1={16} y1={2} x2={16} y2={6} />
+        <Line x1={8} y1={2} x2={8} y2={6} />
+        <Line x1={3} y1={10} x2={21} y2={10} />
+    </Svg>
+);
+
+// Smartphone icon (phone auth input)
+export const SmartphoneIcon = ({ size = 20, color = '#9CA3AF' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" />
+        <Line x1={12} y1={18} x2={12.01} y2={18} />
+    </Svg>
+);
+
+// Zap icon (profile avatar badge)
+export const ZapIcon = ({ size = 12, color = '#F2F4F6', fill = 'none' }: IconProps & { fill?: string }) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+    </Svg>
+);
+
+// Arrow Right icon (onboarding/auth CTA)
+export const ArrowRightIcon = ({ size = 20, color = '#F2F4F6' }: IconProps) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Line x1={5} y1={12} x2={19} y2={12} />
+        <Path d="M12 5l7 7-7 7" />
     </Svg>
 );
