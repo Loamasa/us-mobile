@@ -1,11 +1,14 @@
 import { GeoPoint, Timestamp } from 'firebase/firestore';
-import { getEmulatorHost } from '@/config/firebase';
+import { getAuthEmulatorUrl, getFirestoreEmulatorUrl } from '@/config/firebase';
 import { encodeGeohash } from '@/lib/geohash';
 import { haversineDistance } from '@/utils/distance';
 import fixtures from './fixtures.json';
 
+// Firestore data lives under the SDK's projectId; auth users must live in the
+// emulator's default project (started with --project demo-us-app) because
+// key-based SDK requests (signInWithPassword etc.) always resolve there.
 const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
-const FIRESTORE_EMULATOR_PORT = 8088;
+const AUTH_EMULATOR_PROJECT_ID = 'demo-us-app';
 
 /**
  * Create a Firebase Auth user with a specific UID via the emulator admin REST API.
@@ -17,8 +20,7 @@ async function createAuthUser(
   password: string,
   displayName: string
 ): Promise<void> {
-  const host = getEmulatorHost();
-  const baseUrl = `http://${host}:9099/identitytoolkit.googleapis.com/v1`;
+  const baseUrl = `${getAuthEmulatorUrl()}/identitytoolkit.googleapis.com/v1`;
   const adminHeaders = {
     'Content-Type': 'application/json',
     Authorization: 'Bearer owner',
@@ -26,7 +28,7 @@ async function createAuthUser(
 
   // Step 1: Create user with fixed UID via admin API
   const createRes = await fetch(
-    `${baseUrl}/projects/${EMULATOR_PROJECT_ID}/accounts`,
+    `${baseUrl}/projects/${AUTH_EMULATOR_PROJECT_ID}/accounts`,
     {
       method: 'POST',
       headers: adminHeaders,
@@ -118,8 +120,7 @@ type SeedWrite = { path: string; data: Record<string, unknown> };
  * endpoint using the `Bearer owner` admin token, which bypasses security rules.
  */
 async function commitWritesAsOwner(writes: SeedWrite[]): Promise<void> {
-  const host = getEmulatorHost();
-  const url = `http://${host}:${FIRESTORE_EMULATOR_PORT}/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents:commit`;
+  const url = `${getFirestoreEmulatorUrl()}/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents:commit`;
 
   const body = {
     writes: writes.map(({ path, data }) => ({

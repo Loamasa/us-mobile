@@ -4,13 +4,15 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db, getEmulatorHost } from '@/config/firebase';
+import { auth, db, getAuthEmulatorUrl } from '@/config/firebase';
 import '../global.css';
 
 const DEV_EMAIL = 'dev@test.dev';
 const DEV_PASSWORD = 'test123456';
 const DEV_UID = 'dev-user';
-const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
+// Auth users live in the emulator's default project (started with
+// --project demo-us-app): key-based SDK requests always resolve there.
+const EMULATOR_PROJECT_ID = 'demo-us-app';
 
 /**
  * Dev auto-sign-in: creates a Firebase user with UID "dev-user" via
@@ -24,8 +26,7 @@ const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
 async function ensureDevUser() {
   if (auth.currentUser) return;
 
-  const host = getEmulatorHost();
-  const baseUrl = `http://${host}:9099/identitytoolkit.googleapis.com/v1`;
+  const baseUrl = `${getAuthEmulatorUrl()}/identitytoolkit.googleapis.com/v1`;
   const adminHeaders = {
     'Content-Type': 'application/json',
     Authorization: 'Bearer owner',
@@ -82,7 +83,7 @@ async function ensureDevUser() {
       if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         try {
           await fetch(
-            `http://${host}:9099/emulator/v1/projects/${EMULATOR_PROJECT_ID}/accounts`,
+            `${getAuthEmulatorUrl()}/emulator/v1/projects/${EMULATOR_PROJECT_ID}/accounts`,
             { method: 'DELETE', headers: adminHeaders }
           );
           console.log('🧹 Cleared stale auth emulator accounts');
@@ -131,19 +132,21 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (__DEV__) {
-      const timeout = new Promise<void>((resolve) =>
-        setTimeout(() => {
+      let timer: ReturnType<typeof setTimeout>;
+      const timeout = new Promise<void>((resolve) => {
+        timer = setTimeout(() => {
           console.warn('⏱️ Dev auto-sign-in timed out — emulators might not be running');
           resolve();
-        }, 5000)
-      );
+        }, 5000);
+      });
 
       Promise.race([ensureDevUser(), timeout])
         .then(() => setReady(true))
         .catch((err) => {
           console.warn('Dev auto-sign-in failed:', err);
           setReady(true);
-        });
+        })
+        .finally(() => clearTimeout(timer));
     } else {
       setReady(true);
     }

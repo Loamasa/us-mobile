@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "expo-web",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["expo", "start", "--port", "8081"],
+      "port": 8081
+    },
+    {
+      "name": "firebase-emulators",
+      "runtimeExecutable": "firebase",
+      "runtimeArgs": ["emulators:start", "--project", "demo-us-app"],
+      "port": 4000
+    }
+  ]
+}

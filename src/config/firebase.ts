@@ -26,18 +26,37 @@ export const db = getFirestore(app);
 const USE_EMULATORS = __DEV__;
 
 export function getEmulatorHost() {
-  if (Platform.OS === 'web') return '127.0.0.1';
+  if (Platform.OS === 'web') {
+    return typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1';
+  }
   const debuggerHost = Constants.expoConfig?.hostUri;
   return debuggerHost ? debuggerHost.split(':')[0] : '127.0.0.1';
 }
 
-if (USE_EMULATORS) {
-  const hostIP = getEmulatorHost();
+// On web, emulator traffic goes through the Metro dev server (same origin) and
+// is forwarded by path prefix (see metro.config.js). Sandboxed preview browsers
+// can only reach the dev-server port, so direct :9099/:8088 fetches fail there.
+export function getAuthEmulatorUrl() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') return window.location.origin;
+  return `http://${getEmulatorHost()}:9099`;
+}
 
+export function getFirestoreEmulatorUrl() {
+  if (Platform.OS === 'web' && typeof window !== 'undefined') return window.location.origin;
+  return `http://${getEmulatorHost()}:8088`;
+}
+
+if (USE_EMULATORS) {
   try {
-    connectAuthEmulator(auth, `http://${hostIP}:9099`, { disableWarnings: true });
-    connectFirestoreEmulator(db, hostIP, 8088);
-    console.log(`🔥 Firebase emulators connected at ${hostIP}`);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      connectAuthEmulator(auth, window.location.origin, { disableWarnings: true });
+      connectFirestoreEmulator(db, window.location.hostname, Number(window.location.port) || 80);
+    } else {
+      const hostIP = getEmulatorHost();
+      connectAuthEmulator(auth, `http://${hostIP}:9099`, { disableWarnings: true });
+      connectFirestoreEmulator(db, hostIP, 8088);
+    }
+    console.log(`🔥 Firebase emulators connected via ${getAuthEmulatorUrl()}`);
   } catch (e) {
     // Already connected — safe to ignore
     console.log('Firebase emulators already connected');

@@ -7,6 +7,7 @@ import {
     ScrollView,
     Modal,
     Alert,
+    Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GeoPoint } from 'firebase/firestore';
@@ -197,6 +198,27 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
 
     const renderMap = () => {
         if (mode === 'LIST') return null;
+
+        // react-native-maps is stubbed to an empty module on web (metro.config.js)
+        if (Platform.OS === 'web') {
+            return (
+                <View
+                    style={{
+                        flex: 1,
+                        borderRadius: 16,
+                        overflow: 'hidden',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(255,255,255,0.04)',
+                    }}
+                >
+                    <Text style={{ color: 'rgba(242,244,246,0.5)', fontSize: 12 }}>
+                        Map editing isn't available on web — pin stays at{' '}
+                        {form.lat.toFixed(4)}, {form.lng.toFixed(4)}
+                    </Text>
+                </View>
+            );
+        }
 
         try {
             const MapView = require('react-native-maps').default;

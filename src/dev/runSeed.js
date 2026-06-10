@@ -2,7 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const { geohashForLocation } = require('geofire-common');
 
+// Firestore data lives under the SDK's projectId; auth users must live in the
+// emulator's default project (started with --project demo-us-app) because
+// key-based SDK requests (signInWithPassword etc.) always resolve there.
 const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
+const AUTH_EMULATOR_PROJECT_ID = 'demo-us-app';
 const FIRESTORE_EMULATOR_PORT = 8088;
 const AUTH_EMULATOR_PORT = 9099;
 
@@ -32,7 +36,7 @@ async function createAuthUser(uid, email, password, displayName) {
   };
 
   const createRes = await fetch(
-    `${baseUrl}/projects/${EMULATOR_PROJECT_ID}/accounts`,
+    `${baseUrl}/projects/${AUTH_EMULATOR_PROJECT_ID}/accounts`,
     {
       method: 'POST',
       headers: adminHeaders,

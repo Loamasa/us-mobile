@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
-import { getEmulatorHost } from '@/config/firebase';
+import { getAuthEmulatorUrl } from '@/config/firebase';
 import AuthLayout from '@/components/auth/AuthLayout';
 import { SmartphoneIcon } from '@/components/ui/icons';
 
@@ -25,8 +25,7 @@ export default function PhoneScreen() {
       const formatted = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
 
       // ── Emulator path: use REST API to send verification code ──
-      const host = getEmulatorHost();
-      const url = `http://${host}:9099/identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=fake-api-key`;
+      const url = `${getAuthEmulatorUrl()}/identitytoolkit.googleapis.com/v1/accounts:sendVerificationCode?key=fake-api-key`;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -45,7 +44,7 @@ export default function PhoneScreen() {
       let devCode = '';
       try {
         const codesRes = await fetch(
-          `http://${host}:9099/emulator/v1/projects/demo-us-app/verificationCodes`
+          `${getAuthEmulatorUrl()}/emulator/v1/projects/demo-us-app/verificationCodes`
         );
         if (codesRes.ok) {
           const codesData = await codesRes.json();

@@ -7,6 +7,7 @@ Read `STATUS.md` at session start. Keep it current:
 - Update STATUS.md after milestones, before commits, and on "wrap up".
 - Update MEMORY.md (+ `.context/memory.md`) when discovering gotchas.
 - Always tell the user when you update these files.
+- **Commit automatically** when a milestone is done and verified (`npx tsc --noEmit` passes) — don't ask first. Conventional commits, directly on `main`. Don't push unless asked.
 
 ## Commands
 - `npx expo start` / `npx expo start --clear` — dev server
