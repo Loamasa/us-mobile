@@ -73,7 +73,15 @@
 
 ## Known Bugs — Up Next
 
-> All three map bugs are closed. Bug #3 was resolved 2026-06-02 by device-free verification — no code/data defect remains.
+> Pre-user-testing fix list from the 2026-06-10 browser map verification (also tracked as session tasks):
+
+1. **Revoke leaked GitHub token** — `.claude/settings.local.json` (working tree, deliberately uncommitted) holds a plaintext `gho_…` token in an old allowed-command entry. Revoke on GitHub, scrub the entry, keep the file out of commits until clean.
+2. **DM get-or-create race** — promote from Tech Debt: confirmed live in a real user path (FriendCard → Message). Deterministic doc id `dm_${[a,b].sort().join('_')}` + `setDoc(merge)`. `src/lib/firestore.ts`.
+3. **Seed fixtures lie about messages** — chats have `lastMessage` previews but zero docs in `chats/{id}/messages`; opening a seeded chat says "No messages yet". Seed 2–3 messages per chat.
+4. **DM empty-state copy** — `app/chat/[chatId].tsx` shows "Say hi to the crew." in 1:1 DMs; branch on `chat.type`.
+5. **Device-verify back-from-chat** — on web, `‹` (`router.back()`) after map → chat landed on the Chats tab instead of the map. Likely web-history artifact; one Expo Go check.
+
+> All three original map bugs remain closed (Bug #3 resolved 2026-06-02 by device-free verification — no code/data defect).
 
 1. ~~**Seeded pair not clustering**~~ *(RESOLVED 2026-06-02 — verified, not a code/data bug)*
    - Symptom (historical): a previous device run showed only Charlie — no Alice+Bob cluster.
@@ -271,6 +279,15 @@
 
 #### My Spots (Onboarding & Management)
 - [ ] **Spots step polish** — `app/(auth)/spots.native.tsx` already exists in the flow after permissions (pre-flight finding: build done, polish optional)
+
+---
+
+### Requested Product Changes (2026-06-10)
+
+> From user review after the browser map verification. Both tracked as session tasks.
+
+- [ ] **ONE new-message button (Messenger-style composer)** — `app/(tabs)/chats.tsx` currently has two compose icons (DM + group) and a DM/Group segmented modal. Replace with a single compose button opening a "To:" participant picker (add one or many friends, like Messenger's compose). 1 participant → `getOrCreateDmChat`; 2+ → group flow (`getOrCreateGroupChat`, optional name). Segmented control goes away.
+- [ ] **My Spots scheduling — time + day-of-week windows** — each spot gets optional active weekdays + time range (e.g. Mon–Fri 08:00–17:00); outside the window the spot counts as inactive (no visibility). Touches: `UserSpot` type, `MySpotsModal` CREATE/EDIT form, `useLocationTracking` containment checks, map visibility status + own-spot circle filter, fixtures. **Note: this feature is OUTSIDE the prototype scope — intentional addition, approved (okej).**
 
 ---
 
