@@ -46,17 +46,20 @@ config.server.enhanceMiddleware = (metroMiddleware, server) => {
   };
 };
 
-// react-native-maps has no web implementation, but expo-router's require.context
-// still pulls *.native.tsx routes into the web bundle graph. Resolve the package
-// to an empty module on web so the bundle compiles; web routes use the .tsx
-// fallbacks and never render it.
+// react-native-maps has no web implementation. On web, resolve the package to
+// the dev shim (src/dev/fakeMaps.tsx — dark pane + lat/lng→pixel projection)
+// so the REAL native map screens render in the browser for self-testing.
+const path = require('path');
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (
     platform === 'web' &&
     (moduleName === 'react-native-maps' || moduleName.startsWith('react-native-maps/'))
   ) {
-    return { type: 'empty' };
+    return {
+      type: 'sourceFile',
+      filePath: path.resolve(__dirname, 'src', 'dev', 'fakeMaps.tsx'),
+    };
   }
   return defaultResolveRequest
     ? defaultResolveRequest(context, moduleName, platform)

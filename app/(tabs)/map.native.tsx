@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
-import { View, Text, TouchableOpacity, Platform, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -280,14 +280,7 @@ export default function MapScreen() {
     : MAP_DEFAULTS.initialRegion;
 
   const renderMap = () => {
-    if (Platform.OS === 'web') {
-      return (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-fog">Map is not supported on web natively.</Text>
-        </View>
-      );
-    }
-
+    // On web this resolves to the dev shim (metro.config.js → src/dev/fakeMaps.tsx).
     const MapView = require('react-native-maps').default;
     const { Marker, Circle } = require('react-native-maps');
 

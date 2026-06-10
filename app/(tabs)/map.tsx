@@ -1,9 +1,3 @@
-import { View, Text } from 'react-native';
-
-export default function MapScreen() {
-    return (
-        <View className="flex-1 bg-void items-center justify-center">
-            <Text className="text-fog">Map is not supported on web natively.</Text>
-        </View>
-    );
-}
+// On web, react-native-maps resolves to the dev shim (metro.config.js →
+// src/dev/fakeMaps.tsx), so the real map screen runs in the browser too.
+export { default } from './map.native';
