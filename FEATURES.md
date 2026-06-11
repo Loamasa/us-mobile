@@ -14,6 +14,10 @@
 > accept/decline, deterministic group chat spawn (`chatId` stored). Seeded fixtures:
 > `broadcast_tonight` (member) + `broadcast_invite` (invite). Deferred from v1: stricter
 > field-level update rule (tracked in the Phase 3 ledger); community broadcasts (below).
+>
+> v1.1 (same day, device-pass feedback): the map's rose button now opens THIS composer —
+> SignalModal deleted. One mental model shipped literally: 0 invitees → writes `currentSignal`
+> (the personal signal, status on your pin); 1+ invitees → the pinned group broadcast.
 
 **One-liner:** Upgrade the personal signal broadcast into a placeable, invite-based map event: pin a broadcast anywhere on the map, invite friends, invitees accept to join, the group sees who's in — and it can spawn a group chat, exactly like clusters do.
 

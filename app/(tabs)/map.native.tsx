@@ -31,7 +31,6 @@ import FriendMarker from '@/components/map/FriendMarker';
 import ClusterMarker from '@/components/map/ClusterMarker';
 import ClusterCard from '@/components/map/ClusterCard';
 import FriendCard from '@/components/map/FriendCard';
-import SignalModal from '@/features/signals/SignalModal';
 import ActiveSignalHUD from '@/features/signals/ActiveSignalHUD';
 import { useBroadcasts } from '@/features/broadcasts/useBroadcasts';
 import BroadcastMarker from '@/features/broadcasts/BroadcastMarker';
@@ -55,7 +54,6 @@ export default function MapScreen() {
   const [spots, setSpots] = useState<UserSpot[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userId, setUserId] = useState<string | undefined>(auth.currentUser?.uid);
-  const [showSignalModal, setShowSignalModal] = useState(false);
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [selectedBroadcastId, setSelectedBroadcastId] = useState<string | null>(null);
@@ -65,6 +63,14 @@ export default function MapScreen() {
   const [openingChat, setOpeningChat] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const mapRef = useRef<MapView>(null);
+  // Last settled map region — the broadcast button pins at your GPS position,
+  // falling back to whatever the map is centered on.
+  const regionRef = useRef<{
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+  }>({ ...MAP_DEFAULTS.initialRegion });
 
   // Track auth state so profile/spots re-subscribe on account switch
   useEffect(() => {
@@ -425,6 +431,9 @@ export default function MapScreen() {
           setSelectedBroadcastId(null);
           setBroadcastCoord({ lat: latitude, lng: longitude });
         }}
+        onRegionChangeComplete={(r: { latitude: number; longitude: number }) => {
+          regionRef.current = { ...regionRef.current, ...r };
+        }}
       >
         {/* User Spots (translucent circles) — schedule-aware via the minute tick */}
         {spots
@@ -661,10 +670,22 @@ export default function MapScreen() {
           </BlurView>
         </TouchableOpacity>
 
-        {/* Signal broadcast button — hidden in ghost mode */}
+        {/* Broadcast button — hidden in ghost mode. Opens the unified
+            composer: solo = status signal, invitees = pinned group broadcast
+            at your position (or the map center without a GPS fix). */}
         {!ghostMode && (
           <TouchableOpacity
-            onPress={() => setShowSignalModal(true)}
+            onPress={() => {
+              setSelectedClusterId(null);
+              setSelectedFriendId(null);
+              setSelectedBroadcastId(null);
+              setBroadcastCoord(
+                userLocation ?? {
+                  lat: regionRef.current.latitude,
+                  lng: regionRef.current.longitude,
+                }
+              );
+            }}
             activeOpacity={0.8}
           >
             <BlurView
@@ -763,14 +784,7 @@ export default function MapScreen() {
         />
       )}
 
-      {/* ── Signal Modal ── */}
-      <SignalModal
-        visible={showSignalModal}
-        onClose={() => setShowSignalModal(false)}
-        currentLocation={userLocation}
-      />
-
-      {/* ── Broadcast Composer (map long-press) ── */}
+      {/* ── Broadcast Composer (rose button or map long-press) ── */}
       <BroadcastComposerModal
         visible={broadcastCoord !== null}
         coordinate={broadcastCoord}

@@ -1,7 +1,6 @@
 import { View, Text } from 'react-native';
 import { Marker } from 'react-native-maps';
 import UserAvatar from '@/components/UserAvatar';
-import { useMarkerTracksViewChanges } from '@/components/map/useMarkerTracksViewChanges';
 import type { MapEntity } from '@/types';
 
 interface FriendMarkerProps {
@@ -9,17 +8,13 @@ interface FriendMarkerProps {
   onPress?: (entity: MapEntity) => void;
 }
 
+// NOTE: never set tracksViewChanges on these markers. false-from-mount makes
+// them invisible (blank bitmap), and flipping true→false after a delay
+// captures a mis-scaled frame on the new architecture (markers clipped to a
+// quarter-circle on device, 2026-06-11). Android's default (tracking on)
+// renders correctly and is fine at MVP marker counts.
 export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
   const friend = entity.friends[0];
-  const tracksViewChanges = useMarkerTracksViewChanges(
-    [
-      friend?.userId,
-      friend?.displayName,
-      friend?.isOnline,
-      entity.signal?.emoji,
-      entity.signal?.text,
-    ].join('|')
-  );
   if (!friend) return null;
 
   return (
@@ -30,7 +25,6 @@ export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
       }}
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(entity) : undefined}
-      tracksViewChanges={tracksViewChanges}
     >
       <View style={{ alignItems: 'center' }}>
         {/* Signal Badge */}

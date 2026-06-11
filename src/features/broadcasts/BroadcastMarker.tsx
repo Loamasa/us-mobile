@@ -2,7 +2,6 @@ import { View, Text } from 'react-native';
 // Resolves to the dev shim on web via metro.config.js.
 import { Marker } from 'react-native-maps';
 import { COLORS } from '@/config/constants';
-import { useMarkerTracksViewChanges } from '@/components/map/useMarkerTracksViewChanges';
 import type { Broadcast } from '@/types';
 
 interface BroadcastMarkerProps {
@@ -17,15 +16,14 @@ interface BroadcastMarkerProps {
  * a halo and a member-count badge. Invites render dimmed with a dashed border
  * and an INVITE tag instead of the count.
  */
+// NOTE: never set tracksViewChanges (see FriendMarker.native.tsx) — the
+// new-arch bitmap capture clips marker children when tracking flips off.
 export default function BroadcastMarker({
   broadcast,
   invite,
   onPress,
 }: BroadcastMarkerProps) {
   const count = broadcast.memberIds.length;
-  const tracksViewChanges = useMarkerTracksViewChanges(
-    [broadcast.emoji, invite, count].join('|')
-  );
 
   return (
     <Marker
@@ -35,7 +33,6 @@ export default function BroadcastMarker({
       }}
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(broadcast) : undefined}
-      tracksViewChanges={tracksViewChanges}
     >
       <View style={{ alignItems: 'center', width: 72, height: 80 }}>
         {/* Static halo (no loops inside marker bitmaps) */}

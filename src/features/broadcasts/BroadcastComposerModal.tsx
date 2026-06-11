@@ -8,7 +8,8 @@ import {
   Modal,
   KeyboardAvoidingView,
 } from 'react-native';
-import { auth } from '@/config/firebase';
+import { GeoPoint, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '@/config/firebase';
 import { onFriends, onUserProfile, createBroadcast } from '@/lib/firestore';
 import UserAvatar from '@/components/UserAvatar';
 import {
@@ -21,16 +22,19 @@ import type { Friend, UserProfile } from '@/types';
 
 interface BroadcastComposerModalProps {
   visible: boolean;
-  /** Where the pin was placed (map long-press). */
+  /** Where the pin goes (map long-press, or your position via the button). */
   coordinate: { lat: number; lng: number } | null;
   onClose: () => void;
   onCreated?: (broadcastId: string) => void;
 }
 
 /**
- * Composer for a placeable group broadcast: emoji/text presets and TTL like
- * the personal signal, plus an invite picker. Zero invitees is allowed — a
- * solo broadcast is just your own pin (FEATURES.md #1 confirmed decision).
+ * THE broadcast composer — one mental model (FEATURES.md #1):
+ * - zero invitees  → the personal signal (status on your own pin, visible to
+ *   every friend who can see you; coordinate saved as opportunistic metadata)
+ * - 1+ invitees    → a pinned group broadcast at `coordinate` that invitees
+ *   must accept to join (member-only pin + roster)
+ * Replaces the old SignalModal — the map's rose button opens this.
  */
 export default function BroadcastComposerModal({
   visible,
@@ -89,7 +93,7 @@ export default function BroadcastComposerModal({
   };
 
   const handlePlace = async () => {
-    if (!userId || !coordinate || sending) return;
+    if (!userId || sending) return;
     if (!text.trim()) {
       setError('Give the broadcast a few words.');
       return;
@@ -107,20 +111,37 @@ export default function BroadcastComposerModal({
         expiresAt = new Date(Date.now() + duration.ms);
       }
 
-      const id = await createBroadcast({
-        createdBy: userId,
-        emoji,
-        text: text.trim(),
-        location: { latitude: coordinate.lat, longitude: coordinate.lng },
-        radius: BROADCAST_RADIUS,
-        expiresAt,
-        invitedIds: selectedIds,
-      });
-      onCreated?.(id);
+      if (selectedIds.length === 0) {
+        // Solo = the personal signal: a status on YOUR pin, visible to every
+        // friend who can see you. Location is opportunistic metadata only —
+        // never gate on it.
+        await updateDoc(doc(db, 'users', userId), {
+          currentSignal: {
+            emoji,
+            text: text.trim(),
+            expiresAt: Timestamp.fromDate(expiresAt),
+            location: coordinate
+              ? new GeoPoint(coordinate.lat, coordinate.lng)
+              : null,
+          },
+        });
+      } else {
+        if (!coordinate) return;
+        const id = await createBroadcast({
+          createdBy: userId,
+          emoji,
+          text: text.trim(),
+          location: { latitude: coordinate.lat, longitude: coordinate.lng },
+          radius: BROADCAST_RADIUS,
+          expiresAt,
+          invitedIds: selectedIds,
+        });
+        onCreated?.(id);
+      }
       onClose();
     } catch (err) {
-      console.error('createBroadcast failed:', err);
-      setError('Could not place the broadcast. Check the connection.');
+      console.error('broadcast failed:', err);
+      setError('Could not broadcast. Check the connection.');
     } finally {
       setSending(false);
     }
@@ -140,14 +161,15 @@ export default function BroadcastComposerModal({
           >
             {/* Header */}
             <View className="flex-row items-center justify-between mb-1">
-              <Text className="text-fog text-xl font-bold">Group Broadcast</Text>
+              <Text className="text-fog text-xl font-bold">Broadcast</Text>
               <TouchableOpacity onPress={onClose} hitSlop={10}>
                 <Text className="text-fog/50 text-2xl">✕</Text>
               </TouchableOpacity>
             </View>
             <Text className="text-fog/50 text-sm mb-4">
-              Pin it here. Invited friends must accept to join — only the crew
-              sees the pin and who's in.
+              Solo, it's a status signal on your pin. Invite friends and it
+              becomes a pinned meetup here — they accept to join, and only the
+              crew sees it.
             </Text>
 
             {/* Emoji Presets */}
@@ -222,7 +244,7 @@ export default function BroadcastComposerModal({
             </Text>
             {friends.length === 0 ? (
               <Text className="text-fog/30 text-sm mb-4">
-                No friends yet — this will be a solo broadcast.
+                No friends yet — this broadcasts as your status signal.
               </Text>
             ) : (
               <View className="mb-4">
@@ -283,10 +305,10 @@ export default function BroadcastComposerModal({
               >
                 <Text className="text-void font-bold text-base">
                   {sending
-                    ? 'Placing…'
+                    ? 'Broadcasting…'
                     : selectedIds.length > 0
                       ? `📡 Place Broadcast · invite ${selectedIds.length}`
-                      : '📡 Place Solo Broadcast'}
+                      : '📡 Broadcast Signal'}
                 </Text>
               </TouchableOpacity>
             </View>

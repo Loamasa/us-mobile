@@ -2,7 +2,6 @@ import { View, Text } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { UsersIcon } from '@/components/ui/icons';
 import { COLORS } from '@/config/constants';
-import { useMarkerTracksViewChanges } from '@/components/map/useMarkerTracksViewChanges';
 import type { MapEntity } from '@/types';
 
 interface ClusterMarkerProps {
@@ -10,11 +9,11 @@ interface ClusterMarkerProps {
   onPress?: (entity: MapEntity) => void;
 }
 
+// NOTE: never set tracksViewChanges (see FriendMarker.native.tsx). The ring
+// stays a static halo — a looping Animated pulse inside a marker bitmap
+// burns CPU re-capturing every frame.
 export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
   const count = entity.friends.length;
-  // Android snapshots marker children to a bitmap, so a looping Animated pulse
-  // can never play inside a Marker — the ring is a static halo instead.
-  const tracksViewChanges = useMarkerTracksViewChanges(String(count));
 
   return (
     <Marker
@@ -24,7 +23,6 @@ export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
       }}
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(entity) : undefined}
-      tracksViewChanges={tracksViewChanges}
     >
       <View style={{ alignItems: 'center', width: 72, height: 80 }}>
         {/* Static halo ring */}
