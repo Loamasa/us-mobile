@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "PowerShell(npx tsc --noEmit)",
+      "Bash(node src/dev/verifyProjection.js)",
+      "Bash(node src/dev/verifyGroupPins.js)",
+      "Bash(node src/dev/verifyRules.js)",
+      "Bash(node src/dev/testProjection.js)",
+      "PowerShell(node src/dev/verifyProjection.js)",
+      "PowerShell(node src/dev/verifyGroupPins.js)",
+      "PowerShell(node src/dev/verifyRules.js)",
+      "PowerShell(node src/dev/testProjection.js)",
+      "mcp__Claude_Preview__preview_snapshot",
+      "mcp__Claude_Preview__preview_console_logs",
+      "mcp__Claude_Preview__preview_logs",
+      "mcp__Claude_Preview__preview_screenshot",
+      "mcp__Claude_Preview__preview_list"
+    ]
+  }
+}

@@ -339,10 +339,20 @@
 
 ---
 
-### Phase 3 — Build & Distribution
+### Phase 3 — Trusted-Tester Release (Android)
 
-1. Build APK with EAS: `eas build --platform android --profile preview`
-2. Set up Firebase App Distribution for testers
+> Full plan: `docs/plans/2026-06-11-phase3-readiness-plan.md`. Decisions locked 2026-06-11:
+> interim **email/password** auth (native phone auth deferred), **Android only**, **EAS internal
+> distribution** (no Firebase App Distribution), **background location IN scope** (it's the
+> product — Bump-like ambient presence; needs `expo-task-manager` in build #1 + dev build to test).
+
+- [ ] **Step 0 — full device pass in debug mode** (Expo Go + emulators + seed; checklist in the plan) — gate for all Phase 3 work
+- [ ] Step 1 — cleanup pass (remove Antigravity, STATUS diet, skill fixes, npm scripts)
+- [ ] Step 2 — production backend wiring (`.firebaserc`, friendRequests index fix, `firebase deploy --only firestore`, emulator env override)
+- [ ] Step 3 — interim email/password auth + prod admin/seed tooling + empty-state audit
+- [ ] Step 4 — EAS pipeline (`eas.json`, `expo-updates` + `expo-task-manager` in build #1, Maps key restriction via keystore SHA-1, version visible in Settings)
+- [ ] Step 5 — background location implementation + field test (post-dev-build)
+- [ ] Step 6 — field readiness (Sentry, tester runbook, success criteria, privacy one-liner, CI typecheck)
 
 ## How to Run
 1. Terminal 1: `firebase emulators:start --project demo-us-app` — **must be `demo-us-app`**: auth-user creation (seed + dev sign-in) targets it as the emulator's default project (2026-06-10)
