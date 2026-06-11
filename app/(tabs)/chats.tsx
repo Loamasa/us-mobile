@@ -31,7 +31,6 @@ import UserAvatar from '@/components/UserAvatar';
 import {
   SearchIcon,
   UserPlusIcon,
-  UsersIcon,
   SettingsIcon,
   MessageSquareIcon,
   XIcon,
@@ -86,8 +85,9 @@ export default function ChatsScreen() {
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
 
+  // Single Messenger-style composer: pick 1+ friends in a "To:" list.
+  // 1 selected → DM, 2+ → group (optional name).
   const [showComposeModal, setShowComposeModal] = useState(false);
-  const [composeMode, setComposeMode] = useState<'DM' | 'GROUP'>('DM');
   const [groupName, setGroupName] = useState('');
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
   const [composeSearch, setComposeSearch] = useState('');
@@ -287,8 +287,7 @@ export default function ChatsScreen() {
     await rejectFriendRequest(userId, request.id);
   };
 
-  const openCompose = (mode: 'DM' | 'GROUP') => {
-    setComposeMode(mode);
+  const openCompose = () => {
     setGroupName('');
     setSelectedFriendIds([]);
     setComposeSearch('');
@@ -302,35 +301,33 @@ export default function ChatsScreen() {
     setComposeSearch('');
   };
 
-  const handleStartDm = async (peerId: string) => {
-    if (!userId || composeBusy) return;
+  const handleComposeSubmit = async () => {
+    if (!userId || composeBusy || selectedFriendIds.length === 0) return;
     setComposeBusy(true);
     try {
-      const chatId = await getOrCreateDmChat({ viewerId: userId, peerId });
+      let chatId: string;
+      if (selectedFriendIds.length === 1) {
+        chatId = await getOrCreateDmChat({
+          viewerId: userId,
+          peerId: selectedFriendIds[0],
+        });
+      } else {
+        // Group name is optional — default to the members' first names.
+        const name =
+          groupName.trim() ||
+          selectedFriendIds
+            .map((id) => profiles[id]?.displayName?.split(' ')[0] ?? '?')
+            .join(', ');
+        chatId = await getOrCreateGroupChat({
+          memberIds: [userId, ...selectedFriendIds],
+          createdBy: userId,
+          name,
+        });
+      }
       closeCompose();
       router.push(`/chat/${chatId}`);
     } catch (e) {
       Alert.alert('Could not start chat', e instanceof Error ? e.message : '');
-    } finally {
-      setComposeBusy(false);
-    }
-  };
-
-  const handleCreateGroup = async () => {
-    if (!userId || composeBusy) return;
-    const trimmed = groupName.trim();
-    if (!trimmed || selectedFriendIds.length === 0) return;
-    setComposeBusy(true);
-    try {
-      const chatId = await getOrCreateGroupChat({
-        memberIds: [userId, ...selectedFriendIds],
-        createdBy: userId,
-        name: trimmed,
-      });
-      closeCompose();
-      router.push(`/chat/${chatId}`);
-    } catch (e) {
-      Alert.alert('Could not create group', e instanceof Error ? e.message : '');
     } finally {
       setComposeBusy(false);
     }
@@ -349,18 +346,11 @@ export default function ChatsScreen() {
         <Text className="text-fog text-2xl font-bold">Chats</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <TouchableOpacity
-            onPress={() => openCompose('DM')}
+            onPress={openCompose}
             style={{ padding: 8 }}
             hitSlop={8}
           >
             <MessageSquareIcon size={22} color={COLORS.fog} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => openCompose('GROUP')}
-            style={{ padding: 8 }}
-            hitSlop={8}
-          >
-            <UsersIcon size={22} color={COLORS.fog} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => setShowAddModal(true)}
@@ -468,7 +458,7 @@ export default function ChatsScreen() {
           </Text>
           {!searchQuery && friends.length > 0 && (
             <TouchableOpacity
-              onPress={() => openCompose('DM')}
+              onPress={openCompose}
               style={{
                 backgroundColor: COLORS.signal,
                 borderRadius: 999,
@@ -619,77 +609,40 @@ export default function ChatsScreen() {
           >
             {/* Header */}
             <View className="flex-row items-center justify-between mb-4">
-              <Text className="text-fog text-xl font-bold">
-                {composeMode === 'DM' ? 'New Message' : 'New Group'}
-              </Text>
+              <Text className="text-fog text-xl font-bold">New Message</Text>
               <TouchableOpacity onPress={closeCompose} hitSlop={10}>
                 <XIcon size={20} color="rgba(242,244,246,0.5)" />
               </TouchableOpacity>
             </View>
 
-            {/* Mode toggle */}
-            <View
-              style={{
-                flexDirection: 'row',
-                backgroundColor: 'rgba(255,255,255,0.05)',
-                borderRadius: 12,
-                padding: 4,
-                marginBottom: 14,
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  setComposeMode('DM');
-                  setSelectedFriendIds([]);
-                }}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 8,
-                  backgroundColor:
-                    composeMode === 'DM' ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  alignItems: 'center',
-                }}
-              >
-                <Text
-                  style={{
-                    color: composeMode === 'DM' ? COLORS.fog : 'rgba(242,244,246,0.4)',
-                    fontSize: 12,
-                    fontWeight: '700',
-                  }}
-                >
-                  Message
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setComposeMode('GROUP')}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  borderRadius: 8,
-                  backgroundColor:
-                    composeMode === 'GROUP' ? 'rgba(255,255,255,0.1)' : 'transparent',
-                  alignItems: 'center',
-                }}
-              >
-                <Text
-                  style={{
-                    color: composeMode === 'GROUP' ? COLORS.fog : 'rgba(242,244,246,0.4)',
-                    fontSize: 12,
-                    fontWeight: '700',
-                  }}
-                >
-                  Group
-                </Text>
-              </TouchableOpacity>
+            {/* To: selected-friend chips (tap a chip to remove) */}
+            <View className="flex-row flex-wrap items-center mb-3" style={{ gap: 6 }}>
+              <Text className="text-fog/40 text-sm font-semibold mr-1">To:</Text>
+              {selectedFriendIds.length === 0 ? (
+                <Text className="text-fog/25 text-sm">Select friends below</Text>
+              ) : (
+                selectedFriendIds.map((id) => (
+                  <TouchableOpacity
+                    key={id}
+                    onPress={() => toggleSelectedFriend(id)}
+                    className="flex-row items-center bg-signal/15 border border-signal/40 rounded-full px-3 py-1.5"
+                    style={{ gap: 6 }}
+                  >
+                    <Text className="text-signal text-xs font-bold">
+                      {profiles[id]?.displayName?.split(' ')[0] ?? '…'}
+                    </Text>
+                    <XIcon size={11} color={COLORS.signal} />
+                  </TouchableOpacity>
+                ))
+              )}
             </View>
 
-            {/* Group name input */}
-            {composeMode === 'GROUP' && (
+            {/* Group name — appears once it's a group (2+ recipients) */}
+            {selectedFriendIds.length >= 2 && (
               <TextInput
                 value={groupName}
                 onChangeText={setGroupName}
-                placeholder="Group name"
+                placeholder="Group name (optional)"
                 placeholderTextColor="rgba(242,244,246,0.3)"
                 style={{
                   backgroundColor: 'rgba(255,255,255,0.05)',
@@ -723,11 +676,7 @@ export default function ChatsScreen() {
               <SearchIcon size={14} color="#6B7280" />
               <TextInput
                 style={{ flex: 1, color: COLORS.fog, fontSize: 14 }}
-                placeholder={
-                  composeMode === 'DM'
-                    ? 'Pick a friend to message'
-                    : 'Select members'
-                }
+                placeholder="Search friends"
                 placeholderTextColor="rgba(242,244,246,0.3)"
                 value={composeSearch}
                 onChangeText={setComposeSearch}
@@ -755,16 +704,9 @@ export default function ChatsScreen() {
                 style={{ maxHeight: 320 }}
                 renderItem={({ item }) => {
                   const selected = selectedFriendIds.includes(item.friend.userId);
-                  const onTap = () => {
-                    if (composeMode === 'DM') {
-                      handleStartDm(item.friend.userId);
-                    } else {
-                      toggleSelectedFriend(item.friend.userId);
-                    }
-                  };
                   return (
                     <Pressable
-                      onPress={onTap}
+                      onPress={() => toggleSelectedFriend(item.friend.userId)}
                       style={({ pressed }) => ({
                         opacity: pressed ? 0.6 : 1,
                         flexDirection: 'row',
@@ -772,10 +714,9 @@ export default function ChatsScreen() {
                         paddingVertical: 10,
                         paddingHorizontal: 6,
                         borderRadius: 12,
-                        backgroundColor:
-                          selected && composeMode === 'GROUP'
-                            ? 'rgba(46,92,255,0.12)'
-                            : 'transparent',
+                        backgroundColor: selected
+                          ? 'rgba(46,92,255,0.12)'
+                          : 'transparent',
                       })}
                     >
                       <UserAvatar
@@ -798,67 +739,58 @@ export default function ChatsScreen() {
                           @{item.profile?.handle ?? '…'}
                         </Text>
                       </View>
-                      {composeMode === 'GROUP' && (
-                        <View
-                          style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: 11,
-                            borderWidth: 1.5,
-                            borderColor: selected ? COLORS.signal : 'rgba(255,255,255,0.25)',
-                            backgroundColor: selected ? COLORS.signal : 'transparent',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {selected && (
-                            <Text
-                              style={{ color: COLORS.fog, fontSize: 12, fontWeight: '700' }}
-                            >
-                              ✓
-                            </Text>
-                          )}
-                        </View>
-                      )}
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          borderWidth: 1.5,
+                          borderColor: selected ? COLORS.signal : 'rgba(255,255,255,0.25)',
+                          backgroundColor: selected ? COLORS.signal : 'transparent',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {selected && (
+                          <Text
+                            style={{ color: COLORS.fog, fontSize: 12, fontWeight: '700' }}
+                          >
+                            ✓
+                          </Text>
+                        )}
+                      </View>
                     </Pressable>
                   );
                 }}
               />
             )}
 
-            {/* Group create footer */}
-            {composeMode === 'GROUP' && (
-              <View style={{ marginTop: 12 }}>
-                <Text className="text-fog/40 text-xs mb-3">
-                  {selectedFriendIds.length} selected
-                </Text>
-                <TouchableOpacity
-                  onPress={handleCreateGroup}
-                  disabled={
-                    composeBusy ||
-                    !groupName.trim() ||
-                    selectedFriendIds.length === 0
-                  }
-                  style={{
-                    backgroundColor:
-                      composeBusy ||
-                      !groupName.trim() ||
-                      selectedFriendIds.length === 0
-                        ? 'rgba(46,92,255,0.3)'
-                        : COLORS.signal,
-                    paddingVertical: 14,
-                    borderRadius: 16,
-                    alignItems: 'center',
-                  }}
+            {/* Adaptive footer CTA: 1 recipient → DM, 2+ → group chat */}
+            <View style={{ marginTop: 12 }}>
+              <TouchableOpacity
+                onPress={handleComposeSubmit}
+                disabled={composeBusy || selectedFriendIds.length === 0}
+                style={{
+                  backgroundColor:
+                    composeBusy || selectedFriendIds.length === 0
+                      ? 'rgba(46,92,255,0.3)'
+                      : COLORS.signal,
+                  paddingVertical: 14,
+                  borderRadius: 16,
+                  alignItems: 'center',
+                }}
+              >
+                <Text
+                  style={{ color: COLORS.fog, fontWeight: '700', fontSize: 14 }}
                 >
-                  <Text
-                    style={{ color: COLORS.fog, fontWeight: '700', fontSize: 14 }}
-                  >
-                    {composeBusy ? 'Creating…' : 'Create Group'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
+                  {composeBusy
+                    ? 'Starting…'
+                    : selectedFriendIds.length >= 2
+                      ? `Start Group Chat (${selectedFriendIds.length})`
+                      : 'Message'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
