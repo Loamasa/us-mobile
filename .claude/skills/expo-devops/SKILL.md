@@ -20,11 +20,13 @@ npx expo start                 # normal start
 firebase emulators:start --project demo-us-app
 ```
 
-Connect in app code:
+Ports (per `firebase.json`): auth **9099**, firestore **8088**, UI 4000.
+The app already connects via `src/config/firebase.ts` (`getEmulatorHost()` + the web
+proxy helpers) — don't duplicate connection code:
 ```tsx
 if (__DEV__) {
   connectAuthEmulator(auth, 'http://localhost:9099');
-  connectFirestoreEmulator(db, 'localhost', 8080);
+  connectFirestoreEmulator(db, 'localhost', 8088);
 }
 ```
 
@@ -39,6 +41,29 @@ npx tsc --noEmit               # must pass before committing
 ```bash
 npm install --legacy-peer-deps  # always use this flag (React version conflicts)
 ```
+
+### Ready to Test (restart everything for phone testing via Expo Go)
+
+Use after finishing an implementation when the user wants to test on their phone.
+Emulators and Metro may already be running — kill them cleanly and restart fresh:
+
+```powershell
+# 1. Kill emulator (java) + Metro (node) processes
+Get-Process -Name "java","node" -ErrorAction SilentlyContinue |
+  ForEach-Object { try { $_.Kill() } catch {} }
+
+# 2. Restart emulators — wait for "All emulators ready!"
+firebase emulators:start --project demo-us-app
+
+# 3. Seed test data (Node-only, no device needed)
+node src/dev/runSeed.js
+
+# 4. Restart the Expo dev server
+npx expo start --clear
+```
+
+Then open **Expo Go** on the phone → scan the QR code. If seeded data is missing,
+Settings → Developer → "Seed Test Data" re-seeds from the device.
 
 ## EAS Build
 

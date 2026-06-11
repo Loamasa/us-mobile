@@ -3,9 +3,9 @@
 Nonprofit location-based social app. Expo SDK 54 + Firebase + NativeWind v4 + Tailwind v3.
 
 ## Session Protocol
-Read `STATUS.md` at session start. Keep it current:
-- Update STATUS.md after milestones, before commits, and on "wrap up".
-- Update MEMORY.md (+ `.context/memory.md`) when discovering gotchas.
+Read `STATUS.md` and `.context/memory.md` (project gotchas) at session start. Keep them current:
+- Update STATUS.md after milestones, before commits, and on "wrap up". Dated history goes to `docs/CHANGELOG.md`, not STATUS.md.
+- Update `.context/memory.md` when discovering gotchas — it is the single committed gotchas file (mirror collapsed 2026-06-11).
 - Always tell the user when you update these files.
 - **Commit automatically** when a milestone is done and verified (`npx tsc --noEmit` passes) — don't ask first. Conventional commits, directly on `main`. Don't push unless asked.
 

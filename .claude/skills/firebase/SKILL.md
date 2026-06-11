@@ -117,11 +117,13 @@ await batch.commit();
 firebase emulators:start --project demo-us-app
 ```
 
-Connect in code:
+Ports (per `firebase.json`): auth **9099**, firestore **8088**, UI 4000.
+
+Connect in code (already wired in `src/config/firebase.ts` via `getEmulatorHost()` — don't duplicate):
 ```tsx
 if (__DEV__) {
   connectAuthEmulator(auth, 'http://localhost:9099');
-  connectFirestoreEmulator(db, 'localhost', 8080);
+  connectFirestoreEmulator(db, 'localhost', 8088);
 }
 ```
 

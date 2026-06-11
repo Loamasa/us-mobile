@@ -28,35 +28,27 @@ Optional body explaining why.
 
 ### Scopes (project-specific)
 
-`auth`, `map`, `friends`, `signals`, `spots`, `ghost`, `profile`, `nav`, `firebase`, `config`
+`auth`, `map`, `chats`, `broadcasts`, `gatherings`, `friends`, `signals`, `spots`,
+`ghost`, `profile`, `settings`, `onboarding`, `nav`, `firebase`, `rules`, `config`, `dev`
 
 ### Examples
 
 ```
 feat(map): add friend marker clustering with 100m threshold
-fix(auth): handle expired token on app resume
+fix(rules): allow friendId == auth.uid writes for accept-request batch
+docs(map): round-5 marker diagnosis — library-level Fabric bug
 chore(deps): upgrade expo-location to 17.x
-refactor(friends): extract useFirendList hook from FriendsScreen
 ```
 
-## Branch Naming
+## Workflow (real flow — solo dev)
 
-```
-type/short-description
-```
-
-Examples:
-- `feat/friend-clustering`
-- `fix/auth-token-refresh`
-- `chore/upgrade-expo-54`
-
-## Workflow
-
-1. Branch from `main`
-2. Make commits (conventional format)
-3. Run `npx tsc --noEmit` before committing (must pass)
-4. Push and open PR against `main`
-5. Squash merge PRs
+1. **Commit directly on `main`** when a milestone is done and verified —
+   `npx tsc --noEmit` must pass first. Don't ask; don't batch unrelated work.
+2. **Feature branch (`type/short-description`, e.g. `feat/phase1-map-ui`) only for
+   multi-session work** that would leave `main` broken between sessions; fast-forward
+   into `main` when done. No PRs, no squash merges.
+3. Don't push unless asked.
+4. Update STATUS.md before milestone commits (session protocol in CLAUDE.md).
 
 ## .gitignore Essentials
 

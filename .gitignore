@@ -47,9 +47,6 @@ GoogleService-Info.plist
 /ios
 /android
 
-# Antigravity skills junction (symlink to .claude/skills/, avoid duplicating)
-.antigravity/skills/
-
 # Claude Code machine-local settings (holds approved-command strings — never commit)
 .claude/settings.local.json
 

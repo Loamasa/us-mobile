@@ -60,20 +60,19 @@ Exit: every box checked on device, or failures triaged into the bug list.
 > **Decision: marker fix is the FIRST item of Step 4** — closes Step 0's last box on the
 > dev build. Until then Expo Go markers stay clipped-but-functional.
 
-## Step 1 — Cleanup pass (~1 short session)
+## Step 1 — Cleanup pass (~1 short session) — ✅ DONE 2026-06-11
 
-- [ ] Remove Antigravity: `cmd /c rmdir .antigravity\skills` (junction — do NOT recursive-delete,
-      it points INTO `.claude/skills`), then delete `.antigravity/` + `.agents/`, drop the
-      junction line from `.gitignore`, drop Antigravity references from CLAUDE.md / memory docs
-- [ ] Port `ready-to-test` workflow into a Claude skill (or fold into expo-devops) before deleting `.agents/`
-- [ ] Collapse memory mirror: `.context/memory.md` becomes the single committed gotchas file;
-      drop the "update both" rule from CLAUDE.md; fix its stale browser-testing entry
-- [ ] STATUS.md diet: keep current state + open items + How to Run + Key Files (~100 lines);
-      move dated history to `docs/CHANGELOG.md`
-- [ ] Skill fixes: expo-devops emulator port 8080 → **8088**; git-workflow rewritten to match
-      the real flow (direct commits to `main`; feature branch for multi-session work);
-      delete local `skill-creator` copy (plugin supersedes it)
-- [ ] Add npm scripts: `typecheck`, `seed`, `verify` (chains the three verify scripts), `emulators`
+- [x] Remove Antigravity: junction unlinked with `rmdir` (target `.claude/skills` intact),
+      `.antigravity/` + `.agents/` deleted, junction line dropped from `.gitignore`,
+      references dropped from memory docs
+- [x] `ready-to-test` workflow folded into the expo-devops skill (before deleting `.agents/`)
+- [x] Memory mirror collapsed: `.context/memory.md` is the single committed gotchas file
+      (CLAUDE.md rule updated; stale browser-testing entry rewritten; marker gotcha added)
+- [x] STATUS.md diet: current state + open items + How to Run + Key Files; history moved
+      to `docs/CHANGELOG.md`
+- [x] Skill fixes: emulator port **8088** in expo-devops AND firebase skills; git-workflow
+      rewritten to the real flow (direct commits to `main`); local `skill-creator` deleted
+- [x] npm scripts added: `typecheck`, `seed`, `verify` (chains the three verify scripts), `emulators`
 
 ## Step 2 — Production backend wiring (~1 session)
 
