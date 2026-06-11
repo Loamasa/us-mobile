@@ -52,6 +52,9 @@ export default function SettingsScreen() {
         onPress: async () => {
           if (userId) await deleteLocation(userId);
           await signOut(auth);
+          // Back through the auth gate (app/index.tsx) — signed-out users
+          // land on onboarding instead of staying on the tabs.
+          router.replace('/');
         },
       },
     ]);

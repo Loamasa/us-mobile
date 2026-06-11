@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { COLORS } from '@/config/constants';
@@ -18,6 +18,12 @@ import seedDevData from '@/dev/seedDevData';
 
 export default function DeveloperSettingsScreen() {
   const router = useRouter();
+
+  // Debug-only screen: the Settings list already hides the entry in production,
+  // but the route itself must not be reachable either (e.g. via deep link).
+  if (!__DEV__) {
+    return <Redirect href="/(tabs)/settings" />;
+  }
   const [seeding, setSeeding] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(

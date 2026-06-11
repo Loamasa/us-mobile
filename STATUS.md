@@ -12,6 +12,19 @@
 - **Unscheduled prototype feature flagged**: tutorial overlay chain (`tutorialData.tsx`, 7 definitions, fires after onboarding) is in NO phase checklist — triage later.
 
 ## Last Updated
+2026-06-11 (pre-Phase-3 review) — **Full code review for two-real-people testing executed: debug features gated, 2 real bugs + 2 rules defects FIXED & verified. New device-free rules check `src/dev/verifyRules.js`.**
+- **Auth gate added (`app/index.tsx`)**: was an unconditional redirect to the map — a production build would land signed-OUT users on a broken map (the dev auto-sign-in is `__DEV__`-only). Now: signed in → `/(tabs)/map`, signed out → `/(auth)/onboarding`. Dev behavior unchanged (auto-sign-in completes first). Sign Out now routes back through the gate (`router.replace('/')`).
+- **Developer route gated**: `app/settings/developer.tsx` returns `<Redirect>` when `!__DEV__` — the Settings list already hid the row, but the route itself (seed, account switcher) was reachable by deep link in any build.
+- **Phone auth explicitly dev-only**: `phone.tsx` short-circuits in production with a clear message instead of timing out against `127.0.0.1:9099`. **Real phone auth (SMS) is the first Phase 3 work item** — the whole flow is emulator-REST today.
+- **FIXED — accepting a friend request was impossible under the old rules**: `acceptFriendRequest` batches a write into BOTH users' friend lists, but `users/{uid}/friends/{fid}` only allowed the owner to write → the batch always got PERMISSION_DENIED. This is THE first flow two real testers hit (add by handle → accept). Rules now allow `friendId == auth.uid` (you may write only YOUR OWN entry into someone else's list — third-party injection stays blocked, verified).
+- **FIXED — live locations were world-readable**: `locations/{uid}` allowed any authed user to read anyone's position. Now owner + friends only (`exists(users/{owner}/friends/{reader})`). Handles read also tightened to authed-only. App verified working against the new rules (map cluster + pins, chats presence, zero console errors).
+- **FIXED — OTP auto-submit stale closure** (`otp.tsx`): typing the 6th digit called `handleVerify()` from a render where `code` was still 5 digits → spurious "Enter the 6-digit code" on real phones (manual typing). Now passes the fresh text.
+- **FIXED — stale location doc on cold start** (`useLocationTracking`): if the app was killed inside a spot, the published location doc lingered; on reopen outside the spot, the delete was skipped (`lastPublishedRef` started `false`). Now starts `true` → first out-of-spot fix cleans up.
+- **Minor: cluster members now expiry-check signals** (`useMapProjection`) — matched the individual-marker branch.
+- **`src/dev/verifyRules.js` (new)**: signs in as real emulator users (NOT `Bearer owner`) and asserts 10 rules guarantees: friend/self/non-friend/unauth location reads, accept-request batch as accepter, third-party friend injection blocked, handle auth, member-only chats. **Run after `runSeed.js`. 10/10 PASS.** `verifyProjection` + `verifyGroupPins` re-run: PASS. `tsc` clean. Browser pass: map + chats live against new rules, no errors.
+- **Antigravity workflow fixed**: `.agents/workflows/ready-to-test.md` started emulators with `--project us-v1-ff6b3` (breaks auth — must be `demo-us-app`).
+- **Flagged, NOT fixed (decide before/during Phase 3)** — see "Phase 3 Readiness — Open Items" below.
+
 2026-06-11 (later) — **User-feedback Broadcast fix + BOTH requested product changes BUILT & verified live in browser; pushed to GitHub.**
 - **Broadcast button un-gated (user feedback: "can't press Broadcast")**: it was disabled until a GPS fix existed — but `signal.location` is consumed NOWHERE in the app (write-only metadata), and on web no fix ever arrives. `UserSignal.location` is now `GeoPoint | null`, the modal broadcasts regardless (location attached opportunistically), and the rose warning became a neutral "No GPS fix — your signal broadcasts without a location tag" note. Verified live: broadcast on web (no GPS) → 🍺 signal in Firestore with `location: null` + ActiveSignalHUD countdown. **Never gate features on `signal.location`.**
 - **Single new-message button (Messenger-style)**: `app/(tabs)/chats.tsx` now has ONE compose icon → "To:" picker with selected-friend chips (tap chip to remove), always-multi-select rows, group-name input appears at 2+ recipients (optional — defaults to members' first names), adaptive CTA ("Message" / "Start Group Chat (n)"). 1 → `getOrCreateDmChat`, 2+ → `getOrCreateGroupChat`. Segmented DM/Group control + second compose icon deleted. Verified live: Charlie → existing deterministic DM reused; Charlie+Dana → resolved to the seeded **Study Crew** (deterministic member-set dedup — same semantics as the map's crew button); Alice+Charlie → NEW group auto-named "Alice, Charlie".
@@ -87,6 +100,19 @@
 - **Seed** (`src/dev/fixtures.json` + `src/dev/seedDevData.ts`): added `chat_study_crew` (dev-user + charlie + dana, plain group) and `chat_dm_alice` (dev-user ↔ alice DM with `name: null`). `lastMessageAt` now defaults to `now` when a seeded `lastMessage` exists so relative timestamps render.
 - **Self-review fix applied** (subscription thrash, Important): first pass built `neededProfileIds` / `presenceIds` as array memos, so every `onSnapshot` fire returned a fresh array identity and the fan-out `useEffect` tore down + re-subscribed N profile + location listeners every time any chat/friend doc changed. Switched to joined-string keys (`profileIdKey` / `presenceIdKey`) memoized to a sorted-pipe-delimited string — strings compare by value under `Object.is`, so dependencies only invalidate when the actual id *set* changes. Saved a gotcha entry in MEMORY.md.
 - `npx tsc --noEmit` passes; runtime test pending physical-device verification.
+
+## Phase 3 Readiness — Open Items (from the 2026-06-11 review)
+
+> Flagged during the pre-Phase-3 code review. None block Expo Go testing with two phones against the emulators; items 1–3 block a standalone (EAS) build.
+
+1. **Production auth is not wired** — phone/OTP run on the emulator REST API only (now explicitly blocked in prod builds). An EAS preview APK needs real Firebase phone auth (or another sign-in method) — this is Phase 3 item 0.
+2. **Rules + indexes are never deployed** — `firestore.rules` only lives on the emulator. Before any real-backend build: `firebase deploy --only firestore` to `us-v1-ff6b3`. Also: the `onFriendRequests` query (`status == PENDING` + `orderBy createdAt desc`) needs a composite index in production — `firestore.indexes.json`'s current friendRequests entry has a stale shape (`toUserId/status/createdAt`) and must become `(status ASC, createdAt DESC)` collection-scope.
+3. **Google Maps Android key in `app.json` is unrestricted** — restrict it to the package name + signing SHA-1 in Google Cloud Console before distributing APKs.
+4. **Background location requested but unused** — `permissions.tsx` calls `requestBackgroundPermissionsAsync()` and the manifest declares `ACCESS_BACKGROUND_LOCATION`, but `FEATURE_FLAGS.BACKGROUND_LOCATION` is false. Recommend removing both until the feature ships (onboarding friction + Play policy risk). *Product call — left in place.*
+5. **`allowFriendRequests` setting is client-side only** — rules accept request docs regardless of the recipient's toggle. Fine for trusted testers; needs a rules `get()` later.
+6. **No location-doc TTL** — if the app dies inside a spot and is never reopened, the location doc persists (cold-start cleanup now handles the reopen case). Real fix = client freshness check on `updatedAt` or a TTL policy. Wishlist material.
+7. **Expo Go two-phone gotcha**: both phones auto-sign-in as `dev-user` in dev. Phone B must switch personas via Settings → Developer → Switch Account (e.g. alice) so the two testers are distinct, already-befriended users.
+8. Minor consistency: `profile.tsx` writes `avatarUrl: ''` (type says `string | null`); auth spots step swallows save errors silently; dev fixture passwords (emulator-only creds) ship in the JS bundle.
 
 ## Known Bugs — Up Next
 
@@ -363,6 +389,7 @@
 | `src/dev/runSeed.js` | Node-only seed (no RN deps) — writes fixtures to emulator via admin REST `:commit`. Run: `node src/dev/runSeed.js` |
 | `src/dev/verifyProjection.js` | Device-free Bug #3 check — reads live emulator data through the app's read path + projection; expects `CLUSTER(alice+bob) + FRIEND(charlie)` |
 | `src/dev/verifyGroupPins.js` | Device-free named-group-pin check — mirrors `buildGroupPins`; asserts proximity-wins (Case A) and resting fixed pin at `fixedLocation` (Case B). Run after `runSeed.js` |
+| `src/dev/verifyRules.js` | Device-free security-rules check — signs in as real users (not `Bearer owner`) and asserts 10 guarantees (friends-only locations, accept-request batch, no friend injection, member-only chats). Run after `runSeed.js` |
 | `src/dev/testProjection.js` | Pure-logic projection test with mock coords (proves clustering math) |
 | `src/features/map/groupPins.ts` | `buildGroupPins` — decorates live proximity clusters with a named group + synthesizes a resting pin at `fixedLocation` when members aren't clustered |
 | `src/features/map/useGroupMemberProfiles.ts` | Subscribes to profiles of named always-on group members (facepile source for the fixed pin); stable-string-key to avoid subscription thrash |

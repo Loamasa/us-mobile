@@ -53,12 +53,16 @@ export function useMapProjection(
         // Create cluster entity
         const friends: FriendOnMap[] = clusterMembers.map((id) => {
           const data = friendLocations[id];
+          const memberSignal = data.profile.currentSignal;
+          const memberSignalExpired = memberSignal?.expiresAt
+            ? memberSignal.expiresAt.toDate() < new Date()
+            : true;
           return {
             userId: id,
             displayName: data.profile.displayName,
             avatarUrl: data.profile.avatarUrl,
             location: { lat: data.location.lat, lng: data.location.lng },
-            signal: data.profile.currentSignal,
+            signal: !memberSignalExpired ? memberSignal : null,
             isOnline: true,
             spot: data.location.spot
               ? { name: data.location.spot.name, emoji: data.location.spot.emoji }

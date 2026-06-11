@@ -45,7 +45,10 @@ export function useLocationTracking() {
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const isTrackingRef = useRef(false);
   const spotsRef = useRef<UserSpot[]>([]);
-  const lastPublishedRef = useRef<boolean>(false);
+  // Starts true: a previous session may have died while a location doc was
+  // published (app killed inside a spot). The first out-of-spot fix after a
+  // cold start must delete that stale doc; deleting a missing doc is a no-op.
+  const lastPublishedRef = useRef<boolean>(true);
   const [userId, setUserId] = useState<string | null>(
     auth.currentUser?.uid ?? null
   );

@@ -18,6 +18,13 @@ export default function PhoneScreen() {
       return;
     }
 
+    // The whole send-code path below talks to the Firebase AUTH EMULATOR —
+    // production phone auth (real SMS) is a Phase 3 task and isn't wired yet.
+    if (!__DEV__) {
+      setError('Phone sign-in is not available in this build yet.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 

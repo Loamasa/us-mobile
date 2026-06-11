@@ -8,10 +8,15 @@ service cloud.firestore {
       allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId;
 
-      // Friends subcollection: readable by both parties
+      // Friends subcollection: readable by both parties. Writable by both
+      // parties too — accepting a friend request batches a write into BOTH
+      // users' friend lists (acceptFriendRequest), so the accepter must be
+      // able to create users/{them}/friends/{me}. The friendId == auth.uid
+      // constraint means you can only ever write YOUR OWN entry into someone
+      // else's list, never third-party entries.
       match /friends/{friendId} {
         allow read: if request.auth.uid == userId || request.auth.uid == friendId;
-        allow write: if request.auth.uid == userId;
+        allow write: if request.auth.uid == userId || request.auth.uid == friendId;
       }
 
       // Friend requests: creator can create, recipient can read/update
@@ -29,15 +34,20 @@ service cloud.firestore {
       }
     }
 
-    // Locations: owner writes, any authenticated user can read
+    // Locations: owner writes; readable only by the owner and their friends
+    // (presence of users/{owner}/friends/{reader}). Live position is the most
+    // sensitive data in the app — never world-readable.
     match /locations/{userId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+                  && (request.auth.uid == userId
+                      || exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid)));
       allow write: if request.auth.uid == userId;
     }
 
-    // Handle reservation: anyone can read (for uniqueness check), creator can create
+    // Handle reservation: authenticated users can read (uniqueness check +
+    // add-friend lookup happen post-sign-in), creator can create.
     match /handles/{handle} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow create: if request.auth != null
                     && request.resource.data.userId == request.auth.uid;
     }

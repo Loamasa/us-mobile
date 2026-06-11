@@ -21,8 +21,10 @@ export default function OtpScreen() {
     }
   }, [devCode]);
 
-  const handleVerify = async () => {
-    if (code.length !== 6) {
+  // Takes the code as an argument: the auto-submit in onChangeText fires from
+  // a render where the `code` state is still one digit short (stale closure).
+  const handleVerify = async (submitted: string = code) => {
+    if (submitted.length !== 6) {
       setError('Enter the 6-digit code');
       return;
     }
@@ -38,7 +40,7 @@ export default function OtpScreen() {
       // Sign in via the Firebase SDK using the session from the emulator REST API.
       // The SDK is connected to the emulator via connectAuthEmulator,
       // so it will validate the credential against the emulator's session store.
-      const credential = PhoneAuthProvider.credential(sessionInfo, code);
+      const credential = PhoneAuthProvider.credential(sessionInfo, submitted);
       const result = await signInWithCredential(auth, credential);
 
       // Check if user already has a profile
@@ -60,7 +62,7 @@ export default function OtpScreen() {
     <AuthLayout
       accent="signal"
       ctaLabel={loading ? 'Verifying...' : 'Verify'}
-      onCta={handleVerify}
+      onCta={() => handleVerify()}
       ctaDisabled={loading}
     >
       <View className="w-full max-w-[340px]">
@@ -111,7 +113,7 @@ export default function OtpScreen() {
             onChangeText={(text) => {
               setCode(text);
               if (text.length === 6) {
-                setTimeout(() => handleVerify(), 100);
+                setTimeout(() => handleVerify(text), 100);
               }
             }}
             autoFocus
