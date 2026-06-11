@@ -49,3 +49,9 @@ GoogleService-Info.plist
 
 # Antigravity skills junction (symlink to .claude/skills/, avoid duplicating)
 .antigravity/skills/
+
+# Claude Code machine-local settings (holds approved-command strings — never commit)
+.claude/settings.local.json
+
+# dev QR snapshot
+expo_qr.png
