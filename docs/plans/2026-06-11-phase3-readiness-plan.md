@@ -74,19 +74,26 @@ Exit: every box checked on device, or failures triaged into the bug list.
       rewritten to the real flow (direct commits to `main`); local `skill-creator` deleted
 - [x] npm scripts added: `typecheck`, `seed`, `verify` (chains the three verify scripts), `emulators`
 
-## Step 2 — Production backend wiring (~1 session)
+## Step 2 — Production backend wiring (~1 session) — ✅ DONE 2026-06-11 except deploy
 
-- [ ] `.firebaserc` → `us-v1-ff6b3`
-- [ ] Fix `firestore.indexes.json` friendRequests composite index → `(status ASC, createdAt DESC)`
-      collection scope (current shape is stale — STATUS Phase-3 item 2)
-- [ ] `firebase deploy --only firestore` (rules + indexes)
-- [ ] Replace `USE_EMULATORS = __DEV__` in `src/config/firebase.ts` with
-      `__DEV__ && process.env.EXPO_PUBLIC_USE_EMULATORS !== 'false'` — lets us dry-run the
-      production backend from dev before cutting a build
-- [ ] Confirm Firebase billing plan supports chosen auth + expected Firestore usage
+- [x] `.firebaserc` → `us-v1-ff6b3`
+- [x] Fix `firestore.indexes.json` friendRequests composite index → `(status ASC, createdAt DESC)`
+      collection scope. ALSO added chats `(type ASC, memberIds CONTAINS)` — `getOrCreateGroupChat`
+      combines `==` with `array-contains`, which needs a composite in production (the emulator
+      never enforces indexes, so it couldn't catch this)
+- [ ] `firebase deploy --only firestore` (rules + indexes) — **pending a one-time
+      `firebase login` in an interactive terminal** (CLI refuses non-interactive login);
+      everything else is committed and ready
+- [x] Replace `USE_EMULATORS = __DEV__` in `src/config/firebase.ts` with
+      `__DEV__ && process.env.EXPO_PUBLIC_USE_EMULATORS !== 'false'` — verified emulators
+      still connect by default (browser boot + map render clean)
+- [x] Confirm Firebase billing plan: **Spark (free) for Phase 3** (user decision 2026-06-11) —
+      email/password auth is free, deploys are free, Firestore free quota covers the tester
+      cohort. Blaze becomes necessary only for phone-auth SMS at public release; main Spark
+      risk is a chatty-listener bug eating the 50K daily reads (stable-key patterns guard it).
 
-Exit: app on dev machine talks to real Firestore with deployed rules; `verifyRules.js`
-rerun against prod-equivalent rules in the emulator still 10/10.
+Exit: rerun against the emulator green (projection PASS, group pins 8/8, **rules 17/17**);
+real-Firestore dry-run (`EXPO_PUBLIC_USE_EMULATORS=false`) happens right after the deploy.
 
 ## Step 3 — Interim auth + prod tooling (~1 session)
 

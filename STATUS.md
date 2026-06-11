@@ -5,7 +5,10 @@
 
 ## Last Updated
 2026-06-11 — Phase 3 (Trusted-Tester Release) in progress: Step 0 closed-with-exception,
-Step 1 cleanup done, Step 2 backend wiring in progress.
+Step 1 done, Step 2 done EXCEPT `firebase deploy --only firestore` (blocked on a one-time
+`firebase login` in a real terminal — the CLI refuses non-interactive login). Billing
+decided: **Spark (free) for Phase 3** — email/password auth + tester-cohort Firestore usage
+fit the free quotas; Blaze only needed for phone-auth SMS at public release.
 
 ## Where We Are — Phase 3 (Android, trusted testers)
 
@@ -20,10 +23,15 @@ distribution**, **background location IN scope** (it's the product — needs the
       upgrade, which crashes Expo Go → lands with the dev build.
 - [x] Step 1 — cleanup pass (Antigravity removed, STATUS diet → `docs/CHANGELOG.md`,
       memory mirror collapsed into `.context/memory.md`, skill fixes, npm scripts)
-- [ ] Step 2 — production backend wiring (`.firebaserc`, friendRequests index fix,
-      `firebase deploy --only firestore`, `EXPO_PUBLIC_USE_EMULATORS` override) — **in progress**
+- [x] Step 2 — production backend wiring: `.firebaserc` → us-v1-ff6b3; friendRequests index
+      fixed to `(status ASC, createdAt DESC)` + NEW chats `(type ASC, memberIds CONTAINS)`
+      composite (getOrCreateGroupChat needs it in prod — emulator never enforces indexes);
+      `EXPO_PUBLIC_USE_EMULATORS=false` override in `src/config/firebase.ts`. Verified: tsc
+      clean, full verify suite green, browser boot + map render clean.
+      **ONE ITEM OPEN: `firebase deploy --only firestore`** — run `firebase login` in a
+      terminal first, then the deploy (any session can finish this in 2 minutes).
 - [ ] Step 3 — interim email/password auth + prod admin/seed tooling + empty-state audit
-      (**gated on the Firebase billing-plan check-in with the user**)
+      (billing question RESOLVED 2026-06-11: Spark plan for Phase 3 — unblocked)
 - [ ] Step 4 — EAS pipeline. **First item: react-native-maps 1.20.1 → 1.27.x** (closes Step 0's
       marker box; device testing moves to the dev client from here). Then `eas init`/`eas.json`,
       `expo-updates` + `expo-task-manager` in build #1, Maps key restriction via keystore SHA-1,
