@@ -146,9 +146,14 @@ export interface Message {
   createdAt: Timestamp;
 }
 
-// ─── Group Broadcasts ────────────────────────────────
-// A placeable, invite-based map event: pin + crew + TTL (FEATURES.md #1).
-// Visible ONLY to members and invitees; invitees must accept to join.
+// ─── Gatherings (data name: broadcasts) ──────────────
+// A placeable map event with a TTL (FEATURES.md #1). Two flavors:
+// - FRIENDS (solo gathering): pin a spot; all the creator's friends can see
+//   it and whether the creator is physically there — like a temporary spot.
+// - MEMBERS (group gathering): invite-based; only members + invitees can see
+//   the pin/roster, invitees must accept to join.
+
+export type BroadcastVisibility = 'FRIENDS' | 'MEMBERS';
 
 export interface Broadcast {
   id: string;
@@ -160,6 +165,7 @@ export interface Broadcast {
   radius: number;
   createdAt: Timestamp;
   expiresAt: Timestamp;
+  visibility: BroadcastVisibility;
   // Creator + accepted invitees. Invitees move themselves over on accept.
   memberIds: string[];
   invitedIds: string[];

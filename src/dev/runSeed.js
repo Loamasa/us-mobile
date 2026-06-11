@@ -309,6 +309,7 @@ async function runSeed() {
         radius: b.radius,
         createdAt: now,
         expiresAt: new Date(now.getTime() + b.hoursFromNow * 60 * 60 * 1000),
+        visibility: b.visibility,
         memberIds: b.memberIds,
         invitedIds: b.invitedIds,
         chatId: b.chatId ?? null,

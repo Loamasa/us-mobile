@@ -58,19 +58,13 @@ export default function MapScreen() {
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [selectedBroadcastId, setSelectedBroadcastId] = useState<string | null>(null);
   const [broadcastCoord, setBroadcastCoord] = useState<{ lat: number; lng: number } | null>(null);
+  // Placement mode: rose button arms it, the next map tap places the pin.
+  const [placingGathering, setPlacingGathering] = useState(false);
   const [broadcastBusy, setBroadcastBusy] = useState(false);
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [openingChat, setOpeningChat] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const mapRef = useRef<MapView>(null);
-  // Last settled map region — the broadcast button pins at your GPS position,
-  // falling back to whatever the map is centered on.
-  const regionRef = useRef<{
-    latitude: number;
-    longitude: number;
-    latitudeDelta: number;
-    longitudeDelta: number;
-  }>({ ...MAP_DEFAULTS.initialRegion });
 
   // Track auth state so profile/spots re-subscribe on account switch
   useEffect(() => {
@@ -112,7 +106,7 @@ export default function MapScreen() {
 
   // Group broadcasts: mine (member) + pending invites. Only members/invitees
   // can even read these docs — outsiders never see the pins.
-  const { mine: myBroadcasts, invites: broadcastInvites } = useBroadcasts();
+  const { mine: myBroadcasts, invites: broadcastInvites, friendSolo } = useBroadcasts();
 
   // Reconcile named groups (mapVisibility = ALWAYS) with the live projection:
   // decorate a live proximity cluster with the group name when its members are
@@ -141,14 +135,20 @@ export default function MapScreen() {
     mapEntities.find((e) => e.id === selectedFriendId && e.type === 'FRIEND') ??
     null;
 
-  // Selected broadcast — membership determines which card variant renders.
+  // Selected gathering — the viewer's relationship picks the card variant:
+  // MEMBER (mine), INVITE (pending), PEEK (a friend's solo gathering).
   const selectedBroadcast =
     myBroadcasts.find((b) => b.id === selectedBroadcastId) ??
     broadcastInvites.find((b) => b.id === selectedBroadcastId) ??
+    friendSolo.find((b) => b.id === selectedBroadcastId) ??
     null;
-  const selectedBroadcastIsInvite =
-    !!selectedBroadcast &&
-    !myBroadcasts.some((b) => b.id === selectedBroadcast.id);
+  const selectedBroadcastMode: 'MEMBER' | 'INVITE' | 'PEEK' = myBroadcasts.some(
+    (b) => b.id === selectedBroadcastId
+  )
+    ? 'MEMBER'
+    : broadcastInvites.some((b) => b.id === selectedBroadcastId)
+      ? 'INVITE'
+      : 'PEEK';
 
   const ghostMode = profile ? !profile.settings.globalLocationSharing : false;
   const activeSignal = (() => {
@@ -418,21 +418,27 @@ export default function MapScreen() {
         showsUserLocation={!ghostMode}
         showsMyLocationButton={false}
         showsCompass={false}
-        onPress={() => {
+        onPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
+          // In placement mode the tap PLACES the gathering pin; otherwise it
+          // just dismisses any open card.
+          if (placingGathering) {
+            const { latitude, longitude } = e.nativeEvent.coordinate;
+            setPlacingGathering(false);
+            setBroadcastCoord({ lat: latitude, lng: longitude });
+            return;
+          }
           setSelectedClusterId(null);
           setSelectedFriendId(null);
           setSelectedBroadcastId(null);
         }}
         onLongPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
-          // Long-press anywhere places a group broadcast pin (FEATURES.md #1).
+          // Long-press shortcut: place a gathering right here (FEATURES.md #1).
           const { latitude, longitude } = e.nativeEvent.coordinate;
+          setPlacingGathering(false);
           setSelectedClusterId(null);
           setSelectedFriendId(null);
           setSelectedBroadcastId(null);
           setBroadcastCoord({ lat: latitude, lng: longitude });
-        }}
-        onRegionChangeComplete={(r: { latitude: number; longitude: number }) => {
-          regionRef.current = { ...regionRef.current, ...r };
         }}
       >
         {/* User Spots (translucent circles) — schedule-aware via the minute tick */}
@@ -494,8 +500,8 @@ export default function MapScreen() {
           )
         )}
 
-        {/* Group broadcast pins — mine solid, invites dashed */}
-        {myBroadcasts.map((b) => (
+        {/* Gathering pins — mine + friends' solo gatherings solid, invites dashed */}
+        {[...myBroadcasts, ...friendSolo].map((b) => (
           <BroadcastMarker
             key={b.id}
             broadcast={b}
@@ -632,6 +638,52 @@ export default function MapScreen() {
         <ActiveSignalHUD signal={activeSignal} onClear={clearSignal} />
       )}
 
+      {/* ── Gathering placement banner ── */}
+      {placingGathering && (
+        <View
+          style={{
+            position: 'absolute',
+            top: 150,
+            left: 0,
+            right: 0,
+            alignItems: 'center',
+            zIndex: 45,
+            pointerEvents: 'box-none',
+          }}
+        >
+          <TouchableOpacity
+            onPress={() => setPlacingGathering(false)}
+            activeOpacity={0.8}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              backgroundColor: 'rgba(244,114,182,0.15)',
+              borderWidth: 1,
+              borderColor: 'rgba(244,114,182,0.5)',
+              borderRadius: 999,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+            }}
+          >
+            <Text
+              style={{
+                color: COLORS.rose,
+                fontSize: 11,
+                fontWeight: '800',
+                textTransform: 'uppercase',
+                letterSpacing: 1,
+              }}
+            >
+              Tap the map to place a gathering
+            </Text>
+            <Text style={{ color: COLORS.rose, fontSize: 13, fontWeight: '700' }}>
+              ✕
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* ── Top-right controls ── */}
       <View
         style={{
@@ -670,21 +722,16 @@ export default function MapScreen() {
           </BlurView>
         </TouchableOpacity>
 
-        {/* Broadcast button — hidden in ghost mode. Opens the unified
-            composer: solo = status signal, invitees = pinned group broadcast
-            at your position (or the map center without a GPS fix). */}
+        {/* Gathering button — hidden in ghost mode. Arms placement mode:
+            the next map tap chooses WHERE the gathering pin goes (never
+            implicitly your GPS position). Long-press skips the button. */}
         {!ghostMode && (
           <TouchableOpacity
             onPress={() => {
               setSelectedClusterId(null);
               setSelectedFriendId(null);
               setSelectedBroadcastId(null);
-              setBroadcastCoord(
-                userLocation ?? {
-                  lat: regionRef.current.latitude,
-                  lng: regionRef.current.longitude,
-                }
-              );
+              setPlacingGathering((v) => !v);
             }}
             activeOpacity={0.8}
           >
@@ -774,7 +821,7 @@ export default function MapScreen() {
         <BroadcastCard
           broadcast={selectedBroadcast}
           viewerId={userId}
-          invite={selectedBroadcastIsInvite}
+          mode={selectedBroadcastMode}
           busy={broadcastBusy || openingChat}
           onClose={() => setSelectedBroadcastId(null)}
           onOpenChat={handleOpenBroadcastChat}

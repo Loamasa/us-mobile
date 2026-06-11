@@ -9,9 +9,13 @@ interface ClusterMarkerProps {
   onPress?: (entity: MapEntity) => void;
 }
 
-// NOTE: never set tracksViewChanges (see FriendMarker.native.tsx). The ring
-// stays a static halo — a looping Animated pulse inside a marker bitmap
-// burns CPU re-capturing every frame.
+// MARKER RENDERING RULES (device-verified 2026-06-11, SDK 54 / new arch):
+// - never set tracksViewChanges (false = blank bitmap; flipping = mis-scaled
+//   clipped capture)
+// - no fixed-size root and NO absolutely-positioned children — both render
+//   clipped to quarter-circles in the marker bitmap. Content-sized flexbox
+//   columns (like FriendMarker) are the only structure that draws correctly.
+// - no looping Animated (continuous bitmap re-capture)
 export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
   const count = entity.friends.length;
 
@@ -24,53 +28,24 @@ export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(entity) : undefined}
     >
-      <View style={{ alignItems: 'center', width: 72, height: 80 }}>
-        {/* Static halo ring */}
+      <View style={{ alignItems: 'center' }}>
+        {/* Core disc: group icon + member count side by side */}
         <View
           style={{
-            position: 'absolute',
-            top: 1,
-            width: 66,
-            height: 66,
-            borderRadius: 33,
-            backgroundColor: COLORS.signal,
-            opacity: 0.18,
-          }}
-        />
-
-        {/* Core disc with group icon */}
-        <View
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 25,
-            marginTop: 9,
-            backgroundColor: 'rgba(46, 92, 255, 0.35)',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            width: 54,
+            height: 54,
+            borderRadius: 27,
+            backgroundColor: 'rgba(46, 92, 255, 0.4)',
             borderWidth: 1.5,
             borderColor: COLORS.signal,
-            alignItems: 'center',
-            justifyContent: 'center',
           }}
         >
-          <UsersIcon size={22} color={COLORS.fog} />
-        </View>
-
-        {/* Count badge */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 4,
-            right: 6,
-            backgroundColor: COLORS.signal,
-            borderRadius: 10,
-            minWidth: 20,
-            height: 20,
-            paddingHorizontal: 4,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ color: COLORS.fog, fontSize: 11, fontWeight: '700' }}>
+          <UsersIcon size={18} color={COLORS.fog} />
+          <Text style={{ color: COLORS.fog, fontSize: 13, fontWeight: '800' }}>
             {count}
           </Text>
         </View>

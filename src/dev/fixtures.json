@@ -168,6 +168,7 @@
       "location": { "lat": 55.5940, "lng": 13.0085 },
       "radius": 150,
       "hoursFromNow": 4,
+      "visibility": "MEMBERS",
       "memberIds": ["alice", "dev-user"],
       "invitedIds": ["bob"],
       "chatId": null
@@ -180,8 +181,22 @@
       "location": { "lat": 55.5860, "lng": 12.9980 },
       "radius": 150,
       "hoursFromNow": 2,
+      "visibility": "MEMBERS",
       "memberIds": ["charlie"],
       "invitedIds": ["dev-user"],
+      "chatId": null
+    },
+    {
+      "id": "gathering_solo_charlie",
+      "createdBy": "charlie",
+      "emoji": "🎮",
+      "text": "Gaming at mine",
+      "location": { "lat": 55.5905, "lng": 13.0055 },
+      "radius": 150,
+      "hoursFromNow": 3,
+      "visibility": "FRIENDS",
+      "memberIds": ["charlie"],
+      "invitedIds": [],
       "chatId": null
     }
   ]

@@ -323,6 +323,7 @@ export default async function seedDevData(): Promise<void> {
         expiresAt: new Date(
           now.getTime() + (b.hoursFromNow as number) * 60 * 60 * 1000
         ),
+        visibility: b.visibility,
         memberIds: b.memberIds,
         invitedIds: b.invitedIds,
         chatId: b.chatId ?? null,

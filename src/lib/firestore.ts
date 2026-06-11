@@ -384,6 +384,29 @@ export function onBroadcastInvites(
   );
 }
 
+/**
+ * A friend's SOLO gatherings (visibility 'FRIENDS'). The query pins
+ * createdBy + visibility so the rules' friendship `exists()` check is
+ * statically satisfiable — never widen it or the whole query gets denied.
+ */
+export function onFriendSoloBroadcasts(
+  friendId: string,
+  callback: (broadcasts: Broadcast[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, 'broadcasts'),
+    where('createdBy', '==', friendId),
+    where('visibility', '==', 'FRIENDS')
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Broadcast)));
+    },
+    onSnapshotError('onFriendSoloBroadcasts')
+  );
+}
+
 export async function createBroadcast(params: {
   createdBy: string;
   emoji: string;
@@ -391,10 +414,19 @@ export async function createBroadcast(params: {
   location: { latitude: number; longitude: number };
   radius: number;
   expiresAt: Date;
+  visibility: 'FRIENDS' | 'MEMBERS';
   invitedIds: string[];
 }): Promise<string> {
-  const { createdBy, emoji, text, location, radius, expiresAt, invitedIds } =
-    params;
+  const {
+    createdBy,
+    emoji,
+    text,
+    location,
+    radius,
+    expiresAt,
+    visibility,
+    invitedIds,
+  } = params;
   const ref = await addDoc(collection(db, 'broadcasts'), {
     createdBy,
     emoji,
@@ -403,6 +435,7 @@ export async function createBroadcast(params: {
     radius,
     createdAt: serverTimestamp(),
     expiresAt: Timestamp.fromDate(expiresAt),
+    visibility,
     memberIds: [createdBy],
     invitedIds,
     chatId: null,

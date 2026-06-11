@@ -18,6 +18,8 @@
  *   5. Chat summaries are member-only.
  *   6. Broadcasts are members+invitees only: outsiders can't read or update;
  *      an invitee can accept (move themselves invitedIds → memberIds).
+ *   7. SOLO gatherings (visibility FRIENDS) are additionally readable by the
+ *      creator's friends — but NOT by non-friends.
  */
 
 const FIRESTORE_PROJECT = 'us-v1-ff6b3';
@@ -198,6 +200,11 @@ async function main() {
     },
   ];
   check('outsider broadcast update blocked (eve → broadcast_tonight)', await commitWrites(outsiderUpdate, eveToken), [403]);
+
+  // ── Solo gatherings (visibility FRIENDS): creator's friends only ──
+  // dev-user IS charlie's friend (seeded); bob is NOT.
+  check('friend reads solo gathering (dev-user → gathering_solo_charlie)', await readDoc('broadcasts/gathering_solo_charlie', devToken), [200]);
+  check('non-friend blocked from solo gathering (bob → gathering_solo_charlie)', await readDoc('broadcasts/gathering_solo_charlie', bobToken), [403]);
 
   console.log(failures === 0 ? '\n✅ PASS — all rules checks green' : `\n❌ FAIL — ${failures} rule check(s) failed`);
   process.exit(failures === 0 ? 0 : 1);

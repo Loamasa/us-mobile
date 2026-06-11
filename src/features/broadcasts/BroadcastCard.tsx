@@ -8,11 +8,14 @@ import { onLocation, onUserProfile } from '@/lib/firestore';
 import { haversineDistance } from '@/utils/distance';
 import type { Broadcast, LocationPresence, UserProfile } from '@/types';
 
+// MEMBER — viewer is in the gathering; INVITE — pending invitation;
+// PEEK — a friend's solo gathering (read-only: spot + are-they-there).
+export type BroadcastCardMode = 'MEMBER' | 'INVITE' | 'PEEK';
+
 interface BroadcastCardProps {
   broadcast: Broadcast;
   viewerId: string;
-  /** True while the viewer is invited but hasn't accepted yet. */
-  invite: boolean;
+  mode: BroadcastCardMode;
   busy?: boolean;
   onClose: () => void;
   onOpenChat: (broadcast: Broadcast) => void;
@@ -33,15 +36,15 @@ function formatRemaining(expiresAt: Broadcast['expiresAt'], now: Date): string {
 }
 
 /**
- * Bottom-anchored glass card for a tapped broadcast pin (rose cousin of
+ * Bottom-anchored glass card for a tapped gathering pin (rose cousin of
  * ClusterCard). Members see the roster + who's physically here + the group
- * chat CTA; invitees see Join / Decline. Roster and "here now" presence are
- * member-only by construction — non-members can't even read the doc.
+ * chat CTA; invitees see Join / Decline; PEEK (a friend's solo gathering)
+ * is informational — the spot, the countdown, and whether they're there.
  */
 export default function BroadcastCard({
   broadcast,
   viewerId,
-  invite,
+  mode,
   busy,
   onClose,
   onOpenChat,
@@ -110,12 +113,19 @@ export default function BroadcastCard({
   const shown = memberIds.slice(0, FACEPILE_MAX);
   const overflow = Math.max(0, memberIds.length - FACEPILE_MAX);
   const pendingCount = broadcast.invitedIds.length;
+  const creatorName =
+    profiles[broadcast.createdBy]?.displayName?.split(' ')[0] ?? 'They';
 
-  const rosterLine = invite
-    ? `You're invited · ${memberIds.length} in so far`
-    : `${memberIds.length} in` +
-      (hereIds.size > 0 ? ` · ${hereIds.size} here now` : '') +
-      (pendingCount > 0 ? ` · ${pendingCount} invited` : '');
+  const rosterLine =
+    mode === 'INVITE'
+      ? `You're invited · ${memberIds.length} in so far`
+      : mode === 'PEEK'
+        ? hereIds.has(broadcast.createdBy)
+          ? `${creatorName} is here now`
+          : `${creatorName} isn't here right now`
+        : `${memberIds.length} in` +
+          (hereIds.size > 0 ? ` · ${hereIds.size} here now` : '') +
+          (pendingCount > 0 ? ` · ${pendingCount} invited` : '');
 
   return (
     <View
@@ -185,7 +195,11 @@ export default function BroadcastCard({
                 letterSpacing: 1,
               }}
             >
-              {invite ? 'INVITE' : 'BROADCAST'}
+              {mode === 'INVITE'
+                ? 'INVITE'
+                : broadcast.visibility === 'MEMBERS'
+                  ? 'GROUP GATHERING'
+                  : 'GATHERING'}
             </Text>
           </View>
           <View style={{ flex: 1 }} />
@@ -249,7 +263,7 @@ export default function BroadcastCard({
         </Text>
 
         {/* CTAs */}
-        {invite ? (
+        {mode === 'INVITE' ? (
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <TouchableOpacity
               activeOpacity={0.85}
@@ -286,28 +300,31 @@ export default function BroadcastCard({
               </Text>
             </TouchableOpacity>
           </View>
-        ) : (
+        ) : mode === 'MEMBER' ? (
           <>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              disabled={busy}
-              onPress={() => onOpenChat(broadcast)}
-              style={{
-                backgroundColor: COLORS.rose,
-                borderRadius: 14,
-                paddingVertical: 12,
-                alignItems: 'center',
-                opacity: busy ? 0.6 : 1,
-                shadowColor: COLORS.rose,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.4,
-                shadowRadius: 10,
-              }}
-            >
-              <Text style={{ color: '#0F1115', fontSize: 13, fontWeight: '900', letterSpacing: 0.3 }}>
-                Open Group Chat
-              </Text>
-            </TouchableOpacity>
+            {/* A solo gathering has no crew to chat with. */}
+            {memberIds.length >= 2 && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={busy}
+                onPress={() => onOpenChat(broadcast)}
+                style={{
+                  backgroundColor: COLORS.rose,
+                  borderRadius: 14,
+                  paddingVertical: 12,
+                  alignItems: 'center',
+                  opacity: busy ? 0.6 : 1,
+                  shadowColor: COLORS.rose,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.4,
+                  shadowRadius: 10,
+                }}
+              >
+                <Text style={{ color: '#0F1115', fontSize: 13, fontWeight: '900', letterSpacing: 0.3 }}>
+                  Open Group Chat
+                </Text>
+              </TouchableOpacity>
+            )}
             {isCreator && (
               <TouchableOpacity
                 activeOpacity={0.7}
@@ -316,12 +333,12 @@ export default function BroadcastCard({
                 style={{ alignItems: 'center', paddingTop: 10 }}
               >
                 <Text style={{ color: 'rgba(242,244,246,0.4)', fontSize: 11, fontWeight: '700' }}>
-                  End Broadcast
+                  End Gathering
                 </Text>
               </TouchableOpacity>
             )}
           </>
-        )}
+        ) : null}
       </BlurView>
     </View>
   );

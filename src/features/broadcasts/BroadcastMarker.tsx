@@ -11,13 +11,9 @@ interface BroadcastMarkerProps {
   onPress?: (broadcast: Broadcast) => void;
 }
 
-/**
- * Rose-themed cousin of the cluster pin: the broadcast's emoji in a disc with
- * a halo and a member-count badge. Invites render dimmed with a dashed border
- * and an INVITE tag instead of the count.
- */
-// NOTE: never set tracksViewChanges (see FriendMarker.native.tsx) — the
-// new-arch bitmap capture clips marker children when tracking flips off.
+// MARKER RENDERING RULES: no tracksViewChanges, no fixed-size root, no
+// absolutely-positioned children, no looping Animated — see
+// ClusterMarker.native.tsx for the device evidence (2026-06-11).
 export default function BroadcastMarker({
   broadcast,
   invite,
@@ -34,64 +30,45 @@ export default function BroadcastMarker({
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(broadcast) : undefined}
     >
-      <View style={{ alignItems: 'center', width: 72, height: 80 }}>
-        {/* Static halo (no loops inside marker bitmaps) */}
-        <View
-          style={{
-            position: 'absolute',
-            top: 1,
-            width: 66,
-            height: 66,
-            borderRadius: 33,
-            backgroundColor: COLORS.rose,
-            opacity: invite ? 0.1 : 0.18,
-          }}
-        />
-
+      <View style={{ alignItems: 'center' }}>
         {/* Emoji disc */}
         <View
           style={{
+            alignItems: 'center',
+            justifyContent: 'center',
             width: 50,
             height: 50,
             borderRadius: 25,
-            marginTop: 9,
             backgroundColor: invite
               ? 'rgba(244,114,182,0.15)'
               : 'rgba(244,114,182,0.35)',
             borderWidth: 1.5,
             borderStyle: invite ? 'dashed' : 'solid',
             borderColor: COLORS.rose,
-            alignItems: 'center',
-            justifyContent: 'center',
           }}
         >
           <Text style={{ fontSize: 22 }}>{broadcast.emoji}</Text>
         </View>
 
-        {/* Count badge / INVITE tag */}
+        {/* Status pill under the disc */}
         <View
           style={{
-            position: 'absolute',
-            top: 4,
-            right: invite ? -6 : 6,
+            marginTop: 3,
             backgroundColor: COLORS.rose,
-            borderRadius: 10,
-            minWidth: 20,
-            height: 20,
-            paddingHorizontal: invite ? 6 : 4,
-            alignItems: 'center',
-            justifyContent: 'center',
+            borderRadius: 8,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
           }}
         >
           <Text
             style={{
               color: '#0F1115',
-              fontSize: invite ? 8 : 11,
+              fontSize: 8,
               fontWeight: '800',
-              letterSpacing: invite ? 0.5 : 0,
+              letterSpacing: 0.5,
             }}
           >
-            {invite ? 'INVITE' : count}
+            {invite ? 'INVITE' : count > 1 ? `${count} IN` : 'GATHERING'}
           </Text>
         </View>
       </View>
