@@ -114,7 +114,12 @@
       "mapVisibility": "ALWAYS",
       "fixedLocation": { "lat": 55.5917, "lng": 13.0070 },
       "lastMessage": "Anyone near the square?",
-      "avatarUrl": null
+      "avatarUrl": null,
+      "messages": [
+        { "senderId": "alice", "content": "Falafel run later? 🧆", "minutesAgo": 40 },
+        { "senderId": "bob", "content": "I'm in — leaving Rörsjöstaden around six", "minutesAgo": 32 },
+        { "senderId": "alice", "content": "Anyone near the square?", "minutesAgo": 25 }
+      ]
     },
     {
       "id": "chat_study_crew",
@@ -123,16 +128,25 @@
       "memberIds": ["dev-user", "charlie", "dana"],
       "createdBy": "dev-user",
       "lastMessage": "Library at 3?",
-      "avatarUrl": null
+      "avatarUrl": null,
+      "messages": [
+        { "senderId": "dana", "content": "Group room is booked for tomorrow 📚", "minutesAgo": 130 },
+        { "senderId": "charlie", "content": "Library at 3?", "minutesAgo": 95 }
+      ]
     },
     {
-      "id": "chat_dm_alice",
+      "id": "dm_alice_dev-user",
       "name": null,
       "type": "DM",
       "memberIds": ["alice", "dev-user"],
       "createdBy": "dev-user",
       "lastMessage": "See you at the café ☕",
-      "avatarUrl": null
+      "avatarUrl": null,
+      "messages": [
+        { "senderId": "dev-user", "content": "Coffee tomorrow?", "minutesAgo": 65 },
+        { "senderId": "alice", "content": "Yes! Lilla Kafferosteriet at 10?", "minutesAgo": 58 },
+        { "senderId": "alice", "content": "See you at the café ☕", "minutesAgo": 50 }
+      ]
     }
   ]
 }

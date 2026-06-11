@@ -269,7 +269,11 @@ export default function ChatDetailScreen() {
             }}
           >
             <Text style={{ color: 'rgba(242,244,246,0.4)', textAlign: 'center' }}>
-              No messages yet. Say hi to the crew.
+              {chat?.type === 'DM'
+                ? `No messages yet. Say hi to ${
+                    (peerId && members[peerId]?.displayName) || 'them'
+                  }.`
+                : 'No messages yet. Say hi to the crew.'}
             </Text>
           </View>
         ) : (

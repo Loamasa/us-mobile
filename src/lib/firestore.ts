@@ -345,10 +345,15 @@ export async function getOrCreateGroupChat(params: {
 }
 
 /**
- * Find or create a DM chat between two users. Deterministic on sorted
- * memberIds + type=DM so repeated taps on "Message" reuse the same chat.
+ * Find or create a DM chat between two users. The doc id is deterministic —
+ * `dm_${sortedMemberIds.join('_')}` — so two clients racing to create the
+ * same DM converge on one doc instead of each adding their own room.
  * Stores `name: null` — the viewer derives the title from the peer's profile.
  */
+export function dmChatId(a: string, b: string): string {
+  return `dm_${[a, b].sort().join('_')}`;
+}
+
 export async function getOrCreateDmChat(params: {
   viewerId: string;
   peerId: string;
@@ -356,33 +361,25 @@ export async function getOrCreateDmChat(params: {
   const { viewerId, peerId } = params;
   if (viewerId === peerId) throw new Error('Cannot DM yourself');
   const sorted = [viewerId, peerId].sort();
+  const chatId = dmChatId(viewerId, peerId);
+  const ref = doc(db, 'chats', chatId);
 
-  const q = query(
-    collection(db, 'chats'),
-    where('type', '==', 'DM'),
-    where('memberIds', 'array-contains', viewerId)
+  const snap = await getDoc(ref);
+  if (snap.exists()) return chatId;
+
+  await setDoc(
+    ref,
+    {
+      name: null,
+      avatarUrl: null,
+      type: 'DM',
+      memberIds: sorted,
+      createdBy: viewerId,
+      createdAt: serverTimestamp(),
+      lastMessage: null,
+      lastMessageAt: null,
+    },
+    { merge: true }
   );
-  const snap = await getDocs(q);
-  const existing = snap.docs.find((d) => {
-    const data = d.data() as ChatSummary;
-    const theirs = [...(data.memberIds ?? [])].sort();
-    return (
-      theirs.length === 2 &&
-      theirs[0] === sorted[0] &&
-      theirs[1] === sorted[1]
-    );
-  });
-  if (existing) return existing.id;
-
-  const ref = await addDoc(collection(db, 'chats'), {
-    name: null,
-    avatarUrl: null,
-    type: 'DM',
-    memberIds: sorted,
-    createdBy: viewerId,
-    createdAt: serverTimestamp(),
-    lastMessage: null,
-    lastMessageAt: null,
-  });
-  return ref.id;
+  return chatId;
 }

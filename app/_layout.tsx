@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -166,7 +166,9 @@ export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
-      <Slot />
+      {/* Root stack (not Slot): keeps (tabs) mounted under pushed routes like
+          /chat/[chatId], so back returns to the tab you came from. */}
+      <Stack screenOptions={{ headerShown: false }} />
     </>
   );
 }

@@ -260,6 +260,14 @@ export default async function seedDevData(): Promise<void> {
   // 4. Seeded chats (named group crews). Fixtures are optional — skip if absent.
   const chats = (fixtures as { chats?: Array<Record<string, unknown>> }).chats ?? [];
   for (const chat of chats) {
+    // Fixture messages are listed oldest → newest; the newest one IS the
+    // list preview, so lastMessage/lastMessageAt always match a real doc.
+    const messages =
+      (chat.messages as Array<{ senderId: string; content: string; minutesAgo: number }> | undefined) ?? [];
+    const newest = messages.length ? messages[messages.length - 1] : null;
+    const messageDate = (m: { minutesAgo: number }) =>
+      new Date(now.getTime() - m.minutesAgo * 60 * 1000);
+
     const data: Record<string, unknown> = {
       name: chat.name ?? null,
       avatarUrl: chat.avatarUrl ?? null,
@@ -267,15 +275,24 @@ export default async function seedDevData(): Promise<void> {
       memberIds: chat.memberIds,
       createdBy: chat.createdBy,
       createdAt: now,
-      lastMessage: chat.lastMessage ?? null,
-      // Stagger by chat position so seeded chats land in a stable order in
-      // the list. Timestamp is a few seconds ago rather than exactly now.
-      lastMessageAt: chat.lastMessage ? now : null,
+      lastMessage: newest ? newest.content : chat.lastMessage ?? null,
+      lastMessageAt: newest ? messageDate(newest) : chat.lastMessage ? now : null,
     };
     if (chat.mapVisibility) data.mapVisibility = chat.mapVisibility;
     const fixed = chat.fixedLocation as { lat: number; lng: number } | undefined;
     if (fixed) data.fixedLocation = new GeoPoint(fixed.lat, fixed.lng);
     writes.push({ path: `chats/${chat.id}`, data });
+
+    messages.forEach((m, i) => {
+      writes.push({
+        path: `chats/${chat.id}/messages/seed_${String(i + 1).padStart(2, '0')}`,
+        data: {
+          senderId: m.senderId,
+          content: m.content,
+          createdAt: messageDate(m),
+        },
+      });
+    });
   }
 
   // 5. Commit as owner (bypasses security rules)
