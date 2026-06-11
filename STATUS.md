@@ -12,6 +12,17 @@
 - **Unscheduled prototype feature flagged**: tutorial overlay chain (`tutorialData.tsx`, 7 definitions, fires after onboarding) is in NO phase checklist — triage later.
 
 ## Last Updated
+2026-06-11 — **Pre-user-testing fix list EXECUTED (4 of 5 code bugs fixed + verified live in browser) + Phase 2 closed out.**
+- **DM get-or-create race fixed**: `getOrCreateDmChat` now uses deterministic id `dm_${[a,b].sort().join('_')}` + `getDoc` probe + `setDoc(merge)` (new exported helper `dmChatId`). Required a **rules change**: `chats` read now allows `resource == null` so the probe on a not-yet-existing doc passes (old query-based path never probed missing docs). Seeded DM renamed `chat_dm_alice` → `dm_alice_dev-user` to match.
+- **Seeded chats now have real messages**: `fixtures.json` chats carry a `messages[]` array (oldest → newest, newest IS the preview); both seeds (`runSeed.js`, `seedDevData.ts`) write `chats/{id}/messages/seed_NN` docs and derive `lastMessage`/`lastMessageAt` from the newest message — list previews + timestamps now match real docs (37 writes, was 29).
+- **DM empty-state copy** branches on `chat.type`: DMs say "Say hi to {peer displayName}.", groups keep "Say hi to the crew."
+- **Back-from-chat ROOT-CAUSED & FIXED (not a web artifact)**: root layout rendered `<Slot />`, so pushing `/chat/[chatId]` unmounted the whole `(tabs)` tree; back remounted it at its first tab (Chats). Now `<Stack screenOptions={{ headerShown: false }} />` — `(tabs)` stays mounted under pushed routes. Verified both directions live: map → chat → back lands `/map`; chats → chat → back lands `/chats`. (Chat screen already set `Stack.Screen` options — it always expected a stack root.) Device re-check recommended but the defect was structural, not platform.
+- **Spots step polished + browser-testable**: "ANCHOR." treatment (see Phase 2 checklist); `app/(auth)/spots.tsx` now re-exports the native screen (fakeMaps shim). Verified live: map tap → "NAME THIS SPOT." modal → 🛹 preset → Add → counter 1/3 → Continue saved to `users/dev-user/spots` + landed on `/map` where the new own-spot circle renders.
+- **Verified in browser** against fresh emulators + seed: chats list (3 chats, real previews/timestamps), crew chat 3 messages, Alice DM 3 messages, Charlie FriendCard → Message → `/chat/dm_charlie_dev-user` (no duplicate room on re-tap; 4 chat docs total), DM empty-state copy, send + REST-verified persistence, settings detail route under Stack root. `verifyProjection.js` + `verifyGroupPins.js` PASS post-change; `tsc` clean.
+- **Tutorial chain triaged** (see Phase 2 section): deferred to post-user-testing; only 4 of 8 prototype tutorials target MVP features.
+- **Still open: leaked GitHub token** (`.claude/settings.local.json`) — Claude's harness blocks edits to its own permissions file; **user must scrub line + revoke on GitHub** (github.com → Settings → Applications).
+- Session gotchas: emulator **rules hot-reload didn't apply** to the running instance (restart emulators after rules edits to be safe); a **zombie emulator suite** can shadow ports (netstat the PIDs when behavior is stale); preview-browser driving — RNW `text-transform: uppercase` means `innerText` matches differ from `textContent` (match case-insensitively).
+
 2026-06-10 (evening) — **Map is now fully testable in the browser (web map shim) + full map feature suite verified live.** New `src/dev/fakeMaps.tsx`: a KISS web stand-in for react-native-maps (dark pane, equirectangular lat/lng→pixel projection, Marker/Circle/animateToRegion, zoom ± buttons, "DEV MAP" watermark). `metro.config.js` now resolves `react-native-maps` → the shim on web (was: empty module), `app/(tabs)/map.tsx` re-exports the real native screen, and the **null web stubs `FriendMarker.web.tsx`/`ClusterMarker.web.tsx` were the hidden reason nothing rendered** — they now re-export the native markers. Verified end-to-end in the preview browser against live emulator data: Alice+Bob cluster + Charlie pin render; cluster tap → "Möllevången Crew" card (GROUP badge, facepile, live copy) → Open Group Chat → message sent + persisted; friend tap → Charlie card ("At 🛹 Hangout", ONLINE) → Message → DM created; ghost toggle (pill ⇄ GHOST MODE, signal btn hides, Firestore write); signal modal (GPS-gated broadcast by design) + injected signal → ActiveSignalHUD with countdown → X clears (live + DB); **resting group pin**: moved Bob away via REST → cluster dissolved live, crew pin synthesized at exact fixedLocation, card shows "This group's spot · 2 members.", open card auto-closed on entity change; restored Bob → proximity-wins re-decoration; own-spot circle + emoji label render live (REST-seeded "HQ" spot on dev-user — left in emulator). Map-tap closes cards. `tsc` clean. Shim gotchas: RNW `onLayout` never fired (shim measures via `getBoundingClientRect`); RN Modal close animation never completes in the headless preview so a closed modal's DOM lingers (state flips correctly — reload clears; not an app bug). **Findings for fix list: seeded `lastMessage` has no message docs behind it; DM empty-state copy says "Say hi to the crew."; back-from-chat landed on Chats tab on web (router.back() — verify on device).**
 
 2026-06-10 (later) — **Browser-based self-testing setup WORKS (Claude can now drive the app without a device).** Expo web + Firebase emulators + the Claude preview browser now run the full app loop: dev auto-sign-in as `dev-user`, chats list with live seeded data, open DM, send message (verified persisted via REST), settings, My Spots editor. Verified end-to-end with a real message round trip + zero console errors + `tsc` clean. Three root causes fixed: (1) **web bundle failed to compile** — expo-router's `require.context` pulls `*.native.tsx` routes into the web bundle, so `react-native-maps` is now resolved to an empty module on web via a custom Metro resolver (`metro.config.js`); (2) **sandboxed preview browsers can only reach the Metro port** — emulator traffic now goes same-origin through a Metro proxy middleware (path-prefix routing to :9099/:8088), with `getAuthEmulatorUrl()`/`getFirestoreEmulatorUrl()` helpers in `src/config/firebase.ts` used by `_layout`/`phone`/`seedDevData`; (3) **auth users were created in the wrong emulator project** — key-based SDK calls (`signInWithPassword`) always resolve to the emulator's default project (`demo-us-app`), but admin REST created users in `us-v1-ff6b3`, so password sign-in could NEVER have worked since the `--project demo-us-app` switch. Auth users now go to `demo-us-app`; Firestore data stays in `us-v1-ff6b3`. Also: `MySpotsModal` map editor renders a web fallback instead of crashing. **Emulators MUST be started with `--project demo-us-app`** (How to Run updated below). `.claude/launch.json` added for preview-managed servers.
@@ -73,13 +84,13 @@
 
 ## Known Bugs — Up Next
 
-> Pre-user-testing fix list from the 2026-06-10 browser map verification (also tracked as session tasks):
+> Pre-user-testing fix list from the 2026-06-10 browser map verification — **executed 2026-06-11**:
 
-1. **Revoke leaked GitHub token** — `.claude/settings.local.json` (working tree, deliberately uncommitted) holds a plaintext `gho_…` token in an old allowed-command entry. Revoke on GitHub, scrub the entry, keep the file out of commits until clean.
-2. **DM get-or-create race** — promote from Tech Debt: confirmed live in a real user path (FriendCard → Message). Deterministic doc id `dm_${[a,b].sort().join('_')}` + `setDoc(merge)`. `src/lib/firestore.ts`.
-3. **Seed fixtures lie about messages** — chats have `lastMessage` previews but zero docs in `chats/{id}/messages`; opening a seeded chat says "No messages yet". Seed 2–3 messages per chat.
-4. **DM empty-state copy** — `app/chat/[chatId].tsx` shows "Say hi to the crew." in 1:1 DMs; branch on `chat.type`.
-5. **Device-verify back-from-chat** — on web, `‹` (`router.back()`) after map → chat landed on the Chats tab instead of the map. Likely web-history artifact; one Expo Go check.
+1. **Revoke leaked GitHub token — STILL OPEN (user action required)** — `.claude/settings.local.json` (working tree, deliberately uncommitted) holds a plaintext `gho_…` token in an old allowed-command entry. Claude cannot edit its own permissions file (harness-blocked, twice). **User: delete the line containing `gho_` and revoke the token on GitHub** (Settings → Applications).
+2. ~~**DM get-or-create race**~~ *(FIXED 2026-06-11 — deterministic `dm_` doc id + `setDoc(merge)`; rules allow `resource == null` read probe; verified no duplicate room in browser)*
+3. ~~**Seed fixtures lie about messages**~~ *(FIXED 2026-06-11 — `messages[]` in fixtures, seeded as `seed_NN` docs by both seed scripts; verified rendering in crew chat + Alice DM)*
+4. ~~**DM empty-state copy**~~ *(FIXED 2026-06-11 — branches on `chat.type`, shows peer displayName; verified: "Say hi to Charlie Öberg.")*
+5. ~~**Device-verify back-from-chat**~~ *(ROOT-CAUSED & FIXED 2026-06-11 — was the `<Slot />` root unmounting `(tabs)`; now root `<Stack>`. Verified both directions on web; quick device sanity check still welcome.)*
 
 > All three original map bugs remain closed (Bug #3 resolved 2026-06-02 by device-free verification — no code/data defect).
 
@@ -94,10 +105,7 @@
 
 > From self-review after the Chats Tab landing. Both are Minor — worth logging so they don't get lost, not worth blocking other work on.
 
-1. **DM get-or-create race**
-   - Symptom (latent, not yet observed): two devices tapping "Message" on each other at ~the same moment can both see `undefined` from the query for the sorted 2-member match and each create their own DM doc. Result is two parallel DM rooms for the same pair.
-   - Fix: make the DM doc ID deterministic — `dm_${[a, b].sort().join('_')}` — and use `setDoc(..., { merge: true })` on creation instead of `addDoc` + post-query. Same pattern would apply to `getOrCreateGroupChat` if we ever hit the race there (less likely with 3+ members).
-   - Location: `src/lib/firestore.ts` → `getOrCreateDmChat`.
+1. ~~**DM get-or-create race**~~ *(FIXED 2026-06-11 — see Known Bugs #2. The same deterministic-id pattern remains available for `getOrCreateGroupChat` if the 3+-member race ever shows up.)*
 
 2. **Inline styles drift from NativeWind convention**
    - Symptom: compose modal + a couple of the new header icon buttons in `app/(tabs)/chats.tsx` use `style={{ ... }}` literals where other screens use NativeWind `className`. CLAUDE.md style guide says `className` everywhere, no inline styles.
@@ -106,7 +114,7 @@
 
 ## Default Testing Method
 **Expo Go on physical Android phone** (phone & PC on same Wi-Fi) for map/native UX.
-**Browser (Expo web) is now a first-class path for everything INCLUDING the map** (2026-06-10 evening): auth, chats, settings, spots list, and the full map tab (markers, clusters, group pins, cards, ghost/signal HUD) all work against the emulators — `node src/dev/runSeed.js` + `npx expo start` + open `http://localhost:8081`. The map renders via the dev shim `src/dev/fakeMaps.tsx` (no tiles, zoom ± buttons). Only the My Spots map editor + auth spots step still render web fallbacks.
+**Browser (Expo web) is now a first-class path for everything INCLUDING the map** (2026-06-10 evening): auth, chats, settings, spots list, and the full map tab (markers, clusters, group pins, cards, ghost/signal HUD) all work against the emulators — `node src/dev/runSeed.js` + `npx expo start` + open `http://localhost:8081`. The map renders via the dev shim `src/dev/fakeMaps.tsx` (no tiles, zoom ± buttons). The auth spots step now also runs on web via the shim (2026-06-11); only the My Spots map editor still renders a web fallback.
 
 ## What Was Done This Session
 
@@ -278,7 +286,14 @@
 - [x] **Permissions screen** — "SYNCHRONIZE." with centered radial glow, white CTA, mint Shield privacy pill. (2026-06-10)
 
 #### My Spots (Onboarding & Management)
-- [ ] **Spots step polish** — `app/(auth)/spots.native.tsx` already exists in the flow after permissions (pre-flight finding: build done, polish optional)
+- [x] **Spots step polish** — `app/(auth)/spots.native.tsx` rebuilt on the Phase-2 visual language: mint `GlowBlob`, "ANCHOR." black-uppercase headline, mint micro-label counter, mint CTA (black text) + bold skip link, modal title in headline style. Logic untouched. Web fallback replaced with a re-export of the native screen (runs in the browser via the `fakeMaps` shim, same pattern as `app/(tabs)/map.tsx`). (2026-06-11)
+
+#### Tutorial Overlay Chain — TRIAGED (2026-06-11)
+> Decision: **deferred to post-user-testing backlog** (no phase checklist yet — intentionally).
+- Prototype source: `tutorialData.tsx` has **8** definitions (not 7): welcome_map, nav_communities, nav_chats, ghost_mode, community_discovery, community_types, events_intro, add_friend. Plus `TutorialContext` (seen-state in localStorage) + `TutorialOverlay` (glass card, color themes, anchor positions, directional arrows).
+- Only **4 of 8 target MVP features**: welcome_map, nav_chats, ghost_mode, add_friend. The other 4 point at communities/events — placeholder/absent in the MVP.
+- Scope if built: ~1 session — RN `TutorialOverlay` port, AsyncStorage seen-state context, the 4 MVP defs, trigger after onboarding completes + reset hook in Settings → Developer.
+- Rationale for deferring: user testing should observe first-contact UX *without* guided overlays first; building now would also burn pre-testing time on a non-blocking feature.
 
 ---
 
@@ -307,15 +322,15 @@
 ## Key Files
 | File | Purpose |
 |------|---------|
-| `app/_layout.tsx` | Root layout with auth guard + real-time profile listener |
+| `app/_layout.tsx` | Root layout — dev auto-sign-in + root `<Stack>` (keeps `(tabs)` mounted under pushed routes; back returns to the originating tab) |
 | `app/(auth)/onboarding.tsx` | 5-slide onboarding carousel — per-slide accent, animated illustrations, "Enter the Void" → phone |
 | `src/components/auth/AuthLayout.tsx` | Shared onboarding/auth scaffold — glow blob (exported `GlowBlob`), logo chip, dots, CTA |
 | `app/(auth)/phone.tsx` | Phone auth via emulator REST API |
 | `app/(auth)/otp.tsx` | OTP verification with auto-fill |
 | `app/(auth)/profile.tsx` | Profile creation with handle uniqueness check |
 | `app/(auth)/permissions.tsx` | Location permission request |
-| `app/(auth)/spots.native.tsx` | Spots setup (native, uses react-native-maps) |
-| `app/(auth)/spots.tsx` | Spots fallback (web placeholder) |
+| `app/(auth)/spots.native.tsx` | Spots setup — "ANCHOR." Phase-2 treatment, map tap → modal, saves via `createUserSpot` |
+| `app/(auth)/spots.tsx` | Re-exports the native spots screen (runs on web via fakeMaps shim) |
 | `app/(tabs)/chats.tsx` | Chats tab — real chat list (DMs + groups), compose-DM / compose-group / add-friend / settings icons, pending friend requests |
 | `app/(tabs)/communities.tsx` | Communities tab — placeholder |
 | `app/(tabs)/map.native.tsx` | Map screen (native, uses react-native-maps); wires chats → named cluster decoration + "Open Group Chat" → `/chat/[id]` |
