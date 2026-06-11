@@ -23,7 +23,9 @@ export const db = getFirestore(app);
 // ─── Emulator Connection ─────────────────────────────
 // Connect to Firebase emulators in development.
 // Expo Go on a phone needs the computer's LAN IP, not "localhost".
-const USE_EMULATORS = __DEV__;
+// Set EXPO_PUBLIC_USE_EMULATORS=false to dry-run the PRODUCTION backend from a
+// dev build (Phase 3 Step 2) — emulators stay the dev default otherwise.
+const USE_EMULATORS = __DEV__ && process.env.EXPO_PUBLIC_USE_EMULATORS !== 'false';
 
 export function getEmulatorHost() {
   if (Platform.OS === 'web') {
