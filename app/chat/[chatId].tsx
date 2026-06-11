@@ -20,8 +20,10 @@ import {
   sendMessage,
 } from '@/lib/firestore';
 import UserAvatar from '@/components/UserAvatar';
-import { COLORS } from '@/config/constants';
-import type { ChatSummary, Message, UserProfile } from '@/types';
+import { COLORS, MAP_DEFAULTS } from '@/config/constants';
+import { haversineDistance, calculateCentroid } from '@/utils/distance';
+import { MapPinIcon, UsersIcon } from '@/components/ui/icons';
+import type { ChatSummary, LocationPresence, Message, UserProfile } from '@/types';
 
 export default function ChatDetailScreen() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
@@ -33,7 +35,11 @@ export default function ChatDetailScreen() {
   const [chat, setChat] = useState<ChatSummary | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<Record<string, UserProfile>>({});
-  const [peerVisible, setPeerVisible] = useState(false);
+  const [peerLocation, setPeerLocation] = useState<LocationPresence | null>(null);
+  // GROUP chats: live locations of the other members (for the map pill).
+  const [memberPresence, setMemberPresence] = useState<
+    Record<string, LocationPresence>
+  >({});
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -80,11 +86,85 @@ export default function ChatDetailScreen() {
   // For DMs, subscribe to the peer's location doc to show presence.
   useEffect(() => {
     if (!peerId) {
-      setPeerVisible(false);
+      setPeerLocation(null);
       return;
     }
-    return onLocation(peerId, (loc) => setPeerVisible(!!loc));
+    return onLocation(peerId, setPeerLocation);
   }, [peerId]);
+
+  // For GROUP chats, subscribe to the other members' locations so the header
+  // can offer "View Map" when the crew is on it. Stable string key — array
+  // deps would re-subscribe on every snapshot (see chats.tsx gotcha).
+  const groupPresenceKey = useMemo(() => {
+    if (!chat || chat.type !== 'GROUP' || !userId) return '';
+    return chat.memberIds
+      .filter((id) => id !== userId)
+      .sort()
+      .join('|');
+  }, [chat, userId]);
+
+  useEffect(() => {
+    setMemberPresence({});
+    if (!groupPresenceKey) return;
+    const unsubs = groupPresenceKey.split('|').map((id) =>
+      onLocation(id, (loc) => {
+        setMemberPresence((prev) => {
+          const next = { ...prev };
+          if (loc) next[id] = loc;
+          else delete next[id];
+          return next;
+        });
+      })
+    );
+    return () => unsubs.forEach((u) => u());
+  }, [groupPresenceKey]);
+
+  // Where this chat lives on the map right now, if anywhere.
+  // DM: the peer's live position. GROUP: a live proximity cluster of members
+  // wins; otherwise a named always-on group rests at its fixedLocation —
+  // the same proximity-wins semantics as buildGroupPins.
+  const mapTarget = useMemo<
+    { lat: number; lng: number; live: boolean } | null
+  >(() => {
+    if (!chat) return null;
+    if (chat.type === 'DM') {
+      return peerLocation
+        ? { lat: peerLocation.lat, lng: peerLocation.lng, live: true }
+        : null;
+    }
+    const located = Object.values(memberPresence);
+    for (const anchor of located) {
+      const near = located.filter(
+        (l) =>
+          haversineDistance(anchor.lat, anchor.lng, l.lat, l.lng) <=
+          MAP_DEFAULTS.clusterRadiusMeters
+      );
+      if (near.length >= 2) {
+        const c = calculateCentroid(near.map((l) => ({ lat: l.lat, lng: l.lng })));
+        return { lat: c.lat, lng: c.lng, live: true };
+      }
+    }
+    if (chat.mapVisibility === 'ALWAYS' && chat.name && chat.fixedLocation) {
+      return {
+        lat: chat.fixedLocation.latitude,
+        lng: chat.fixedLocation.longitude,
+        live: false,
+      };
+    }
+    return null;
+  }, [chat, memberPresence, peerLocation]);
+
+  const handleViewOnMap = useCallback(() => {
+    if (!mapTarget) return;
+    router.navigate({
+      pathname: '/(tabs)/map',
+      params: {
+        focusLat: String(mapTarget.lat),
+        focusLng: String(mapTarget.lng),
+        focusTs: String(Date.now()),
+      },
+    });
+  }, [mapTarget, router]);
 
   const headerTitle = useMemo(() => {
     if (!chat) return loaded ? 'Chat' : 'Loading…';
@@ -97,8 +177,8 @@ export default function ChatDetailScreen() {
   const headerSubtitle = useMemo(() => {
     if (!chat) return '';
     if (chat.type === 'GROUP') return `${chat.memberIds.length} members`;
-    return peerVisible ? 'Online' : 'Offline';
-  }, [chat, peerVisible]);
+    return peerLocation ? 'Online' : 'Offline';
+  }, [chat, peerLocation]);
 
   const handleSend = useCallback(async () => {
     if (!chatId || !userId) return;
@@ -228,7 +308,7 @@ export default function ChatDetailScreen() {
                     width: 6,
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: peerVisible
+                    backgroundColor: peerLocation
                       ? COLORS.mint
                       : 'rgba(242,244,246,0.25)',
                   }}
@@ -240,6 +320,45 @@ export default function ChatDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* Map pill — jumps the map tab to the crew's live cluster, the
+            group's resting pin, or the DM peer's position. */}
+        {mapTarget && (
+          <TouchableOpacity
+            onPress={handleViewOnMap}
+            activeOpacity={0.8}
+            hitSlop={8}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 4,
+              backgroundColor: 'rgba(46,92,255,0.12)',
+              borderWidth: 1,
+              borderColor: 'rgba(46,92,255,0.35)',
+              borderRadius: 999,
+              paddingHorizontal: 10,
+              paddingVertical: 5,
+              marginLeft: 8,
+            }}
+          >
+            {mapTarget.live ? (
+              <UsersIcon size={11} color={COLORS.signal} />
+            ) : (
+              <MapPinIcon size={11} color={COLORS.signal} />
+            )}
+            <Text
+              style={{
+                color: COLORS.signal,
+                fontSize: 9,
+                fontWeight: '800',
+                letterSpacing: 1,
+                textTransform: 'uppercase',
+              }}
+            >
+              View Map
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Messages */}

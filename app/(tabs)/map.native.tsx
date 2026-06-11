@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -59,6 +59,26 @@ export default function MapScreen() {
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? undefined));
   }, []);
+
+  // Focus request from elsewhere (chat header "View Map" pill). focusTs makes
+  // repeated jumps to the same coordinates re-trigger.
+  const { focusLat, focusLng, focusTs } = useLocalSearchParams<{
+    focusLat?: string;
+    focusLng?: string;
+    focusTs?: string;
+  }>();
+  useEffect(() => {
+    if (!focusTs) return;
+    const latitude = Number(focusLat);
+    const longitude = Number(focusLng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+    const region = { latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 };
+    mapRef.current?.animateToRegion(region);
+    // If the tab mounts WITH the params (lazy tabs), the map ref may not be
+    // live yet — try once more after it has had time to initialize.
+    const retry = setTimeout(() => mapRef.current?.animateToRegion(region), 600);
+    return () => clearTimeout(retry);
+  }, [focusTs, focusLat, focusLng]);
 
   // Start location tracking (writes to Firestore)
   useLocationTracking();
