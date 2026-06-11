@@ -11,6 +11,7 @@ import {
 } from '@/lib/firestore';
 import { encodeGeohash } from '@/lib/geohash';
 import { haversineDistance } from '@/utils/distance';
+import { isSpotActiveNow } from '@/features/spots/spotSchedule';
 import { MAP_DEFAULTS } from '@/config/constants';
 import type { UserSpot } from '@/types';
 
@@ -20,7 +21,7 @@ function findContainingSpot(
   spots: UserSpot[]
 ): UserSpot | null {
   for (const spot of spots) {
-    if (!spot.isActive) continue;
+    if (!isSpotActiveNow(spot)) continue;
     const dist = haversineDistance(
       lat,
       lng,
@@ -120,18 +121,27 @@ export function useLocationTracking() {
       }
     });
 
-    spotsUnsubscribe = onUserSpots(userId, async (spots) => {
-      spotsRef.current = spots;
-      // Re-evaluate publish state when spots change (added/removed/toggled)
-      const last = subscriptionRef.current;
-      if (!last || !isTrackingRef.current) return;
+    const reevaluateAtLastPosition = async () => {
+      if (!subscriptionRef.current || !isTrackingRef.current) return;
       const current = await Location.getLastKnownPositionAsync();
       if (current) {
         publishIfInSpot(current.coords.latitude, current.coords.longitude);
       }
+    };
+
+    spotsUnsubscribe = onUserSpots(userId, (spots) => {
+      spotsRef.current = spots;
+      // Re-evaluate publish state when spots change (added/removed/toggled)
+      reevaluateAtLastPosition();
     });
 
+    // Spot schedules open/close with the clock, not with movement — re-check
+    // every minute so a window expiring at e.g. 17:00 unpublishes the user
+    // even when they haven't moved.
+    const scheduleTick = setInterval(reevaluateAtLastPosition, 60_000);
+
     return () => {
+      clearInterval(scheduleTick);
       profileUnsubscribe?.();
       spotsUnsubscribe?.();
       subscriptionRef.current?.remove();

@@ -24,7 +24,9 @@ export interface UserSignal {
   emoji: string;
   text: string;
   expiresAt: Timestamp;
-  location: GeoPoint;
+  // Where the signal was broadcast from, when a GPS fix was available at the
+  // time. Nothing renders this yet — never gate broadcasting on it.
+  location: GeoPoint | null;
 }
 
 // ─── Friends ─────────────────────────────────────────
@@ -68,6 +70,14 @@ export interface LocationPresence {
 
 // ─── Spots ───────────────────────────────────────────
 
+// Optional weekly active window for a spot. Outside the window the spot
+// counts as inactive (no location publishing, no own-zone rendering).
+export interface SpotSchedule {
+  days: number[]; // ISO weekday numbers: 1 = Monday … 7 = Sunday
+  start: string; // "HH:mm" (24h)
+  end: string; // "HH:mm" — end before start spans midnight
+}
+
 export interface UserSpot {
   id: string;
   name: string;
@@ -75,6 +85,8 @@ export interface UserSpot {
   location: GeoPoint;
   radius: number; // meters
   isActive: boolean;
+  // Absent/null = active around the clock (when isActive).
+  schedule?: SpotSchedule | null;
 }
 
 // ─── Map (client-side only, not stored in Firestore) ─

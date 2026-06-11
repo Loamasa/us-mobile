@@ -17,6 +17,7 @@ import { haversineDistance } from '@/utils/distance';
 import { COLORS, MAP_DEFAULTS } from '@/config/constants';
 import { DARK_MAP_STYLE } from '@/config/mapStyles';
 import { useLocationTracking } from '@/features/location/useLocationTracking';
+import { isSpotActiveNow } from '@/features/spots/spotSchedule';
 import { useFriendLocations } from '@/features/map/useFriendLocations';
 import { useMapProjection } from '@/features/map/useMapProjection';
 import { useGroupMemberProfiles } from '@/features/map/useGroupMemberProfiles';
@@ -176,7 +177,8 @@ export default function MapScreen() {
   const visibilityStatus = (() => {
     if (ghostMode) return { visible: false, label: 'Ghost Mode' };
     if (!userLocation) return { visible: false, label: 'Hidden (In Transit)' };
-    const activeSpots = spots.filter((s) => s.isActive);
+    // currentTime (minute tick) keeps schedule windows re-evaluating.
+    const activeSpots = spots.filter((s) => isSpotActiveNow(s, currentTime));
     for (const spot of activeSpots) {
       const dist = haversineDistance(
         userLocation.lat,
@@ -298,9 +300,9 @@ export default function MapScreen() {
           setSelectedFriendId(null);
         }}
       >
-        {/* User Spots (translucent circles) */}
+        {/* User Spots (translucent circles) — schedule-aware via the minute tick */}
         {spots
-          .filter((s) => s.isActive)
+          .filter((s) => isSpotActiveNow(s, currentTime))
           .map((spot) => (
             <Circle
               key={spot.id}
@@ -315,7 +317,7 @@ export default function MapScreen() {
             />
           ))}
         {spots
-          .filter((s) => s.isActive)
+          .filter((s) => isSpotActiveNow(s, currentTime))
           .map((spot) => (
             <Marker
               key={`label-${spot.id}`}

@@ -17,7 +17,17 @@
       },
       "location": { "lat": 55.5978, "lng": 13.0076 },
       "spots": [
-        { "id": "home", "name": "Home", "emoji": "🏠", "lat": 55.5978, "lng": 13.0076, "radius": 100, "isActive": true }
+        { "id": "home", "name": "Home", "emoji": "🏠", "lat": 55.5978, "lng": 13.0076, "radius": 100, "isActive": true },
+        {
+          "id": "library",
+          "name": "Uni Library",
+          "emoji": "📚",
+          "lat": 55.609,
+          "lng": 12.994,
+          "radius": 150,
+          "isActive": true,
+          "schedule": { "days": [1, 2, 3, 4, 5], "start": "08:00", "end": "18:00" }
+        }
       ]
     },
     "bob": {

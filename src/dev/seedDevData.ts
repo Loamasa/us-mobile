@@ -2,7 +2,15 @@ import { GeoPoint, Timestamp } from 'firebase/firestore';
 import { getAuthEmulatorUrl, getFirestoreEmulatorUrl } from '@/config/firebase';
 import { encodeGeohash } from '@/lib/geohash';
 import { haversineDistance } from '@/utils/distance';
+import { isWithinSchedule } from '@/features/spots/spotSchedule';
+import type { SpotSchedule } from '@/types';
 import fixtures from './fixtures.json';
+
+// Fixture spots vary in shape (only some carry a schedule), so the JSON
+// import infers a union — read the optional field through a cast.
+function spotSchedule(spot: unknown): SpotSchedule | undefined {
+  return (spot as { schedule?: SpotSchedule }).schedule;
+}
 
 // Firestore data lives under the SDK's projectId; auth users must live in the
 // emulator's default project (started with --project demo-us-app) because
@@ -206,6 +214,7 @@ export default async function seedDevData(): Promise<void> {
       const containingSpot = spots.find(
         (s) =>
           s.isActive &&
+          isWithinSchedule(spotSchedule(s)) &&
           haversineDistance(location.lat, location.lng, s.lat, s.lng) <= s.radius
       );
 
@@ -232,6 +241,7 @@ export default async function seedDevData(): Promise<void> {
     }
 
     for (const spot of spots) {
+      const schedule = spotSchedule(spot);
       writes.push({
         path: `users/${id}/spots/${spot.id}`,
         data: {
@@ -240,6 +250,7 @@ export default async function seedDevData(): Promise<void> {
           location: new GeoPoint(spot.lat, spot.lng),
           radius: spot.radius,
           isActive: spot.isActive,
+          ...(schedule ? { schedule } : {}),
         },
       });
     }

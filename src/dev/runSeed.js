@@ -13,6 +13,28 @@ const AUTH_EMULATOR_PORT = 9099;
 const fixturesPath = path.join(__dirname, 'fixtures.json');
 const fixtures = JSON.parse(fs.readFileSync(fixturesPath, 'utf8'));
 
+// Mirrors src/features/spots/spotSchedule.ts isWithinSchedule (Node has no TS imports)
+function isWithinSchedule(schedule, now = new Date()) {
+  if (!schedule || schedule.days.length === 0) return true;
+  const toMin = (hhmm) => {
+    const [h, m] = hhmm.split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  };
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const start = toMin(schedule.start);
+  const end = toMin(schedule.end);
+  const day = ((now.getDay() + 6) % 7) + 1; // ISO: Mon=1 … Sun=7
+  if (start === end) return schedule.days.includes(day);
+  if (start < end) {
+    return schedule.days.includes(day) && minutes >= start && minutes < end;
+  }
+  const prevDay = day === 1 ? 7 : day - 1;
+  return (
+    (schedule.days.includes(day) && minutes >= start) ||
+    (schedule.days.includes(prevDay) && minutes < end)
+  );
+}
+
 // Haversine distance in meters
 function haversineDistance(lat1, lng1, lat2, lng2) {
   const R = 6371000;
@@ -183,6 +205,7 @@ async function runSeed() {
       const containingSpot = spots.find(
         (s) =>
           s.isActive &&
+          isWithinSchedule(s.schedule) &&
           haversineDistance(location.lat, location.lng, s.lat, s.lng) <= s.radius
       );
 
@@ -220,6 +243,7 @@ async function runSeed() {
           location: { lat: spot.lat, lng: spot.lng },
           radius: spot.radius,
           isActive: spot.isActive,
+          ...(spot.schedule ? { schedule: spot.schedule } : {}),
         },
       });
     }
