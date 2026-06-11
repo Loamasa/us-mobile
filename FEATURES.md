@@ -19,6 +19,13 @@
 > SignalModal deleted. One mental model shipped literally: 0 invitees → writes `currentSignal`
 > (the personal signal, status on your pin); 1+ invitees → the pinned group broadcast.
 >
+> v1.3 (same day, device round 4) — **renamed "Broadcast" / "Broadcast a spot" / "Group Spot"
+> toggle; placement moved AFTER the menu**: the rose button opens the composer first; its
+> "📍 Place on map" CTA stashes the finished draft and the next map tap creates the broadcast
+> there (banner + cancel). Long-press stays as the location-first shortcut (CTA "📡 Broadcast"
+> directly). Markers: `collapsable={false}` fixed-size roots with generous margins (Fabric
+> view-flattening defense — device confirm pending).
+>
 > v1.2 (same day, device round 3) — **renamed "Gathering", placement is map-chosen**: the rose
 > button arms a tap-to-place mode (pin goes where you tap, never implicitly at your GPS);
 > long-press still shortcuts. Composer: "Group Gathering" toggle (off = solo) revealing a

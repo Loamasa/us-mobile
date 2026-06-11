@@ -198,8 +198,8 @@ export default function BroadcastCard({
               {mode === 'INVITE'
                 ? 'INVITE'
                 : broadcast.visibility === 'MEMBERS'
-                  ? 'GROUP GATHERING'
-                  : 'GATHERING'}
+                  ? 'GROUP SPOT'
+                  : 'BROADCAST'}
             </Text>
           </View>
           <View style={{ flex: 1 }} />
@@ -333,7 +333,7 @@ export default function BroadcastCard({
                 style={{ alignItems: 'center', paddingTop: 10 }}
               >
                 <Text style={{ color: 'rgba(242,244,246,0.4)', fontSize: 11, fontWeight: '700' }}>
-                  End Gathering
+                  End Broadcast
                 </Text>
               </TouchableOpacity>
             )}

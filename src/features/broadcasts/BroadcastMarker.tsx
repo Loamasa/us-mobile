@@ -11,9 +11,9 @@ interface BroadcastMarkerProps {
   onPress?: (broadcast: Broadcast) => void;
 }
 
-// MARKER RENDERING RULES: no tracksViewChanges, no fixed-size root, no
-// absolutely-positioned children, no looping Animated — see
-// ClusterMarker.native.tsx for the device evidence (2026-06-11).
+// MARKER RENDERING RULES: no tracksViewChanges; collapsable={false} fixed-size
+// root with generous margins; no looping Animated — see ClusterMarker.native.tsx
+// for the device evidence (rounds 1–4, 2026-06-11).
 export default function BroadcastMarker({
   broadcast,
   invite,
@@ -30,7 +30,15 @@ export default function BroadcastMarker({
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(broadcast) : undefined}
     >
-      <View style={{ alignItems: 'center' }}>
+      <View
+        collapsable={false}
+        style={{
+          width: 110,
+          height: 120,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         {/* Emoji disc */}
         <View
           style={{
@@ -68,7 +76,7 @@ export default function BroadcastMarker({
               letterSpacing: 0.5,
             }}
           >
-            {invite ? 'INVITE' : count > 1 ? `${count} IN` : 'GATHERING'}
+            {invite ? 'INVITE' : count > 1 ? `${count} IN` : 'BROADCAST'}
           </Text>
         </View>
       </View>

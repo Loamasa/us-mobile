@@ -20,20 +20,43 @@ import {
 } from '@/config/constants';
 import type { Friend, UserProfile } from '@/types';
 
+/** Everything chosen in the menu — placement happens on the map afterwards. */
+export interface BroadcastDraft {
+  emoji: string;
+  text: string;
+  durationMs: number; // 0 = until tonight (23:59)
+  groupSpot: boolean;
+  invitedIds: string[];
+}
+
+export function expiryFromDuration(durationMs: number): Date {
+  if (durationMs === 0) {
+    const d = new Date();
+    d.setHours(23, 59, 0, 0);
+    return d;
+  }
+  return new Date(Date.now() + durationMs);
+}
+
 interface BroadcastComposerModalProps {
   visible: boolean;
-  /** Where the pin goes — chosen by tapping the map (placement mode or long-press). */
+  /**
+   * Pre-picked pin location (long-press path). Null in the menu-first flow —
+   * the CTA becomes "Place on map" and hands the draft to onRequestPlacement.
+   */
   coordinate: { lat: number; lng: number } | null;
   onClose: () => void;
   onCreated?: (broadcastId: string) => void;
+  /** Menu-first flow: close the menu and let the user tap the map to place. */
+  onRequestPlacement: (draft: BroadcastDraft) => void;
 }
 
 /**
- * Gathering composer (FEATURES.md #1). The pin is always placed at a
+ * "Broadcast a spot" composer (FEATURES.md #1). The pin is always placed at a
  * map-chosen coordinate — never implicitly at your GPS position.
- * - Group Gathering OFF (default): a solo gathering — every friend can see
- *   the spot and whether you're physically there (like a temporary spot).
- * - Group Gathering ON: pick invitees (searchable, like the chat composer);
+ * - Group Spot OFF (default): a solo broadcast — every friend can see the
+ *   spot and whether you're physically there (like a temporary spot).
+ * - Group Spot ON: pick invitees (searchable, like the chat composer);
  *   only members + invitees see the pin, invitees accept to join.
  */
 export default function BroadcastComposerModal({
@@ -41,11 +64,12 @@ export default function BroadcastComposerModal({
   coordinate,
   onClose,
   onCreated,
+  onRequestPlacement,
 }: BroadcastComposerModalProps) {
   const [emoji, setEmoji] = useState<string>(SIGNAL_PRESETS[0].emoji);
   const [text, setText] = useState<string>(SIGNAL_PRESETS[0].text);
   const [durationIndex, setDurationIndex] = useState(0);
-  const [groupGathering, setGroupGathering] = useState(false);
+  const [groupSpot, setGroupSpot] = useState(false);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -61,7 +85,7 @@ export default function BroadcastComposerModal({
       setEmoji(SIGNAL_PRESETS[0].emoji);
       setText(SIGNAL_PRESETS[0].text);
       setDurationIndex(0);
-      setGroupGathering(false);
+      setGroupSpot(false);
       setSelectedIds([]);
       setSearch('');
       setError('');
@@ -110,44 +134,51 @@ export default function BroadcastComposerModal({
     );
   };
 
-  const handlePlace = async () => {
-    if (!userId || !coordinate || sending) return;
+  const handleSubmit = async () => {
+    if (!userId || sending) return;
     if (!text.trim()) {
-      setError('Give the gathering a few words.');
+      setError('Give the broadcast a few words.');
       return;
     }
-    if (groupGathering && selectedIds.length === 0) {
-      setError('Invite at least one friend, or switch off Group Gathering.');
+    if (groupSpot && selectedIds.length === 0) {
+      setError('Invite at least one friend, or switch off Group Spot.');
       return;
     }
+
+    const draft: BroadcastDraft = {
+      emoji,
+      text: text.trim(),
+      durationMs: SIGNAL_DURATIONS[durationIndex].ms,
+      groupSpot,
+      invitedIds: groupSpot ? selectedIds : [],
+    };
+
+    // Menu-first flow: no location chosen yet — hand the finished draft to
+    // the map screen and let the user tap where it goes.
+    if (!coordinate) {
+      onRequestPlacement(draft);
+      return;
+    }
+
+    // Long-press flow: the location was picked before the menu opened.
     setSending(true);
     setError('');
     try {
-      const duration = SIGNAL_DURATIONS[durationIndex];
-      let expiresAt: Date;
-      if (duration.ms === 0) {
-        // "Until Tonight" — 23:59 today
-        expiresAt = new Date();
-        expiresAt.setHours(23, 59, 0, 0);
-      } else {
-        expiresAt = new Date(Date.now() + duration.ms);
-      }
-
       const id = await createBroadcast({
         createdBy: userId,
-        emoji,
-        text: text.trim(),
+        emoji: draft.emoji,
+        text: draft.text,
         location: { latitude: coordinate.lat, longitude: coordinate.lng },
         radius: BROADCAST_RADIUS,
-        expiresAt,
-        visibility: groupGathering ? 'MEMBERS' : 'FRIENDS',
-        invitedIds: groupGathering ? selectedIds : [],
+        expiresAt: expiryFromDuration(draft.durationMs),
+        visibility: draft.groupSpot ? 'MEMBERS' : 'FRIENDS',
+        invitedIds: draft.invitedIds,
       });
       onCreated?.(id);
       onClose();
     } catch (err) {
       console.error('createBroadcast failed:', err);
-      setError('Could not place the gathering. Check the connection.');
+      setError('Could not broadcast. Check the connection.');
     } finally {
       setSending(false);
     }
@@ -167,15 +198,15 @@ export default function BroadcastComposerModal({
           >
             {/* Header */}
             <View className="flex-row items-center justify-between mb-1">
-              <Text className="text-fog text-xl font-bold">Gathering</Text>
+              <Text className="text-fog text-xl font-bold">Broadcast a spot</Text>
               <TouchableOpacity onPress={onClose} hitSlop={10}>
                 <Text className="text-fog/50 text-2xl">✕</Text>
               </TouchableOpacity>
             </View>
             <Text className="text-fog/50 text-sm mb-4">
-              {groupGathering
+              {groupSpot
                 ? 'Invited friends must accept to join — only the crew sees this spot and who is there.'
-                : 'Pin this spot for your friends — they can see it and whether you are there.'}
+                : 'Pin a spot for your friends — they can see it and whether you are there.'}
             </Text>
 
             {/* Emoji Presets */}
@@ -244,15 +275,15 @@ export default function BroadcastComposerModal({
               ))}
             </View>
 
-            {/* Group Gathering toggle */}
+            {/* Group Spot toggle */}
             <TouchableOpacity
               onPress={() => {
                 setError('');
-                setGroupGathering((v) => !v);
+                setGroupSpot((v) => !v);
               }}
               activeOpacity={0.8}
               className={`flex-row items-center justify-between rounded-2xl border px-4 py-3.5 mb-4 ${
-                groupGathering
+                groupSpot
                   ? 'border-rose bg-rose/10'
                   : 'border-glass-border bg-glass'
               }`}
@@ -260,10 +291,10 @@ export default function BroadcastComposerModal({
               <View className="flex-1 mr-3">
                 <Text
                   className={`text-base font-bold ${
-                    groupGathering ? 'text-rose' : 'text-fog'
+                    groupSpot ? 'text-rose' : 'text-fog'
                   }`}
                 >
-                  Group Gathering
+                  Group Spot
                 </Text>
                 <Text className="text-fog/40 text-xs mt-0.5">
                   Invite friends — they accept to join, and only the crew sees it.
@@ -276,10 +307,10 @@ export default function BroadcastComposerModal({
                   height: 26,
                   borderRadius: 13,
                   padding: 3,
-                  backgroundColor: groupGathering
+                  backgroundColor: groupSpot
                     ? COLORS.rose
                     : 'rgba(255,255,255,0.12)',
-                  alignItems: groupGathering ? 'flex-end' : 'flex-start',
+                  alignItems: groupSpot ? 'flex-end' : 'flex-start',
                 }}
               >
                 <View
@@ -287,14 +318,14 @@ export default function BroadcastComposerModal({
                     width: 20,
                     height: 20,
                     borderRadius: 10,
-                    backgroundColor: groupGathering ? '#0F1115' : COLORS.fog,
+                    backgroundColor: groupSpot ? '#0F1115' : COLORS.fog,
                   }}
                 />
               </View>
             </TouchableOpacity>
 
-            {/* Invite picker — only when Group Gathering is on */}
-            {groupGathering && (
+            {/* Invite picker — only when Group Spot is on */}
+            {groupSpot && (
               <>
                 <Text className="text-fog/50 text-xs uppercase tracking-widest mb-2">
                   Invite Friends
@@ -390,25 +421,27 @@ export default function BroadcastComposerModal({
               <Text className="text-rose text-sm text-center mb-3">{error}</Text>
             ) : null}
 
-            {/* CTA */}
+            {/* CTA — without a location yet, the next step is placing it */}
             <View className="pb-6">
               <TouchableOpacity
                 className={`rounded-2xl py-4 items-center ${
                   sending ? 'bg-rose/30' : 'bg-rose'
                 }`}
-                onPress={handlePlace}
+                onPress={handleSubmit}
                 disabled={sending}
               >
                 <Text className="text-void font-bold text-base">
                   {sending
-                    ? 'Placing…'
-                    : groupGathering
-                      ? `📍 Place Group Gathering${
-                          selectedIds.length > 0
-                            ? ` · invite ${selectedIds.length}`
-                            : ''
-                        }`
-                      : '📍 Place Gathering'}
+                    ? 'Broadcasting…'
+                    : !coordinate
+                      ? '📍 Place on map'
+                      : groupSpot
+                        ? `📡 Broadcast${
+                            selectedIds.length > 0
+                              ? ` · invite ${selectedIds.length}`
+                              : ''
+                          }`
+                        : '📡 Broadcast'}
                 </Text>
               </TouchableOpacity>
             </View>

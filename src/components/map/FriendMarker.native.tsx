@@ -8,11 +8,12 @@ interface FriendMarkerProps {
   onPress?: (entity: MapEntity) => void;
 }
 
-// NOTE: never set tracksViewChanges on these markers. false-from-mount makes
-// them invisible (blank bitmap), and flipping true→false after a delay
-// captures a mis-scaled frame on the new architecture (markers clipped to a
-// quarter-circle on device, 2026-06-11). Android's default (tracking on)
-// renders correctly and is fine at MVP marker counts.
+// MARKER RENDERING RULES (SDK 54 / new arch, device rounds 1–4, 2026-06-11):
+// - never set tracksViewChanges (false = blank bitmap; flipping = bad capture)
+// - root child must be `collapsable={false}` with a FIXED size and generous
+//   inner margins — Fabric view-flattening plus edge-clipping in the marker
+//   bitmap otherwise cuts the content into wedges
+// - no looping Animated inside marker children
 export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
   const friend = entity.friends[0];
   if (!friend) return null;
@@ -26,7 +27,15 @@ export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(entity) : undefined}
     >
-      <View style={{ alignItems: 'center' }}>
+      <View
+        collapsable={false}
+        style={{
+          width: 140,
+          height: 120,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         {/* Signal Badge */}
         {entity.signal && (
           <View

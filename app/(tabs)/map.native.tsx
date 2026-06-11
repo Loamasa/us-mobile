@@ -16,9 +16,10 @@ import {
   declineBroadcastInvite,
   setBroadcastChat,
   deleteBroadcast,
+  createBroadcast,
 } from '@/lib/firestore';
 import { haversineDistance } from '@/utils/distance';
-import { COLORS, MAP_DEFAULTS } from '@/config/constants';
+import { COLORS, MAP_DEFAULTS, BROADCAST_RADIUS } from '@/config/constants';
 import { DARK_MAP_STYLE } from '@/config/mapStyles';
 import { useLocationTracking } from '@/features/location/useLocationTracking';
 import { isSpotActiveNow } from '@/features/spots/spotSchedule';
@@ -35,7 +36,10 @@ import ActiveSignalHUD from '@/features/signals/ActiveSignalHUD';
 import { useBroadcasts } from '@/features/broadcasts/useBroadcasts';
 import BroadcastMarker from '@/features/broadcasts/BroadcastMarker';
 import BroadcastCard from '@/features/broadcasts/BroadcastCard';
-import BroadcastComposerModal from '@/features/broadcasts/BroadcastComposerModal';
+import BroadcastComposerModal, {
+  expiryFromDuration,
+  type BroadcastDraft,
+} from '@/features/broadcasts/BroadcastComposerModal';
 import {
   EyeIcon,
   EyeOffIcon,
@@ -57,9 +61,12 @@ export default function MapScreen() {
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [selectedBroadcastId, setSelectedBroadcastId] = useState<string | null>(null);
+  // Menu-first flow: the composer opens FIRST; "Place on map" stashes the
+  // finished draft here and the next map tap creates the broadcast there.
+  // broadcastCoord is only pre-set by the long-press shortcut.
+  const [composerVisible, setComposerVisible] = useState(false);
   const [broadcastCoord, setBroadcastCoord] = useState<{ lat: number; lng: number } | null>(null);
-  // Placement mode: rose button arms it, the next map tap places the pin.
-  const [placingGathering, setPlacingGathering] = useState(false);
+  const [pendingDraft, setPendingDraft] = useState<BroadcastDraft | null>(null);
   const [broadcastBusy, setBroadcastBusy] = useState(false);
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [openingChat, setOpeningChat] = useState(false);
@@ -395,6 +402,31 @@ export default function MapScreen() {
     }
   };
 
+  // Menu-first flow, final step: the user filled the menu, then tapped here.
+  const handlePlaceDraft = async (coord: { lat: number; lng: number }) => {
+    if (!userId || !pendingDraft) return;
+    const draft = pendingDraft;
+    setPendingDraft(null);
+    try {
+      await createBroadcast({
+        createdBy: userId,
+        emoji: draft.emoji,
+        text: draft.text,
+        location: { latitude: coord.lat, longitude: coord.lng },
+        radius: BROADCAST_RADIUS,
+        expiresAt: expiryFromDuration(draft.durationMs),
+        visibility: draft.groupSpot ? 'MEMBERS' : 'FRIENDS',
+        invitedIds: draft.invitedIds,
+      });
+    } catch (e: unknown) {
+      console.error('createBroadcast failed', e);
+      Alert.alert(
+        'Could not broadcast',
+        e instanceof Error ? e.message : 'Check emulator connection.'
+      );
+    }
+  };
+
   const initialRegion = userLocation
     ? {
       latitude: userLocation.lat,
@@ -419,12 +451,11 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         showsCompass={false}
         onPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
-          // In placement mode the tap PLACES the gathering pin; otherwise it
-          // just dismisses any open card.
-          if (placingGathering) {
+          // With a finished draft waiting, the tap places the broadcast;
+          // otherwise it just dismisses any open card.
+          if (pendingDraft) {
             const { latitude, longitude } = e.nativeEvent.coordinate;
-            setPlacingGathering(false);
-            setBroadcastCoord({ lat: latitude, lng: longitude });
+            void handlePlaceDraft({ lat: latitude, lng: longitude });
             return;
           }
           setSelectedClusterId(null);
@@ -432,13 +463,15 @@ export default function MapScreen() {
           setSelectedBroadcastId(null);
         }}
         onLongPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
-          // Long-press shortcut: place a gathering right here (FEATURES.md #1).
+          // Long-press shortcut: pick the location FIRST, then the menu opens
+          // with it pre-set (CTA broadcasts directly).
           const { latitude, longitude } = e.nativeEvent.coordinate;
-          setPlacingGathering(false);
+          setPendingDraft(null);
           setSelectedClusterId(null);
           setSelectedFriendId(null);
           setSelectedBroadcastId(null);
           setBroadcastCoord({ lat: latitude, lng: longitude });
+          setComposerVisible(true);
         }}
       >
         {/* User Spots (translucent circles) — schedule-aware via the minute tick */}
@@ -638,8 +671,8 @@ export default function MapScreen() {
         <ActiveSignalHUD signal={activeSignal} onClear={clearSignal} />
       )}
 
-      {/* ── Gathering placement banner ── */}
-      {placingGathering && (
+      {/* ── Broadcast placement banner ── */}
+      {pendingDraft && (
         <View
           style={{
             position: 'absolute',
@@ -652,7 +685,7 @@ export default function MapScreen() {
           }}
         >
           <TouchableOpacity
-            onPress={() => setPlacingGathering(false)}
+            onPress={() => setPendingDraft(null)}
             activeOpacity={0.8}
             style={{
               flexDirection: 'row',
@@ -675,7 +708,7 @@ export default function MapScreen() {
                 letterSpacing: 1,
               }}
             >
-              Tap the map to place a gathering
+              Tap the map to place your broadcast
             </Text>
             <Text style={{ color: COLORS.rose, fontSize: 13, fontWeight: '700' }}>
               ✕
@@ -722,16 +755,18 @@ export default function MapScreen() {
           </BlurView>
         </TouchableOpacity>
 
-        {/* Gathering button — hidden in ghost mode. Arms placement mode:
-            the next map tap chooses WHERE the gathering pin goes (never
-            implicitly your GPS position). Long-press skips the button. */}
+        {/* Broadcast button — hidden in ghost mode. Opens the "Broadcast a
+            spot" menu; placement on the map comes AFTER the menu ("Place on
+            map" CTA). Long-press is the location-first shortcut. */}
         {!ghostMode && (
           <TouchableOpacity
             onPress={() => {
               setSelectedClusterId(null);
               setSelectedFriendId(null);
               setSelectedBroadcastId(null);
-              setPlacingGathering((v) => !v);
+              setPendingDraft(null);
+              setBroadcastCoord(null);
+              setComposerVisible(true);
             }}
             activeOpacity={0.8}
           >
@@ -831,11 +866,18 @@ export default function MapScreen() {
         />
       )}
 
-      {/* ── Broadcast Composer (rose button or map long-press) ── */}
+      {/* ── Broadcast Composer ("Broadcast a spot" menu) ── */}
       <BroadcastComposerModal
-        visible={broadcastCoord !== null}
+        visible={composerVisible}
         coordinate={broadcastCoord}
-        onClose={() => setBroadcastCoord(null)}
+        onClose={() => {
+          setComposerVisible(false);
+          setBroadcastCoord(null);
+        }}
+        onRequestPlacement={(draft) => {
+          setComposerVisible(false);
+          setPendingDraft(draft);
+        }}
       />
     </View>
   );

@@ -9,13 +9,12 @@ interface ClusterMarkerProps {
   onPress?: (entity: MapEntity) => void;
 }
 
-// MARKER RENDERING RULES (device-verified 2026-06-11, SDK 54 / new arch):
-// - never set tracksViewChanges (false = blank bitmap; flipping = mis-scaled
-//   clipped capture)
-// - no fixed-size root and NO absolutely-positioned children — both render
-//   clipped to quarter-circles in the marker bitmap. Content-sized flexbox
-//   columns (like FriendMarker) are the only structure that draws correctly.
-// - no looping Animated (continuous bitmap re-capture)
+// MARKER RENDERING RULES (SDK 54 / new arch, device rounds 1–4, 2026-06-11):
+// - never set tracksViewChanges (false = blank bitmap; flipping = bad capture)
+// - root child must be `collapsable={false}` with a FIXED size and generous
+//   inner margins — Fabric view-flattening plus edge-clipping in the marker
+//   bitmap otherwise cuts the content into wedges
+// - no looping Animated inside marker children
 export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
   const count = entity.friends.length;
 
@@ -28,7 +27,15 @@ export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(entity) : undefined}
     >
-      <View style={{ alignItems: 'center' }}>
+      <View
+        collapsable={false}
+        style={{
+          width: 110,
+          height: 110,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         {/* Core disc: group icon + member count side by side */}
         <View
           style={{
