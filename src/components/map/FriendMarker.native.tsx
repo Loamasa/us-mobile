@@ -8,12 +8,14 @@ interface FriendMarkerProps {
   onPress?: (entity: MapEntity) => void;
 }
 
-// MARKER RENDERING RULES (SDK 54 / new arch, device rounds 1–4, 2026-06-11):
-// - never set tracksViewChanges (false = blank bitmap; flipping = bad capture)
-// - root child must be `collapsable={false}` with a FIXED size and generous
-//   inner margins — Fabric view-flattening plus edge-clipping in the marker
-//   bitmap otherwise cuts the content into wedges
-// - no looping Animated inside marker children
+// MARKER RENDERING — FINAL DIAGNOSIS (device round 5, 2026-06-11): custom View
+// markers are broken at the LIBRARY level in react-native-maps 1.20.1 on
+// Android + New Architecture (clip/flicker/blank — rnm issues #5877, #5655).
+// Rounds 1–5 of device evidence match the issue threads; NO JS-side workaround
+// exists. Fix = react-native-maps 1.27.x (Fabric-native) + EAS dev build
+// (Phase 3 Step 4) — Expo Go bundles 1.20.1 native code and crashes on newer.
+// Until then keep: no tracksViewChanges, collapsable={false} fixed-size root,
+// no looping Animated (these prevent total invisibility; clipping remains).
 export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
   const friend = entity.friends[0];
   if (!friend) return null;

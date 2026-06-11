@@ -48,6 +48,18 @@ Everything verified this month was browser/emulator-side. One full pass on the P
 
 Exit: every box checked on device, or failures triaged into the bug list.
 
+> **Step 0 outcome (2026-06-11, 5 device rounds):** every flow functionally confirmed on
+> device. The one open item — clipped marker bitmaps — was root-caused after round 5 as a
+> **library-level bug**: custom View markers are broken in react-native-maps 1.20.1 on
+> Android + New Architecture (rnm [#5877](https://github.com/react-native-maps/react-native-maps/issues/5877),
+> [#5655](https://github.com/react-native-maps/react-native-maps/issues/5655)); every
+> workaround in those threads was already tried and disproved in rounds 1–4. No JS-side fix
+> exists; the fix (react-native-maps 1.27.x, Fabric-native) crashes Expo Go
+> (`RNMapsAirModule` not in the Go binary, which bundles 1.20.1) and `newArchEnabled:false`
+> can't be tested in Expo Go either (new-arch-only since SDK 53; legacy dies in SDK 55).
+> **Decision: marker fix is the FIRST item of Step 4** — closes Step 0's last box on the
+> dev build. Until then Expo Go markers stay clipped-but-functional.
+
 ## Step 1 — Cleanup pass (~1 short session)
 
 - [ ] Remove Antigravity: `cmd /c rmdir .antigravity\skills` (junction — do NOT recursive-delete,
@@ -93,6 +105,12 @@ and see each other on the map (foreground).
 
 ## Step 4 — EAS pipeline (~1 session)
 
+- [ ] **Upgrade react-native-maps 1.20.1 → 1.27.x FIRST** (fixes Step 0's clipped markers —
+      library-level Fabric bug, see Step 0 outcome note). Swap `android.config.googleMaps.apiKey`
+      for the `react-native-maps` config plugin (`androidGoogleMapsApiKey`, supported 1.22+);
+      verify the key lands in AndroidManifest after prebuild (a misconfigured plugin silently
+      drops it — rnm#5655 comments). From this point device testing moves to the dev client;
+      Expo Go can no longer run the map (native module mismatch).
 - [ ] `eas init` (project id into app config) + `eas.json`: `development` (dev client) +
       `preview` (internal distribution) profiles, `autoIncrement` versionCode
 - [ ] Add `expo-updates` (OTA channel — ship JS fixes to testers without reinstall) and
@@ -105,7 +123,8 @@ and see each other on the map (foreground).
 - [ ] Show app version + build number in Settings (testers report "build N")
 
 Exit: preview APK installs from the EAS link, signs in against real Firebase, map renders
-(restricted key), OTA update channel verified with a trivial JS change.
+(restricted key) **with clean un-clipped markers (closes Step 0's last box)**, OTA update
+channel verified with a trivial JS change.
 
 ## Step 5 — Background location (~1–2 sessions, needs the dev build)
 

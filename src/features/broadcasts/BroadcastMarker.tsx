@@ -11,9 +11,9 @@ interface BroadcastMarkerProps {
   onPress?: (broadcast: Broadcast) => void;
 }
 
-// MARKER RENDERING RULES: no tracksViewChanges; collapsable={false} fixed-size
-// root with generous margins; no looping Animated — see ClusterMarker.native.tsx
-// for the device evidence (rounds 1–4, 2026-06-11).
+// MARKER RENDERING: clipping is a react-native-maps 1.20.1 + New Architecture
+// LIBRARY bug — no JS workaround; fixed by the 1.27.x upgrade in Phase 3 Step 4.
+// See ClusterMarker.native.tsx for the full diagnosis (device rounds 1–5).
 export default function BroadcastMarker({
   broadcast,
   invite,
