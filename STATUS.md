@@ -12,6 +12,12 @@
 - **Unscheduled prototype feature flagged**: tutorial overlay chain (`tutorialData.tsx`, 7 definitions, fires after onboarding) is in NO phase checklist — triage later.
 
 ## Last Updated
+2026-06-11 (later) — **User-feedback Broadcast fix + BOTH requested product changes BUILT & verified live in browser; pushed to GitHub.**
+- **Broadcast button un-gated (user feedback: "can't press Broadcast")**: it was disabled until a GPS fix existed — but `signal.location` is consumed NOWHERE in the app (write-only metadata), and on web no fix ever arrives. `UserSignal.location` is now `GeoPoint | null`, the modal broadcasts regardless (location attached opportunistically), and the rose warning became a neutral "No GPS fix — your signal broadcasts without a location tag" note. Verified live: broadcast on web (no GPS) → 🍺 signal in Firestore with `location: null` + ActiveSignalHUD countdown. **Never gate features on `signal.location`.**
+- **Single new-message button (Messenger-style)**: `app/(tabs)/chats.tsx` now has ONE compose icon → "To:" picker with selected-friend chips (tap chip to remove), always-multi-select rows, group-name input appears at 2+ recipients (optional — defaults to members' first names), adaptive CTA ("Message" / "Start Group Chat (n)"). 1 → `getOrCreateDmChat`, 2+ → `getOrCreateGroupChat`. Segmented DM/Group control + second compose icon deleted. Verified live: Charlie → existing deterministic DM reused; Charlie+Dana → resolved to the seeded **Study Crew** (deterministic member-set dedup — same semantics as the map's crew button); Alice+Charlie → NEW group auto-named "Alice, Charlie".
+- **My Spots scheduling (weekday + time windows)**: new `SpotSchedule` (`days` ISO 1–7, `start`/`end` "HH:mm", end<start spans midnight) on `UserSpot.schedule?`. Single source of truth `src/features/spots/spotSchedule.ts` (`isSpotActiveNow`/`isWithinSchedule`/`formatSchedule`). Consumers: `useLocationTracking` (containment + **a 60s re-check tick** so windows open/close without movement), map own-spot circles/labels + visibility HUD (re-evaluate via the existing clock minute tick), `MySpotsModal` (Always/Scheduled toggle, M–S day chips, time inputs w/ normalization, list summary "Mon–Fri · 08:00–17:00" + amber "Outside hours — inactive right now"), seeds (schedule-aware containing-spot logic mirrored in `runSeed.js`; alice gained a scheduled "Uni Library" fixture spot). Verified live both ways: Skate spot set Mon-only (Thu today) → vanished from map + amber tag; REST-added Thu to its days → circle reappeared in ~1s. `verifyProjection` + `verifyGroupPins` still PASS; `tsc` clean.
+- Reminder for device sign-off: composer, schedule form, and broadcast all platform-shared — one Expo Go pass recommended.
+
 2026-06-11 — **Pre-user-testing fix list EXECUTED (4 of 5 code bugs fixed + verified live in browser) + Phase 2 closed out.**
 - **DM get-or-create race fixed**: `getOrCreateDmChat` now uses deterministic id `dm_${[a,b].sort().join('_')}` + `getDoc` probe + `setDoc(merge)` (new exported helper `dmChatId`). Required a **rules change**: `chats` read now allows `resource == null` so the probe on a not-yet-existing doc passes (old query-based path never probed missing docs). Seeded DM renamed `chat_dm_alice` → `dm_alice_dev-user` to match.
 - **Seeded chats now have real messages**: `fixtures.json` chats carry a `messages[]` array (oldest → newest, newest IS the preview); both seeds (`runSeed.js`, `seedDevData.ts`) write `chats/{id}/messages/seed_NN` docs and derive `lastMessage`/`lastMessageAt` from the newest message — list previews + timestamps now match real docs (37 writes, was 29).
@@ -299,10 +305,10 @@
 
 ### Requested Product Changes (2026-06-10)
 
-> From user review after the browser map verification. Both tracked as session tasks.
+> From user review after the browser map verification. **Both DONE 2026-06-11** (see Last Updated for verification detail).
 
-- [ ] **ONE new-message button (Messenger-style composer)** — `app/(tabs)/chats.tsx` currently has two compose icons (DM + group) and a DM/Group segmented modal. Replace with a single compose button opening a "To:" participant picker (add one or many friends, like Messenger's compose). 1 participant → `getOrCreateDmChat`; 2+ → group flow (`getOrCreateGroupChat`, optional name). Segmented control goes away.
-- [ ] **My Spots scheduling — time + day-of-week windows** — each spot gets optional active weekdays + time range (e.g. Mon–Fri 08:00–17:00); outside the window the spot counts as inactive (no visibility). Touches: `UserSpot` type, `MySpotsModal` CREATE/EDIT form, `useLocationTracking` containment checks, map visibility status + own-spot circle filter, fixtures. **Note: this feature is OUTSIDE the prototype scope — intentional addition, approved (okej).**
+- [x] **ONE new-message button (Messenger-style composer)** — single compose icon → "To:" chip picker; 1 → DM, 2+ → group with optional name (defaults to first names). Member-set dedup reuses existing groups. (2026-06-11)
+- [x] **My Spots scheduling — time + day-of-week windows** — `UserSpot.schedule` (`days`/`start`/`end`), `spotSchedule.ts` helpers, schedule-aware tracking (+60s tick), map filters, MySpotsModal form (Always/Scheduled, day chips, time inputs), schedule-aware seeds + "Uni Library" fixture. (2026-06-11)
 
 ---
 
@@ -345,6 +351,7 @@
 | `src/components/settings/SettingsDetailLayout.tsx` | Full-screen detail scaffold — back-header + title + scroll body |
 | `src/components/map/ClusterCard.tsx` | Floating glass card for a selected cluster (prototype parity); renders GROUP badge + named chat title when matched |
 | `src/components/map/FriendCard.tsx` | Floating glass card for a tapped friend marker — name, optional signal + spot pills, ONLINE/OFFLINE status, Message → `getOrCreateDmChat` → `/chat/[id]` |
+| `src/features/spots/spotSchedule.ts` | Spot schedule logic — `isSpotActiveNow` (single source of truth), `isWithinSchedule` (overnight-aware), `formatSchedule`; mirrored in JS inside `runSeed.js` |
 | `src/config/mapStyles.ts` | Shared dark map style constant (`DARK_MAP_STYLE`) |
 | `src/config/firebase.ts` | Firebase config + emulator connection + `getEmulatorHost()` |
 | `src/lib/firestore.ts` | Firestore helpers (profile, handles, friends, location, spots) |
