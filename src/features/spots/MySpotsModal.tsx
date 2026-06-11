@@ -11,7 +11,10 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { GeoPoint } from 'firebase/firestore';
+import * as Location from 'expo-location';
 import { auth } from '@/config/firebase';
+import { NavigationIcon, SearchIcon } from '@/components/ui/icons';
+import searchPlace from '@/features/spots/searchPlace';
 import {
     onUserSpots,
     createUserSpot,
@@ -100,6 +103,11 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState<SpotForm>(DEFAULT_FORM);
     const [saving, setSaving] = useState(false);
+    const [search, setSearch] = useState('');
+    const [searchState, setSearchState] = useState<'idle' | 'searching' | 'noresults' | 'error'>('idle');
+    // Last GPS fix — drawn as a dot on the web shim (native uses the built-in
+    // showsUserLocation layer; a custom marker would hit the Fabric clipping bug).
+    const [myPosition, setMyPosition] = useState<{ lat: number; lng: number } | null>(null);
     const mapRef = useRef<any>(null);
 
     const userId = auth.currentUser?.uid;
@@ -122,10 +130,79 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
 
     // ── Handlers ──────────────────────────────────────────────────────────────
 
+    const animateTo = (lat: number, lng: number, delta = 0.005) => {
+        mapRef.current?.animateToRegion(
+            { latitude: lat, longitude: lng, latitudeDelta: delta, longitudeDelta: delta },
+            400
+        );
+    };
+
+    /** Fetch the current GPS fix if permission is already granted (no prompt). */
+    const getQuietFix = async () => {
+        const { status } = await Location.getForegroundPermissionsAsync();
+        if (status !== 'granted') return null;
+        const pos = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+        });
+        return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    };
+
     const handleStartCreate = () => {
         setEditingId(null);
         setForm(DEFAULT_FORM);
         setMode('CREATE');
+        // Drop the new pin where the user actually is — unless they beat the
+        // GPS fix to it by tapping the map (then their placement wins).
+        (async () => {
+            try {
+                const fix = await getQuietFix();
+                if (!fix) return;
+                setMyPosition(fix);
+                setForm((f) =>
+                    f.lat === DEFAULT_FORM.lat && f.lng === DEFAULT_FORM.lng
+                        ? { ...f, lat: fix.lat, lng: fix.lng }
+                        : f
+                );
+                animateTo(fix.lat, fix.lng);
+            } catch {
+                // No GPS (web preview, airplane mode) — keep the default pin.
+            }
+        })();
+    };
+
+    const handleMyLocation = async () => {
+        try {
+            let fix = await getQuietFix();
+            if (!fix) {
+                const req = await Location.requestForegroundPermissionsAsync();
+                if (req.status !== 'granted') return;
+                fix = await getQuietFix();
+            }
+            if (!fix) return;
+            setMyPosition(fix);
+            animateTo(fix.lat, fix.lng); // center only — never moves the pin
+        } catch {
+            // GPS unavailable — leave the camera where it is.
+        }
+    };
+
+    const handleSearch = async () => {
+        const q = search.trim();
+        if (!q || searchState === 'searching') return;
+        setSearchState('searching');
+        try {
+            const hit = await searchPlace(q);
+            if (!hit) {
+                setSearchState('noresults');
+                return;
+            }
+            setSearchState('idle');
+            // Search means "put my spot THERE" — move the pin and the camera.
+            setForm((f) => ({ ...f, lat: hit.lat, lng: hit.lng }));
+            animateTo(hit.lat, hit.lng);
+        } catch {
+            setSearchState('error');
+        }
     };
 
     const handleStartEdit = (spot: UserSpot) => {
@@ -148,6 +225,8 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
         setMode('LIST');
         setEditingId(null);
         setForm(DEFAULT_FORM);
+        setSearch('');
+        setSearchState('idle');
     };
 
     const handleSave = async () => {
@@ -235,28 +314,9 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
     const renderMap = () => {
         if (mode === 'LIST') return null;
 
-        // react-native-maps is stubbed to an empty module on web (metro.config.js)
-        if (Platform.OS === 'web') {
-            return (
-                <View
-                    style={{
-                        flex: 1,
-                        borderRadius: 16,
-                        overflow: 'hidden',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'rgba(255,255,255,0.04)',
-                    }}
-                >
-                    <Text style={{ color: 'rgba(242,244,246,0.5)', fontSize: 12 }}>
-                        Map editing isn't available on web — pin stays at{' '}
-                        {form.lat.toFixed(4)}, {form.lng.toFixed(4)}
-                    </Text>
-                </View>
-            );
-        }
-
         try {
+            // On web, metro resolves react-native-maps to the fakeMaps shim, so
+            // the same editor runs in the browser (no web fork needed).
             const MapView = require('react-native-maps').default;
             const { Marker, Circle } = require('react-native-maps');
 
@@ -266,7 +326,10 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
                         ref={mapRef}
                         style={{ flex: 1 }}
                         customMapStyle={DARK_MAP_STYLE}
-                        region={{
+                        // initialRegion (not region): the camera must stay free —
+                        // a controlled region snaps the map back on every
+                        // keystroke and makes panning to "where am I?" impossible.
+                        initialRegion={{
                             latitude: form.lat,
                             longitude: form.lng,
                             latitudeDelta: 0.01,
@@ -309,7 +372,50 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
                                 ) : null}
                             </View>
                         </Marker>
+
+                        {/* Web shim has no showsUserLocation layer — draw the dot
+                            ourselves. Native keeps the built-in layer (a custom
+                            marker there would hit the Fabric clipping bug). */}
+                        {Platform.OS === 'web' && myPosition && (
+                            <Marker
+                                coordinate={{ latitude: myPosition.lat, longitude: myPosition.lng }}
+                                anchor={{ x: 0.5, y: 0.5 }}
+                            >
+                                <View
+                                    style={{
+                                        width: 14,
+                                        height: 14,
+                                        borderRadius: 7,
+                                        backgroundColor: COLORS.signal,
+                                        borderWidth: 2,
+                                        borderColor: '#fff',
+                                    }}
+                                />
+                            </Marker>
+                        )}
                     </MapView>
+
+                    {/* My-location: center the camera on the user (never moves the pin) */}
+                    <TouchableOpacity
+                        onPress={handleMyLocation}
+                        accessibilityLabel="My location"
+                        activeOpacity={0.8}
+                        style={{
+                            position: 'absolute',
+                            bottom: 12,
+                            right: 12,
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.15)',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <NavigationIcon size={18} color={COLORS.fog} />
+                    </TouchableOpacity>
 
                     {/* Mode hint overlay */}
                     <View
@@ -788,8 +894,72 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
                             marginBottom: 8,
                         }}
                     >
-                        Location — tap map or drag pin
+                        Location — search, tap map, or drag pin
                     </Text>
+
+                    {/* Address / place search (moves the pin to the match) */}
+                    <View
+                        style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 10,
+                            backgroundColor: 'rgba(255,255,255,0.04)',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            borderRadius: 14,
+                            paddingHorizontal: 14,
+                            marginBottom: 10,
+                        }}
+                    >
+                        <SearchIcon size={16} color="#6B7280" />
+                        <TextInput
+                            value={search}
+                            onChangeText={(v) => {
+                                setSearch(v);
+                                if (searchState !== 'searching') setSearchState('idle');
+                            }}
+                            onSubmitEditing={handleSearch}
+                            returnKeyType="search"
+                            placeholder="Search address or place"
+                            placeholderTextColor="rgba(242,244,246,0.2)"
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            style={{
+                                flex: 1,
+                                paddingVertical: 12,
+                                color: COLORS.fog,
+                                fontSize: 14,
+                            }}
+                        />
+                        <TouchableOpacity
+                            onPress={handleSearch}
+                            disabled={!search.trim() || searchState === 'searching'}
+                            activeOpacity={0.7}
+                        >
+                            <Text
+                                style={{
+                                    color: search.trim() ? COLORS.signal : 'rgba(242,244,246,0.25)',
+                                    fontSize: 12,
+                                    fontWeight: '800',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: 1,
+                                }}
+                            >
+                                {searchState === 'searching' ? '…' : 'Go'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                    {searchState === 'noresults' && (
+                        <Text style={{ color: '#F59E0B', fontSize: 11, marginBottom: 10 }}>
+                            No matches — try a fuller address.
+                        </Text>
+                    )}
+                    {searchState === 'error' && (
+                        <Text style={{ color: '#EF4444', fontSize: 11, marginBottom: 10 }}>
+                            Search failed — check your connection.
+                        </Text>
+                    )}
+
                     <View style={{ height: 240, borderRadius: 16, overflow: 'hidden' }}>
                         {renderMap()}
                     </View>

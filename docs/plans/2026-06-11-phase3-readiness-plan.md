@@ -125,8 +125,11 @@ real-Firestore dry-run (`EXPO_PUBLIC_USE_EMULATORS=false`) happens right after t
 - [ ] **PROD provisioning run**: (1) enable Email/Password provider in the Firebase console,
       (2) `firebase deploy --only firestore` (Step 2 leftover), then
       `node src/dev/provisionTesters.js --count 20`
-- [ ] Empty-state audit as a fresh tester (zero friends): map/chats/spots make sense;
-      "add by handle" discoverable
+- [x] Empty-state audit as a fresh tester (zero friends), in-browser as tester01: spots
+      empty state good; map renders fine empty (no friend-nudge — optional polish, not
+      blocking); chats friendless state FIXED — copy now says "Add your first friend by
+      their @handle" with an explicit **Add Friend** CTA opening the by-handle modal
+      (was: "Start a conversation with a friend" with NO action for friendless users)
 - ~~Registration screens~~ — dropped (fixed accounts); native phone auth remains the
   public-release plan. A service-account admin script (wipe/inspect prod) is deferred until
   actually needed — provisioning no longer requires it.

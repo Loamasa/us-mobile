@@ -36,8 +36,11 @@ distribution**, **background location IN scope** (it's the product — needs the
       BUILT & browser-verified: `src/dev/provisionTesters.js` (REST-only, idempotent,
       rules-compliant — emulator run = prod-rules proof; CSV gitignored) + `app/(auth)/signin.tsx`
       (bare ID → `@us.test`, first-login → permissions → spots → map) + phone/OTP demoted to a
-      dev-only link + `ensureDevUser` persistence-race fix. REMAINING: prod provisioning run
-      (needs the Step 2 deploy + Email/Password provider enabled in console) + empty-state audit.
+      dev-only link + `ensureDevUser` persistence-race fix. Empty-state audit DONE (chats
+      friendless state now shows an explicit "Add Friend" CTA into the by-handle modal; map +
+      spots empty states fine). Distribution runbook: `docs/tester-distribution.md`.
+      REMAINING: prod provisioning run (needs the Step 2 deploy + Email/Password provider
+      enabled in console).
 - [ ] Step 4 — EAS pipeline. **First item: react-native-maps 1.20.1 → 1.27.x** (closes Step 0's
       marker box; device testing moves to the dev client from here). Then `eas init`/`eas.json`,
       `expo-updates` + `expo-task-manager` in build #1, Maps key restriction via keystore SHA-1,
@@ -104,6 +107,8 @@ distribution**, **background location IN scope** (it's the product — needs the
 | `src/features/map/groupPins.ts` | `buildGroupPins` — named-group pin reconciliation (proximity wins) |
 | `src/features/broadcasts/…` | Broadcast/Gathering feature (useBroadcasts, marker, card, composer) |
 | `src/features/spots/spotSchedule.ts` | Spot schedule logic (single source of truth; mirrored in `runSeed.js`) |
+| `src/features/spots/searchPlace.ts` | Forward geocoding (native: expo-location; web: Nominatim) for the spots editor |
+| `docs/tester-distribution.md` | Runbook: build + share the APK, hand out tester accounts |
 | `src/dev/fakeMaps.tsx` | Web map shim — real map screens run in the browser |
 | `src/dev/fixtures.json` | Seed fixtures (5 personas, chats, broadcasts, schedules) |
 | `src/dev/runSeed.js` | Node-only emulator seed (admin REST `:commit`) |

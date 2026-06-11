@@ -464,14 +464,16 @@ export default function ChatsScreen() {
           <Text className="text-fog/40 text-base text-center mt-4">
             {searchQuery ? 'No matches found' : 'No chats yet'}
           </Text>
-          <Text className="text-fog/25 text-sm text-center mt-1 mb-4">
+          <Text className="text-fog/25 text-sm text-center mt-1 mb-4 px-8">
             {searchQuery
               ? 'Try a different search'
-              : 'Start a conversation with a friend'}
+              : friends.length > 0
+                ? 'Start a conversation with a friend'
+                : 'Add your first friend by their @handle — ask them for it.'}
           </Text>
-          {!searchQuery && friends.length > 0 && (
+          {!searchQuery && (
             <TouchableOpacity
-              onPress={openCompose}
+              onPress={friends.length > 0 ? openCompose : () => setShowAddModal(true)}
               style={{
                 backgroundColor: COLORS.signal,
                 borderRadius: 999,
@@ -480,7 +482,7 @@ export default function ChatsScreen() {
               }}
             >
               <Text style={{ color: COLORS.fog, fontWeight: '600', fontSize: 14 }}>
-                New Message
+                {friends.length > 0 ? 'New Message' : 'Add Friend'}
               </Text>
             </TouchableOpacity>
           )}
