@@ -35,7 +35,7 @@ export default function SignalModal({
 
   const handleBroadcast = async () => {
     const userId = auth.currentUser?.uid;
-    if (!userId || !currentLocation) return;
+    if (!userId) return;
 
     setSending(true);
     try {
@@ -50,12 +50,17 @@ export default function SignalModal({
         expiresAt = new Date(Date.now() + duration.ms);
       }
 
+      // Location is opportunistic metadata — broadcast works without a GPS fix
+      // (nothing renders signal.location yet; the signal itself rides on the
+      // friend's pin / chat row).
       await updateDoc(doc(db, 'users', userId), {
         currentSignal: {
           emoji: selectedEmoji,
           text: customText,
           expiresAt: Timestamp.fromDate(expiresAt),
-          location: new GeoPoint(currentLocation.lat, currentLocation.lng),
+          location: currentLocation
+            ? new GeoPoint(currentLocation.lat, currentLocation.lng)
+            : null,
         },
       });
 
@@ -153,19 +158,19 @@ export default function SignalModal({
             ))}
           </View>
 
-          {/* Location warning */}
+          {/* Location note — informational only, never blocks broadcasting */}
           {!currentLocation && (
-            <Text className="text-rose/70 text-xs text-center mb-2">
-              ⚠️ Waiting for location — broadcast unavailable until GPS is ready
+            <Text className="text-fog/40 text-xs text-center mb-2">
+              No GPS fix — your signal broadcasts without a location tag
             </Text>
           )}
 
           {/* Actions */}
           <TouchableOpacity
-            className={`rounded-2xl py-4 items-center mb-3 ${sending || !currentLocation ? 'bg-rose/30' : 'bg-rose'
+            className={`rounded-2xl py-4 items-center mb-3 ${sending ? 'bg-rose/30' : 'bg-rose'
               }`}
             onPress={handleBroadcast}
-            disabled={sending || !currentLocation}
+            disabled={sending}
           >
             <Text className="text-fog font-semibold text-base">
               {sending ? 'Broadcasting...' : '📡 Broadcast'}
