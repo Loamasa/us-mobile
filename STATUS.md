@@ -4,12 +4,17 @@
 > `.context/memory.md`; the Phase 3 plan in `docs/plans/2026-06-11-phase3-readiness-plan.md`.
 
 ## Last Updated
-2026-06-11 — Phase 3 in progress: Step 0 closed-with-exception, Step 1 done, Step 2 done
-EXCEPT `firebase deploy --only firestore` (blocked on a one-time `firebase login` in a real
-terminal). Billing decided: **Spark (free) for Phase 3**. Step 3 RE-SCOPED per user to
-**fixed tester accounts** (no self-registration) — provisioning script + sign-in screen
-built & browser-verified; prod run pending the deploy + enabling the Email/Password
-provider in the Firebase console.
+2026-06-12 (session wrap) — Phase 3 Steps 0–3 effectively done, all code-side work complete
+and browser-verified. Billing decided: **Spark (free) for Phase 3**. My Spots editor gained
+place search + find-yourself; chats friendless empty state fixed; distribution runbook at
+`docs/tester-distribution.md`.
+
+**Blocked ONLY on user console/terminal actions** — next session starts here:
+1. `firebase login` (terminal) → then `firebase deploy --only firestore` finishes Step 2
+2. Firebase console → Authentication → enable **Email/Password** provider
+3. `node src/dev/provisionTesters.js --count 20` → real tester accounts (finishes Step 3)
+4. Then Step 4: EAS pipeline, leading with the react-native-maps 1.27.x upgrade
+   (fixes the clipped markers; device testing moves to the dev client)
 
 ## Where We Are — Phase 3 (Android, trusted testers)
 
