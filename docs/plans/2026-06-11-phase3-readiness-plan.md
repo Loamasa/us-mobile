@@ -144,8 +144,8 @@ Not Phase 3 blockers; ALL block public release. Tracked here so they're priced i
 
 ## Open threads
 
-- **GitHub token**: scrubbed from `.claude/settings.local.json` + file untracked (2026-06-11),
-  but the token tested VALID — user must still revoke it on GitHub (Settings → Applications →
-  Authorized OAuth Apps)
+- **GitHub token**: CLOSED 2026-06-11 — scrubbed from `.claude/settings.local.json`, file
+  untracked + gitignored, and the issuing OAuth app (Git Credential Manager) revoked on GitHub.
+  Next HTTPS `git push` will re-prompt a one-time browser sign-in.
 - **FEATURES.md / Group Broadcast**: CONFIRMED + committed (`7d2cfeb`, 2026-06-11) — schedule it
   against the Phase 3 steps when ready (it builds on `buildGroupPins` + the friend-request flow)

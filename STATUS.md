@@ -13,7 +13,7 @@
 
 ## Last Updated
 2026-06-11 (meta-review wrap) — **Token scrubbed + settings untracked; Phase 3 plan locked & committed; project permission allowlist added.**
-- **Leaked GitHub token — machine side RESOLVED**: token line removed from `.claude/settings.local.json` (JSON-safe PowerShell rewrite worked where the Edit tool was harness-blocked) and the file was `git rm --cached` + gitignored — it had been TRACKED in git, i.e. one bulk-add away from pushing the token. Token tested **still VALID** → only remaining action: **user revokes on GitHub** (Settings → Applications → Authorized OAuth Apps → GitHub CLI).
+- **Leaked GitHub token — machine side RESOLVED**: token line removed from `.claude/settings.local.json` (JSON-safe PowerShell rewrite worked where the Edit tool was harness-blocked) and the file was `git rm --cached` + gitignored — it had been TRACKED in git, i.e. one bulk-add away from pushing the token. Token tested **still VALID** → user revoked the issuing app ("Git Credential Manager", the only credential-flow OAuth app on the account) the same day — **issue fully CLOSED**.
 - **Phase 3 plan committed**: `docs/plans/2026-06-11-phase3-readiness-plan.md`. Decisions locked: interim **email/password** auth, **Android-only**, **EAS internal distribution**, **background location IN scope** (product core — Bump-like ambient presence; `expo-task-manager` must ship in build #1; needs the dev build to test, so it's Step 5 after the EAS pipeline). **Step 0 (full Expo Go device pass) gates all Phase 3 work** — checklist in the plan. Phase 3 section below mirrors the steps.
 - **`.claude/settings.json` committed**: read-only allowlist from transcript scan (`npx tsc --noEmit`, the `src/dev/verify*.js` harness, preview read tools). `preview_eval` deliberately left out (code execution — user's call).
 - Cleanup pass (Antigravity removal, STATUS diet, memory-mirror collapse, skill fixes, npm scripts) scheduled as Phase 3 Step 1.
@@ -125,7 +125,7 @@
 
 > Pre-user-testing fix list from the 2026-06-10 browser map verification — **executed 2026-06-11**:
 
-1. **Revoke leaked GitHub token — only the REVOKE remains (user action)** — the token line was scrubbed from `.claude/settings.local.json` and the file untracked + gitignored (2026-06-11, commit `6747567`). The token itself tested still valid → **user: github.com → Settings → Applications → Authorized OAuth Apps → revoke "GitHub CLI"**.
+1. ~~**Leaked GitHub token**~~ *(CLOSED 2026-06-11 — token line scrubbed from `.claude/settings.local.json`, file untracked + gitignored (commit `6747567`), and user revoked the issuing app "Git Credential Manager" on GitHub, which invalidates all its tokens. Side effect: next HTTPS `git push` re-prompts a browser sign-in once.)*
 2. ~~**DM get-or-create race**~~ *(FIXED 2026-06-11 — deterministic `dm_` doc id + `setDoc(merge)`; rules allow `resource == null` read probe; verified no duplicate room in browser)*
 3. ~~**Seed fixtures lie about messages**~~ *(FIXED 2026-06-11 — `messages[]` in fixtures, seeded as `seed_NN` docs by both seed scripts; verified rendering in crew chat + Alice DM)*
 4. ~~**DM empty-state copy**~~ *(FIXED 2026-06-11 — branches on `chat.type`, shows peer displayName; verified: "Say hi to Charlie Öberg.")*
