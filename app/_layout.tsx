@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, type User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, getAuthEmulatorUrl } from '@/config/firebase';
 import '../global.css';
@@ -24,7 +24,20 @@ const EMULATOR_PROJECT_ID = 'demo-us-app';
  * fixed UID), then update the password via a separate endpoint.
  */
 async function ensureDevUser() {
-  if (auth.currentUser) return;
+  // Wait for async persistence restoration before deciding to auto-sign-in —
+  // auth.currentUser is still null at boot even when a session exists, so a
+  // synchronous check would stomp a persisted tester/persona session with
+  // dev-user on every reload.
+  const restored = await new Promise<User | null>((resolve) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      unsub();
+      resolve(u);
+    });
+  });
+  if (restored) {
+    console.log('🧪 Restored session as', restored.uid);
+    return;
+  }
 
   const baseUrl = `${getAuthEmulatorUrl()}/identitytoolkit.googleapis.com/v1`;
   const adminHeaders = {

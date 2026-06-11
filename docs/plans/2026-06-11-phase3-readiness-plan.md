@@ -95,19 +95,46 @@ Exit: every box checked on device, or failures triaged into the bug list.
 Exit: rerun against the emulator green (projection PASS, group pins 8/8, **rules 17/17**);
 real-Firestore dry-run (`EXPO_PUBLIC_USE_EMULATORS=false`) happens right after the deploy.
 
-## Step 3 — Interim auth + prod tooling (~1 session)
+## Step 3 — Interim auth + prod tooling (~1 session) — RE-SCOPED 2026-06-11, in progress
 
-- [ ] Email/password sign-in + registration screens on the existing `AuthLayout` visual language
-      (reuses profile/handle/permissions/spots steps unchanged — rules key off `auth.uid`)
-- [ ] Phone/OTP screens behind a dev flag (kept for the future native-SDK migration)
-- [ ] **Prod admin script**: service-account version of the seed/wipe tooling (the emulator's
-      `Bearer owner` trick doesn't work in production). Needed for resetting test rounds and
-      inspecting live data. Keep the service-account key OUT of the repo (`*.key`/`.env` ignored)
-- [ ] Empty-state audit as a fresh user (no seed data in prod): map/chats/spots all make sense
-      with zero friends; "add by handle" is discoverable
+> User decision: **NO self-registration.** 20 fixed pre-provisioned accounts are handed to
+> testers (Account ID + password, distributed out-of-band via the gitignored CSV). Display
+> name is editable in-app (Settings → My Account, already shipped); handles stay fixed —
+> that's how testers add each other.
 
-Exit: two fresh accounts on the real backend can register, befriend each other by handle, DM,
-and see each other on the map (foreground).
+- [x] **Provisioning script** `src/dev/provisionTesters.js` (REST-only, no admin SDK / no
+      service-account key): creates testerNN auth users via public `signUp`, then each
+      account writes ITS OWN profile + handle (rules-compliant — a successful emulator run
+      doubles as proof the production rules permit the flow). Idempotent:
+      `testers-credentials.csv` is output AND state; existing profiles never overwritten
+      (a tester's edited name survives re-runs). `--emulator` / prod modes.
+- [x] **Sign-in screen** `app/(auth)/signin.tsx`: Account ID + password (bare IDs map to
+      `@us.test` — `TESTER_EMAIL_DOMAIN` in constants.ts), AuthLayout visual language,
+      friendly error mapping; first-login routes by location-permission check →
+      permissions → spots → map. Onboarding "Enter the Void" CTA → signin.
+- [x] Phone/OTP behind a dev flag: signin's `__DEV__`-only "Dev: phone sign-in" secondary
+      link (phone.tsx was already prod-blocked)
+- [x] **Dev auto-sign-in persistence race FIXED** (`app/_layout.tsx`): `ensureDevUser` now
+      waits for the first `onAuthStateChanged` emission — auth persistence restores
+      asynchronously, so the old synchronous `auth.currentUser` check stomped a persisted
+      tester/persona session back to dev-user on EVERY dev reload
+- [x] Browser-verified end-to-end against enforced emulator rules: provision 3 →
+      signin as tester01 → permissions → spots → map → Settings shows "Tester 01
+      @tester01" after a full reload → display name edited + persisted → reset. Zero
+      console errors; tsc clean.
+- [ ] **PROD provisioning run**: (1) enable Email/Password provider in the Firebase console,
+      (2) `firebase deploy --only firestore` (Step 2 leftover), then
+      `node src/dev/provisionTesters.js --count 20`
+- [ ] Empty-state audit as a fresh tester (zero friends): map/chats/spots make sense;
+      "add by handle" discoverable
+- ~~Registration screens~~ — dropped (fixed accounts); native phone auth remains the
+  public-release plan. A service-account admin script (wipe/inspect prod) is deferred until
+  actually needed — provisioning no longer requires it.
+
+Exit: two tester accounts on the real backend can sign in with handed-out credentials,
+befriend each other by handle, DM, and see each other on the map (foreground).
+Note: tester emails use the reserved `.test` TLD — password-RESET emails can't be
+delivered; reset via the Firebase console instead.
 
 ## Step 4 — EAS pipeline (~1 session)
 

@@ -12,6 +12,11 @@ export const COLORS = {
   purple: '#A855F7',
 } as const;
 
+// Tester accounts (Phase 3): the sign-in screen appends this domain to bare
+// account IDs (tester01 → tester01@us.test). Keep in sync with EMAIL_DOMAIN in
+// src/dev/provisionTesters.js. .test is RFC-reserved — no mail is ever sent.
+export const TESTER_EMAIL_DOMAIN = 'us.test';
+
 // Map Defaults
 export const MAP_DEFAULTS = {
   // Malmö, Sweden (dev default)
