@@ -16,6 +16,8 @@
  *   3. You cannot inject a THIRD PARTY into someone else's friend list.
  *   4. Handles require auth to read.
  *   5. Chat summaries are member-only.
+ *   6. Broadcasts are members+invitees only: outsiders can't read or update;
+ *      an invitee can accept (move themselves invitedIds → memberIds).
  */
 
 const FIRESTORE_PROJECT = 'us-v1-ff6b3';
@@ -152,6 +154,50 @@ async function main() {
   // ── Chats: member-only ──
   check('non-member chat read blocked (alice → chats/chat_study_crew)', await readDoc('chats/chat_study_crew', aliceToken), [403]);
   check('member chat read allowed (dev-user → chats/chat_study_crew)', await readDoc('chats/chat_study_crew', devToken), [200]);
+
+  // ── Broadcasts: members + invitees only ──
+  const eveToken = await signIn('eve@test.dev', 'test123456');
+  const bobToken = await signIn('bob@test.dev', 'test123456');
+  check('outsider broadcast read blocked (eve → broadcasts/broadcast_tonight)', await readDoc('broadcasts/broadcast_tonight', eveToken), [403]);
+  check('member broadcast read allowed (dev-user → broadcast_tonight)', await readDoc('broadcasts/broadcast_tonight', devToken), [200]);
+  check('invitee broadcast read allowed (bob → broadcast_tonight)', await readDoc('broadcasts/broadcast_tonight', bobToken), [200]);
+
+  // Invitee accepts: dev-user moves THEMSELVES invitedIds → memberIds on broadcast_invite.
+  const acceptInvite = [
+    {
+      update: {
+        name: docName('broadcasts/broadcast_invite'),
+        fields: {
+          memberIds: {
+            arrayValue: {
+              values: [{ stringValue: 'charlie' }, { stringValue: 'dev-user' }],
+            },
+          },
+          invitedIds: { arrayValue: { values: [] } },
+        },
+      },
+      updateMask: { fieldPaths: ['memberIds', 'invitedIds'] },
+    },
+  ];
+  check('invitee accepts broadcast invite (dev-user → broadcast_invite)', await commitWrites(acceptInvite, devToken), [200]);
+
+  // Outsider update blocked.
+  const outsiderUpdate = [
+    {
+      update: {
+        name: docName('broadcasts/broadcast_tonight'),
+        fields: {
+          memberIds: {
+            arrayValue: {
+              values: [{ stringValue: 'alice' }, { stringValue: 'dev-user' }, { stringValue: 'eve' }],
+            },
+          },
+        },
+      },
+      updateMask: { fieldPaths: ['memberIds'] },
+    },
+  ];
+  check('outsider broadcast update blocked (eve → broadcast_tonight)', await commitWrites(outsiderUpdate, eveToken), [403]);
 
   console.log(failures === 0 ? '\n✅ PASS — all rules checks green' : `\n❌ FAIL — ${failures} rule check(s) failed`);
   process.exit(failures === 0 ? 0 : 1);

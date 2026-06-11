@@ -12,6 +12,10 @@ import {
   onChats,
   getOrCreateGroupChat,
   getOrCreateDmChat,
+  acceptBroadcastInvite,
+  declineBroadcastInvite,
+  setBroadcastChat,
+  deleteBroadcast,
 } from '@/lib/firestore';
 import { haversineDistance } from '@/utils/distance';
 import { COLORS, MAP_DEFAULTS } from '@/config/constants';
@@ -29,6 +33,10 @@ import ClusterCard from '@/components/map/ClusterCard';
 import FriendCard from '@/components/map/FriendCard';
 import SignalModal from '@/features/signals/SignalModal';
 import ActiveSignalHUD from '@/features/signals/ActiveSignalHUD';
+import { useBroadcasts } from '@/features/broadcasts/useBroadcasts';
+import BroadcastMarker from '@/features/broadcasts/BroadcastMarker';
+import BroadcastCard from '@/features/broadcasts/BroadcastCard';
+import BroadcastComposerModal from '@/features/broadcasts/BroadcastComposerModal';
 import {
   EyeIcon,
   EyeOffIcon,
@@ -36,7 +44,7 @@ import {
   NavigationIcon,
   GhostIcon,
 } from '@/components/ui/icons';
-import type { UserSpot, UserProfile, ChatSummary, MapEntity } from '@/types';
+import type { UserSpot, UserProfile, ChatSummary, MapEntity, Broadcast } from '@/types';
 import type MapView from 'react-native-maps';
 
 
@@ -50,6 +58,9 @@ export default function MapScreen() {
   const [showSignalModal, setShowSignalModal] = useState(false);
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const [selectedBroadcastId, setSelectedBroadcastId] = useState<string | null>(null);
+  const [broadcastCoord, setBroadcastCoord] = useState<{ lat: number; lng: number } | null>(null);
+  const [broadcastBusy, setBroadcastBusy] = useState(false);
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [openingChat, setOpeningChat] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -93,6 +104,10 @@ export default function MapScreen() {
   // fixed-location pin, whose members may be ghost / absent from friendLocations.
   const groupMemberProfiles = useGroupMemberProfiles(chats, userId);
 
+  // Group broadcasts: mine (member) + pending invites. Only members/invitees
+  // can even read these docs — outsiders never see the pins.
+  const { mine: myBroadcasts, invites: broadcastInvites } = useBroadcasts();
+
   // Reconcile named groups (mapVisibility = ALWAYS) with the live projection:
   // decorate a live proximity cluster with the group name when its members are
   // actually together, otherwise synthesize a persistent pin at the chat's
@@ -120,6 +135,15 @@ export default function MapScreen() {
     mapEntities.find((e) => e.id === selectedFriendId && e.type === 'FRIEND') ??
     null;
 
+  // Selected broadcast — membership determines which card variant renders.
+  const selectedBroadcast =
+    myBroadcasts.find((b) => b.id === selectedBroadcastId) ??
+    broadcastInvites.find((b) => b.id === selectedBroadcastId) ??
+    null;
+  const selectedBroadcastIsInvite =
+    !!selectedBroadcast &&
+    !myBroadcasts.some((b) => b.id === selectedBroadcast.id);
+
   const ghostMode = profile ? !profile.settings.globalLocationSharing : false;
   const activeSignal = (() => {
     const signal = profile?.currentSignal;
@@ -144,6 +168,11 @@ export default function MapScreen() {
   useEffect(() => {
     if (selectedFriendId && !selectedFriend) setSelectedFriendId(null);
   }, [selectedFriendId, selectedFriend]);
+
+  // Clear selected broadcast if it expires / gets ended / invite declined.
+  useEffect(() => {
+    if (selectedBroadcastId && !selectedBroadcast) setSelectedBroadcastId(null);
+  }, [selectedBroadcastId, selectedBroadcast]);
 
   // Get user location for local display
   useEffect(() => {
@@ -292,6 +321,74 @@ export default function MapScreen() {
     }
   };
 
+  // ── Broadcast handlers ──────────────────────────────────────────────────────
+
+  const handleOpenBroadcastChat = async (b: Broadcast) => {
+    if (!userId || openingChat) return;
+    if (b.chatId) {
+      setSelectedBroadcastId(null);
+      router.push(`/chat/${b.chatId}`);
+      return;
+    }
+    setOpeningChat(true);
+    try {
+      const chatId = await getOrCreateGroupChat({
+        memberIds: b.memberIds,
+        createdBy: userId,
+        name: `${b.emoji} ${b.text}`,
+      });
+      await setBroadcastChat(b.id, chatId);
+      setSelectedBroadcastId(null);
+      router.push(`/chat/${chatId}`);
+    } catch (e: unknown) {
+      console.error('open broadcast chat failed', e);
+      Alert.alert(
+        'Could not open chat',
+        e instanceof Error ? e.message : 'Check emulator connection.'
+      );
+    } finally {
+      setOpeningChat(false);
+    }
+  };
+
+  const handleAcceptBroadcast = async (b: Broadcast) => {
+    if (!userId || broadcastBusy) return;
+    setBroadcastBusy(true);
+    try {
+      await acceptBroadcastInvite(b.id, userId);
+    } catch (e) {
+      console.error('accept broadcast failed', e);
+    } finally {
+      setBroadcastBusy(false);
+    }
+  };
+
+  const handleDeclineBroadcast = async (b: Broadcast) => {
+    if (!userId || broadcastBusy) return;
+    setBroadcastBusy(true);
+    try {
+      await declineBroadcastInvite(b.id, userId);
+      setSelectedBroadcastId(null);
+    } catch (e) {
+      console.error('decline broadcast failed', e);
+    } finally {
+      setBroadcastBusy(false);
+    }
+  };
+
+  const handleEndBroadcast = async (b: Broadcast) => {
+    if (broadcastBusy) return;
+    setBroadcastBusy(true);
+    try {
+      await deleteBroadcast(b.id);
+      setSelectedBroadcastId(null);
+    } catch (e) {
+      console.error('end broadcast failed', e);
+    } finally {
+      setBroadcastBusy(false);
+    }
+  };
+
   const initialRegion = userLocation
     ? {
       latitude: userLocation.lat,
@@ -318,6 +415,15 @@ export default function MapScreen() {
         onPress={() => {
           setSelectedClusterId(null);
           setSelectedFriendId(null);
+          setSelectedBroadcastId(null);
+        }}
+        onLongPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
+          // Long-press anywhere places a group broadcast pin (FEATURES.md #1).
+          const { latitude, longitude } = e.nativeEvent.coordinate;
+          setSelectedClusterId(null);
+          setSelectedFriendId(null);
+          setSelectedBroadcastId(null);
+          setBroadcastCoord({ lat: latitude, lng: longitude });
         }}
       >
         {/* User Spots (translucent circles) — schedule-aware via the minute tick */}
@@ -362,6 +468,7 @@ export default function MapScreen() {
               entity={entity}
               onPress={(e) => {
                 setSelectedFriendId(null);
+                setSelectedBroadcastId(null);
                 setSelectedClusterId(e.id);
               }}
             />
@@ -371,11 +478,38 @@ export default function MapScreen() {
               entity={entity}
               onPress={(e) => {
                 setSelectedClusterId(null);
+                setSelectedBroadcastId(null);
                 setSelectedFriendId(e.id);
               }}
             />
           )
         )}
+
+        {/* Group broadcast pins — mine solid, invites dashed */}
+        {myBroadcasts.map((b) => (
+          <BroadcastMarker
+            key={b.id}
+            broadcast={b}
+            invite={false}
+            onPress={(pressed) => {
+              setSelectedClusterId(null);
+              setSelectedFriendId(null);
+              setSelectedBroadcastId(pressed.id);
+            }}
+          />
+        ))}
+        {broadcastInvites.map((b) => (
+          <BroadcastMarker
+            key={b.id}
+            broadcast={b}
+            invite
+            onPress={(pressed) => {
+              setSelectedClusterId(null);
+              setSelectedFriendId(null);
+              setSelectedBroadcastId(pressed.id);
+            }}
+          />
+        ))}
       </MapView>
     );
   };
@@ -556,7 +690,7 @@ export default function MapScreen() {
 
       {/* ── My location button (hidden while a card is open; both sit above the
             floating glass tab bar at bottom: 96) ── */}
-      {!selectedCluster && !selectedFriend && (
+      {!selectedCluster && !selectedFriend && !selectedBroadcast && (
       <TouchableOpacity
         style={{
           position: 'absolute',
@@ -614,11 +748,33 @@ export default function MapScreen() {
         />
       )}
 
+      {/* ── Broadcast Card ── */}
+      {selectedBroadcast && userId && (
+        <BroadcastCard
+          broadcast={selectedBroadcast}
+          viewerId={userId}
+          invite={selectedBroadcastIsInvite}
+          busy={broadcastBusy || openingChat}
+          onClose={() => setSelectedBroadcastId(null)}
+          onOpenChat={handleOpenBroadcastChat}
+          onAccept={handleAcceptBroadcast}
+          onDecline={handleDeclineBroadcast}
+          onEnd={handleEndBroadcast}
+        />
+      )}
+
       {/* ── Signal Modal ── */}
       <SignalModal
         visible={showSignalModal}
         onClose={() => setShowSignalModal(false)}
         currentLocation={userLocation}
+      />
+
+      {/* ── Broadcast Composer (map long-press) ── */}
+      <BroadcastComposerModal
+        visible={broadcastCoord !== null}
+        coordinate={broadcastCoord}
+        onClose={() => setBroadcastCoord(null)}
       />
     </View>
   );

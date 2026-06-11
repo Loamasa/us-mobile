@@ -47,6 +47,9 @@ export const SIGNAL_DURATIONS = [
   { label: 'Until Tonight', ms: 0 }, // Calculated at runtime to 23:59
 ] as const;
 
+// Group broadcast "here now" containment radius in meters
+export const BROADCAST_RADIUS = 150;
+
 // Spot Emoji Presets (for onboarding)
 export const SPOT_EMOJI_PRESETS = [
   { emoji: '🏠', label: 'Home' },

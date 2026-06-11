@@ -145,3 +145,24 @@ export interface Message {
   content: string;
   createdAt: Timestamp;
 }
+
+// ─── Group Broadcasts ────────────────────────────────
+// A placeable, invite-based map event: pin + crew + TTL (FEATURES.md #1).
+// Visible ONLY to members and invitees; invitees must accept to join.
+
+export interface Broadcast {
+  id: string;
+  createdBy: string;
+  emoji: string;
+  text: string;
+  location: GeoPoint;
+  // "Here now" containment radius in meters.
+  radius: number;
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
+  // Creator + accepted invitees. Invitees move themselves over on accept.
+  memberIds: string[];
+  invitedIds: string[];
+  // Set once "Open Group Chat" spawns the deterministic group chat.
+  chatId: string | null;
+}

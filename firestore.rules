@@ -75,5 +75,25 @@ service cloud.firestore {
                       && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.memberIds;
       }
     }
+
+    // Group broadcasts: visible ONLY to members and invitees — outsiders can't
+    // see the pin, the roster, or that the broadcast exists at all. Creation
+    // requires the caller to be the creator and a member. Members and invitees
+    // may update (invitees accept by moving themselves invitedIds → memberIds;
+    // members attach the spawned chatId). Trusted-tester posture: a stricter
+    // field-level update rule is in the Phase 3 deferred ledger.
+    match /broadcasts/{broadcastId} {
+      allow read: if request.auth != null
+                  && (request.auth.uid in resource.data.memberIds
+                      || request.auth.uid in resource.data.invitedIds);
+      allow create: if request.auth != null
+                    && request.resource.data.createdBy == request.auth.uid
+                    && request.auth.uid in request.resource.data.memberIds;
+      allow update: if request.auth != null
+                    && (request.auth.uid in resource.data.memberIds
+                        || request.auth.uid in resource.data.invitedIds);
+      allow delete: if request.auth != null
+                    && request.auth.uid == resource.data.createdBy;
+    }
   }
 }

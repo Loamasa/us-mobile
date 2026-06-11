@@ -49,6 +49,7 @@ interface MapViewProps {
   initialRegion?: Region;
   region?: Region;
   onPress?: (event: { nativeEvent: { coordinate: LatLng } }) => void;
+  onLongPress?: (event: { nativeEvent: { coordinate: LatLng } }) => void;
   children?: ReactNode;
   // Accepted-and-ignored real props so callers don't need web forks:
   customMapStyle?: unknown;
@@ -62,7 +63,7 @@ interface MapViewProps {
 const GRID_CELLS = 10;
 
 const MapView = forwardRef(function MapView(props: MapViewProps, ref) {
-  const { style, initialRegion, region: regionProp, onPress, children } = props;
+  const { style, initialRegion, region: regionProp, onPress, onLongPress, children } = props;
   const [region, setRegion] = useState<Region>(
     regionProp ?? initialRegion ?? FALLBACK_REGION
   );
@@ -106,15 +107,28 @@ const MapView = forwardRef(function MapView(props: MapViewProps, ref) {
       {/* Background press catcher — sits under markers/controls, so marker
           presses never double as map presses (RNW Pressable also drops
           onLayout, hence the plain View root above). */}
-      {onPress ? (
+      {onPress || onLongPress ? (
         <Pressable
           style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
-          onPress={() =>
-            onPress({
-              nativeEvent: {
-                coordinate: { latitude: region.latitude, longitude: region.longitude },
-              },
-            })
+          onPress={
+            onPress
+              ? () =>
+                  onPress({
+                    nativeEvent: {
+                      coordinate: { latitude: region.latitude, longitude: region.longitude },
+                    },
+                  })
+              : undefined
+          }
+          onLongPress={
+            onLongPress
+              ? () =>
+                  onLongPress({
+                    nativeEvent: {
+                      coordinate: { latitude: region.latitude, longitude: region.longitude },
+                    },
+                  })
+              : undefined
           }
         />
       ) : null}

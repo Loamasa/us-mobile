@@ -306,9 +306,33 @@ export default async function seedDevData(): Promise<void> {
     });
   }
 
-  // 5. Commit as owner (bypasses security rules)
+  // 5. Group broadcasts (expiry computed at seed time so they're always live)
+  const broadcasts =
+    (fixtures as { broadcasts?: Array<Record<string, unknown>> }).broadcasts ?? [];
+  for (const b of broadcasts) {
+    const loc = b.location as { lat: number; lng: number };
+    writes.push({
+      path: `broadcasts/${b.id}`,
+      data: {
+        createdBy: b.createdBy,
+        emoji: b.emoji,
+        text: b.text,
+        location: new GeoPoint(loc.lat, loc.lng),
+        radius: b.radius,
+        createdAt: now,
+        expiresAt: new Date(
+          now.getTime() + (b.hoursFromNow as number) * 60 * 60 * 1000
+        ),
+        memberIds: b.memberIds,
+        invitedIds: b.invitedIds,
+        chatId: b.chatId ?? null,
+      },
+    });
+  }
+
+  // 6. Commit as owner (bypasses security rules)
   await commitWritesAsOwner(writes);
   console.log(
-    `🌱 Seeded ${personaEntries.length} test accounts + friendships + ${chats.length} chats`
+    `🌱 Seeded ${personaEntries.length} test accounts + friendships + ${chats.length} chats + ${broadcasts.length} broadcasts`
   );
 }

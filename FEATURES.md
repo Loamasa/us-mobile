@@ -6,7 +6,14 @@
 
 ---
 
-## 1. Group Broadcast — CONFIRMED (2026-06-11)
+## 1. Group Broadcast — SHIPPED v1 (2026-06-11)
+
+> v1 landed 2026-06-11 per the spec below: `broadcasts/{id}` collection (members+invitees-only
+> rules, 5 new verifyRules checks), map long-press → composer (presets/TTL/invite picker, solo
+> allowed), rose pins (solid member / dashed INVITE), card with roster + "here now" + countdown,
+> accept/decline, deterministic group chat spawn (`chatId` stored). Seeded fixtures:
+> `broadcast_tonight` (member) + `broadcast_invite` (invite). Deferred from v1: stricter
+> field-level update rule (tracked in the Phase 3 ledger); community broadcasts (below).
 
 **One-liner:** Upgrade the personal signal broadcast into a placeable, invite-based map event: pin a broadcast anywhere on the map, invite friends, invitees accept to join, the group sees who's in — and it can spawn a group chat, exactly like clusters do.
 

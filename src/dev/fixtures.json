@@ -158,5 +158,31 @@
         { "senderId": "alice", "content": "See you at the café ☕", "minutesAgo": 50 }
       ]
     }
+  ],
+  "broadcasts": [
+    {
+      "id": "broadcast_tonight",
+      "createdBy": "alice",
+      "emoji": "🍺",
+      "text": "Beers at the square",
+      "location": { "lat": 55.5940, "lng": 13.0085 },
+      "radius": 150,
+      "hoursFromNow": 4,
+      "memberIds": ["alice", "dev-user"],
+      "invitedIds": ["bob"],
+      "chatId": null
+    },
+    {
+      "id": "broadcast_invite",
+      "createdBy": "charlie",
+      "emoji": "🛹",
+      "text": "Skate sesh",
+      "location": { "lat": 55.5860, "lng": 12.9980 },
+      "radius": 150,
+      "hoursFromNow": 2,
+      "memberIds": ["charlie"],
+      "invitedIds": ["dev-user"],
+      "chatId": null
+    }
   ]
 }

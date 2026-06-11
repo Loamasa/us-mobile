@@ -14,7 +14,10 @@ import {
   limit,
   writeBatch,
   serverTimestamp,
+  arrayRemove,
+  arrayUnion,
   GeoPoint,
+  Timestamp,
   type DocumentReference,
   type Unsubscribe,
 } from 'firebase/firestore';
@@ -27,6 +30,7 @@ import type {
   UserSpot,
   ChatSummary,
   Message,
+  Broadcast,
 } from '@/types';
 
 // ─── Listener error handling ─────────────────────────
@@ -340,6 +344,101 @@ export async function sendMessage(
   }
 
   return void msgRef;
+}
+
+// ─── Group Broadcasts ────────────────────────────────
+// Visibility is members + invitees only (rules-enforced). Expiry is checked
+// client-side against expiresAt, same as signals.
+
+export function onMyBroadcasts(
+  userId: string,
+  callback: (broadcasts: Broadcast[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, 'broadcasts'),
+    where('memberIds', 'array-contains', userId)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Broadcast)));
+    },
+    onSnapshotError('onMyBroadcasts')
+  );
+}
+
+export function onBroadcastInvites(
+  userId: string,
+  callback: (broadcasts: Broadcast[]) => void
+): Unsubscribe {
+  const q = query(
+    collection(db, 'broadcasts'),
+    where('invitedIds', 'array-contains', userId)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Broadcast)));
+    },
+    onSnapshotError('onBroadcastInvites')
+  );
+}
+
+export async function createBroadcast(params: {
+  createdBy: string;
+  emoji: string;
+  text: string;
+  location: { latitude: number; longitude: number };
+  radius: number;
+  expiresAt: Date;
+  invitedIds: string[];
+}): Promise<string> {
+  const { createdBy, emoji, text, location, radius, expiresAt, invitedIds } =
+    params;
+  const ref = await addDoc(collection(db, 'broadcasts'), {
+    createdBy,
+    emoji,
+    text,
+    location: new GeoPoint(location.latitude, location.longitude),
+    radius,
+    createdAt: serverTimestamp(),
+    expiresAt: Timestamp.fromDate(expiresAt),
+    memberIds: [createdBy],
+    invitedIds,
+    chatId: null,
+  });
+  return ref.id;
+}
+
+/** Invitee accepts: moves THEMSELVES from invitedIds into memberIds. */
+export async function acceptBroadcastInvite(
+  broadcastId: string,
+  userId: string
+): Promise<void> {
+  await updateDoc(doc(db, 'broadcasts', broadcastId), {
+    memberIds: arrayUnion(userId),
+    invitedIds: arrayRemove(userId),
+  });
+}
+
+export async function declineBroadcastInvite(
+  broadcastId: string,
+  userId: string
+): Promise<void> {
+  await updateDoc(doc(db, 'broadcasts', broadcastId), {
+    invitedIds: arrayRemove(userId),
+  });
+}
+
+export async function setBroadcastChat(
+  broadcastId: string,
+  chatId: string
+): Promise<void> {
+  await updateDoc(doc(db, 'broadcasts', broadcastId), { chatId });
+}
+
+export async function deleteBroadcast(broadcastId: string): Promise<void> {
+  await deleteDoc(doc(db, 'broadcasts', broadcastId));
 }
 
 /**

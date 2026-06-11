@@ -296,6 +296,26 @@ async function runSeed() {
     });
   }
 
+  // Group broadcasts (expiry computed at seed time so they're always live)
+  const broadcasts = fixtures.broadcasts || [];
+  for (const b of broadcasts) {
+    writes.push({
+      path: `broadcasts/${b.id}`,
+      data: {
+        createdBy: b.createdBy,
+        emoji: b.emoji,
+        text: b.text,
+        location: { lat: b.location.lat, lng: b.location.lng },
+        radius: b.radius,
+        createdAt: now,
+        expiresAt: new Date(now.getTime() + b.hoursFromNow * 60 * 60 * 1000),
+        memberIds: b.memberIds,
+        invitedIds: b.invitedIds,
+        chatId: b.chatId ?? null,
+      },
+    });
+  }
+
   console.log(`3. Committing ${writes.length} writes...`);
   await commitWritesAsOwner(writes);
   console.log('🌱 Database seeded successfully!');
