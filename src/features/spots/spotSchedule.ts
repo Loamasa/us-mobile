@@ -45,6 +45,16 @@ export function isSpotActiveNow(spot: UserSpot, now: Date = new Date()): boolean
   return spot.isActive && isWithinSchedule(spot.schedule, now);
 }
 
+/** Accepts "8:30", "08.30", "0830" … and returns canonical "HH:mm" (or null). */
+export function normalizeTime(raw: string): string | null {
+  const m = raw.trim().match(/^(\d{1,2})[:.]?(\d{2})$/);
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
 /** Compact summary for list rows, e.g. "Mon–Fri · 08:00–17:00". */
 export function formatSchedule(schedule: SpotSchedule): string {
   const days = [...schedule.days].sort((a, b) => a - b);

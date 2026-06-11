@@ -23,16 +23,17 @@ import {
     COLORS,
     MAP_DEFAULTS,
     SPOT_ICONS,
-    SPOT_RADIUS_RANGE,
     DEFAULT_SPOT_RADIUS,
 } from '@/config/constants';
 import { DARK_MAP_STYLE } from '@/config/mapStyles';
 import { useEffect } from 'react';
 import {
-    DAY_LABELS,
     formatSchedule,
     isWithinSchedule,
+    normalizeTime,
 } from '@/features/spots/spotSchedule';
+import RadiusChips from '@/features/spots/RadiusChips';
+import ScheduleFields from '@/features/spots/ScheduleFields';
 import type { UserSpot } from '@/types';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -85,16 +86,6 @@ const DEFAULT_FORM: SpotForm = {
     start: '08:00',
     end: '17:00',
 };
-
-/** Accepts "8:30", "08.30", "0830" … and returns canonical "HH:mm" (or null). */
-function normalizeTime(raw: string): string | null {
-    const m = raw.trim().match(/^(\d{1,2})[:.]?(\d{2})$/);
-    if (!m) return null;
-    const h = Number(m[1]);
-    const min = Number(m[2]);
-    if (h > 23 || min > 59) return null;
-    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -773,214 +764,17 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
                     </View>
                 </View>
 
-                {/* Radius slider */}
-                <View>
-                    <View
-                        style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}
-                    >
-                        <Text
-                            style={{
-                                color: 'rgba(242,244,246,0.4)',
-                                fontSize: 10,
-                                fontWeight: '800',
-                                textTransform: 'uppercase',
-                                letterSpacing: 2,
-                            }}
-                        >
-                            Radius
-                        </Text>
-                        <Text
-                            style={{
-                                color: COLORS.signal,
-                                fontSize: 12,
-                                fontWeight: '700',
-                            }}
-                        >
-                            {form.radius}m
-                        </Text>
-                    </View>
-                    {/* Manual radius buttons since Slider needs an extra lib */}
-                    <View
-                        style={{
-                            flexDirection: 'row',
-                            gap: 6,
-                            flexWrap: 'wrap',
-                        }}
-                    >
-                        {[50, 100, 150, 200, 300, 500, 750, 1000].map((r) => (
-                            <TouchableOpacity
-                                key={r}
-                                onPress={() => setForm((f) => ({ ...f, radius: r }))}
-                                style={{
-                                    paddingHorizontal: 14,
-                                    paddingVertical: 8,
-                                    borderRadius: 10,
-                                    backgroundColor:
-                                        form.radius === r ? COLORS.signal : 'rgba(255,255,255,0.05)',
-                                    borderWidth: 1,
-                                    borderColor:
-                                        form.radius === r ? COLORS.signal : 'rgba(255,255,255,0.08)',
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <Text
-                                    style={{
-                                        color: form.radius === r ? '#fff' : 'rgba(242,244,246,0.5)',
-                                        fontSize: 12,
-                                        fontWeight: '700',
-                                    }}
-                                >
-                                    {r}m
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
+                {/* Radius */}
+                <RadiusChips
+                    value={form.radius}
+                    onChange={(radius) => setForm((f) => ({ ...f, radius }))}
+                />
 
                 {/* Active hours (optional weekly schedule) */}
-                <View>
-                    <Text
-                        style={{
-                            color: 'rgba(242,244,246,0.4)',
-                            fontSize: 10,
-                            fontWeight: '800',
-                            textTransform: 'uppercase',
-                            letterSpacing: 2,
-                            marginBottom: 8,
-                        }}
-                    >
-                        Active Hours
-                    </Text>
-                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 10 }}>
-                        {([
-                            { scheduled: false, label: 'Always' },
-                            { scheduled: true, label: 'Scheduled' },
-                        ] as const).map(({ scheduled, label }) => (
-                            <TouchableOpacity
-                                key={label}
-                                onPress={() => setForm((f) => ({ ...f, scheduled }))}
-                                style={{
-                                    flex: 1,
-                                    paddingVertical: 10,
-                                    borderRadius: 10,
-                                    alignItems: 'center',
-                                    backgroundColor:
-                                        form.scheduled === scheduled
-                                            ? COLORS.signal
-                                            : 'rgba(255,255,255,0.05)',
-                                    borderWidth: 1,
-                                    borderColor:
-                                        form.scheduled === scheduled
-                                            ? COLORS.signal
-                                            : 'rgba(255,255,255,0.08)',
-                                }}
-                                activeOpacity={0.7}
-                            >
-                                <Text
-                                    style={{
-                                        color:
-                                            form.scheduled === scheduled
-                                                ? '#fff'
-                                                : 'rgba(242,244,246,0.5)',
-                                        fontSize: 12,
-                                        fontWeight: '700',
-                                    }}
-                                >
-                                    {label}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    {form.scheduled && (
-                        <View style={{ gap: 10 }}>
-                            {/* Weekday chips */}
-                            <View style={{ flexDirection: 'row', gap: 5 }}>
-                                {DAY_LABELS.map((label, i) => {
-                                    const day = i + 1;
-                                    const on = form.days.includes(day);
-                                    return (
-                                        <TouchableOpacity
-                                            key={label}
-                                            onPress={() =>
-                                                setForm((f) => ({
-                                                    ...f,
-                                                    days: on
-                                                        ? f.days.filter((d) => d !== day)
-                                                        : [...f.days, day],
-                                                }))
-                                            }
-                                            style={{
-                                                flex: 1,
-                                                aspectRatio: 1,
-                                                borderRadius: 10,
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                backgroundColor: on
-                                                    ? 'rgba(46,92,255,0.18)'
-                                                    : 'rgba(255,255,255,0.04)',
-                                                borderWidth: 1,
-                                                borderColor: on
-                                                    ? COLORS.signal
-                                                    : 'rgba(255,255,255,0.08)',
-                                            }}
-                                            activeOpacity={0.7}
-                                        >
-                                            <Text
-                                                style={{
-                                                    color: on ? COLORS.signal : 'rgba(242,244,246,0.4)',
-                                                    fontSize: 11,
-                                                    fontWeight: '800',
-                                                }}
-                                            >
-                                                {label[0]}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
-
-                            {/* Time range */}
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                {(['start', 'end'] as const).map((field, i) => (
-                                    <View key={field} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                        {i === 1 && (
-                                            <Text style={{ color: 'rgba(242,244,246,0.35)', fontSize: 12 }}>
-                                                to
-                                            </Text>
-                                        )}
-                                        <TextInput
-                                            value={form[field]}
-                                            onChangeText={(v) => setForm((f) => ({ ...f, [field]: v }))}
-                                            placeholder={field === 'start' ? '08:00' : '17:00'}
-                                            placeholderTextColor="rgba(242,244,246,0.2)"
-                                            keyboardType="numbers-and-punctuation"
-                                            autoCapitalize="none"
-                                            autoCorrect={false}
-                                            style={{
-                                                flex: 1,
-                                                backgroundColor: 'rgba(255,255,255,0.04)',
-                                                borderWidth: 1,
-                                                borderColor: 'rgba(255,255,255,0.1)',
-                                                borderRadius: 10,
-                                                paddingHorizontal: 12,
-                                                paddingVertical: 10,
-                                                color: COLORS.fog,
-                                                fontSize: 14,
-                                                fontWeight: '600',
-                                                textAlign: 'center',
-                                            }}
-                                        />
-                                    </View>
-                                ))}
-                            </View>
-                            <Text style={{ color: 'rgba(242,244,246,0.25)', fontSize: 11 }}>
-                                Outside these hours the place counts as inactive — you won't be
-                                visible there. An end before the start spans midnight.
-                            </Text>
-                        </View>
-                    )}
-                </View>
+                <ScheduleFields
+                    value={form}
+                    onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                />
 
                 {/* Map */}
                 <View>

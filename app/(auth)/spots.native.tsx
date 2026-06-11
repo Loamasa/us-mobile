@@ -6,14 +6,18 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import MapView, { Marker, Circle, type Region } from 'react-native-maps';
+import MapView, { Marker, Circle } from 'react-native-maps';
 import { GeoPoint } from 'firebase/firestore';
 import { auth } from '@/config/firebase';
 import { createUserSpot } from '@/lib/firestore';
 import { GlowBlob } from '@/components/auth/AuthLayout';
+import RadiusChips from '@/features/spots/RadiusChips';
+import ScheduleFields from '@/features/spots/ScheduleFields';
+import { normalizeTime } from '@/features/spots/spotSchedule';
 import {
   COLORS,
   MAP_DEFAULTS,
@@ -22,6 +26,7 @@ import {
   DEFAULT_SPOT_RADIUS,
 } from '@/config/constants';
 import { DARK_MAP_STYLE } from '@/config/mapStyles';
+import type { SpotSchedule } from '@/types';
 
 interface SpotDraft {
   name: string;
@@ -29,14 +34,35 @@ interface SpotDraft {
   latitude: number;
   longitude: number;
   radius: number;
+  schedule: SpotSchedule | null;
 }
+
+interface DraftForm {
+  name: string;
+  emoji: string;
+  radius: number;
+  scheduled: boolean;
+  days: number[];
+  start: string;
+  end: string;
+}
+
+const DEFAULT_DRAFT: DraftForm = {
+  name: '',
+  emoji: '🏠',
+  radius: DEFAULT_SPOT_RADIUS,
+  scheduled: false,
+  days: [1, 2, 3, 4, 5],
+  start: '08:00',
+  end: '17:00',
+};
 
 export default function SpotsScreen() {
   const [spots, setSpots] = useState<SpotDraft[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [draftName, setDraftName] = useState('');
-  const [draftEmoji, setDraftEmoji] = useState('🏠');
+  const [draft, setDraft] = useState<DraftForm>(DEFAULT_DRAFT);
   const [draftCoord, setDraftCoord] = useState<{ lat: number; lng: number } | null>(null);
+  const [draftError, setDraftError] = useState('');
   const [saving, setSaving] = useState(false);
   const mapRef = useRef<MapView>(null);
   const router = useRouter();
@@ -45,21 +71,39 @@ export default function SpotsScreen() {
     if (spots.length >= MAX_ONBOARDING_SPOTS) return;
     const { latitude, longitude } = e.nativeEvent.coordinate;
     setDraftCoord({ lat: latitude, lng: longitude });
-    setDraftName('');
-    setDraftEmoji('🏠');
+    setDraft(DEFAULT_DRAFT);
+    setDraftError('');
     setShowModal(true);
   };
 
   const handleAddSpot = () => {
-    if (!draftCoord || !draftName.trim()) return;
+    if (!draftCoord || !draft.name.trim()) return;
+
+    // Same schedule rules as the My Spots editor.
+    let schedule: SpotSchedule | null = null;
+    if (draft.scheduled) {
+      const start = normalizeTime(draft.start);
+      const end = normalizeTime(draft.end);
+      if (!start || !end) {
+        setDraftError('Use 24h times like 08:00 or 17:30.');
+        return;
+      }
+      if (draft.days.length === 0) {
+        setDraftError('Pick at least one weekday for the schedule.');
+        return;
+      }
+      schedule = { days: [...draft.days].sort((a, b) => a - b), start, end };
+    }
+
     setSpots([
       ...spots,
       {
-        name: draftName.trim(),
-        emoji: draftEmoji,
+        name: draft.name.trim(),
+        emoji: draft.emoji,
         latitude: draftCoord.lat,
         longitude: draftCoord.lng,
-        radius: DEFAULT_SPOT_RADIUS,
+        radius: draft.radius,
+        schedule,
       },
     ]);
     setShowModal(false);
@@ -86,6 +130,7 @@ export default function SpotsScreen() {
           location: new GeoPoint(spot.latitude, spot.longitude),
           radius: spot.radius,
           isActive: true,
+          schedule: spot.schedule,
         });
       }
       router.replace('/(tabs)/map');
@@ -108,10 +153,15 @@ export default function SpotsScreen() {
       {/* Header */}
       <View className="px-6 pt-4 pb-4 items-center">
         <Text className="text-white text-4xl font-black uppercase tracking-tight text-center mb-3">
-          Anchor.
+          My Spots.
         </Text>
-        <Text className="text-fog/50 text-base text-center max-w-[300px] mb-3">
-          Pin the places you hang out. Friends only see you while you're inside one.
+        <Text className="text-fog/50 text-base text-center max-w-[320px] mb-2">
+          Pin the places you hang out. Friends only see you on the map while
+          you're physically inside one of your spots.
+        </Text>
+        <Text className="text-fog/40 text-xs text-center max-w-[320px] mb-3">
+          You stay in control: switch spots on or off, give them weekly hours,
+          or go ghost mode to disappear completely — anytime.
         </Text>
         <Text className="text-mint text-[10px] font-bold uppercase tracking-widest">
           Tap the map to place a spot · {spots.length}/{MAX_ONBOARDING_SPOTS}
@@ -201,69 +251,103 @@ export default function SpotsScreen() {
         )}
       </View>
 
-      {/* Add Spot Modal */}
+      {/* Add Spot Modal — full My Spots capabilities (radius + weekly hours) */}
       <Modal visible={showModal} transparent animationType="slide">
-        <View className="flex-1 justify-end">
-          <View className="bg-void border-t border-glass-border rounded-t-3xl p-6">
-            <Text className="text-white text-xl font-black uppercase tracking-tight mb-4">
-              Name this spot.
-            </Text>
-
-            {/* Emoji Picker */}
+        <KeyboardAvoidingView
+          behavior="padding"
+          style={{ flex: 1, justifyContent: 'flex-end' }}
+        >
+          <View className="bg-void border-t border-glass-border rounded-t-3xl">
             <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="mb-4"
+              className="px-6 pt-6"
+              style={{ maxHeight: 580 }}
+              keyboardShouldPersistTaps="handled"
             >
-              {SPOT_EMOJI_PRESETS.map((preset) => (
-                <TouchableOpacity
-                  key={preset.emoji}
-                  onPress={() => {
-                    setDraftEmoji(preset.emoji);
-                    if (!draftName) setDraftName(preset.label);
+              <Text className="text-white text-xl font-black uppercase tracking-tight mb-4">
+                Name this spot.
+              </Text>
+
+              {/* Emoji Picker */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="mb-4"
+              >
+                {SPOT_EMOJI_PRESETS.map((preset) => (
+                  <TouchableOpacity
+                    key={preset.emoji}
+                    onPress={() => {
+                      setDraft((d) => ({
+                        ...d,
+                        emoji: preset.emoji,
+                        name: d.name || preset.label,
+                      }));
+                    }}
+                    className={`mr-2 px-4 py-3 rounded-xl border ${draft.emoji === preset.emoji
+                        ? 'border-signal bg-signal/10'
+                        : 'border-glass-border bg-glass'
+                      }`}
+                  >
+                    <Text className="text-2xl text-center">{preset.emoji}</Text>
+                    <Text className="text-fog/50 text-xs text-center mt-1">
+                      {preset.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Name Input */}
+              <View className="bg-glass border border-glass-border rounded-2xl px-4 py-4 mb-4">
+                <TextInput
+                  className="text-fog text-lg"
+                  placeholder="e.g. Home, Gym, Library"
+                  placeholderTextColor="rgba(242, 244, 246, 0.3)"
+                  value={draft.name}
+                  onChangeText={(name) => setDraft((d) => ({ ...d, name }))}
+                />
+              </View>
+
+              {/* Radius */}
+              <View className="mb-4">
+                <RadiusChips
+                  value={draft.radius}
+                  onChange={(radius) => setDraft((d) => ({ ...d, radius }))}
+                />
+              </View>
+
+              {/* Weekly hours */}
+              <View className="mb-4">
+                <ScheduleFields
+                  value={draft}
+                  onChange={(patch) => {
+                    setDraftError('');
+                    setDraft((d) => ({ ...d, ...patch }));
                   }}
-                  className={`mr-2 px-4 py-3 rounded-xl border ${draftEmoji === preset.emoji
-                      ? 'border-signal bg-signal/10'
-                      : 'border-glass-border bg-glass'
-                    }`}
+                />
+              </View>
+
+              {draftError ? (
+                <Text className="text-rose text-sm text-center mb-3">{draftError}</Text>
+              ) : null}
+
+              {/* Actions */}
+              <View className="flex-row gap-3 pb-6">
+                <TouchableOpacity
+                  className="flex-1 rounded-2xl py-4 items-center border border-glass-border"
+                  onPress={() => setShowModal(false)}
                 >
-                  <Text className="text-2xl text-center">{preset.emoji}</Text>
-                  <Text className="text-fog/50 text-xs text-center mt-1">
-                    {preset.label}
-                  </Text>
+                  <Text className="text-fog/50 font-semibold">Cancel</Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity
+                  className="flex-1 rounded-2xl py-4 items-center bg-signal"
+                  onPress={handleAddSpot}
+                >
+                  <Text className="text-fog font-semibold">Add Spot</Text>
+                </TouchableOpacity>
+              </View>
             </ScrollView>
-
-            {/* Name Input */}
-            <View className="bg-glass border border-glass-border rounded-2xl px-4 py-4 mb-4">
-              <TextInput
-                className="text-fog text-lg"
-                placeholder="e.g. Home, Gym, Library"
-                placeholderTextColor="rgba(242, 244, 246, 0.3)"
-                value={draftName}
-                onChangeText={setDraftName}
-                autoFocus
-              />
-            </View>
-
-            {/* Actions */}
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                className="flex-1 rounded-2xl py-4 items-center border border-glass-border"
-                onPress={() => setShowModal(false)}
-              >
-                <Text className="text-fog/50 font-semibold">Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-1 rounded-2xl py-4 items-center bg-signal"
-                onPress={handleAddSpot}
-              >
-                <Text className="text-fog font-semibold">Add Spot</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
