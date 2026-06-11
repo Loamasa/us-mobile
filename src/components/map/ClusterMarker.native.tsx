@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { View, Text, Animated, Easing } from 'react-native';
+import { View, Text } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { UsersIcon } from '@/components/ui/icons';
 import { COLORS } from '@/config/constants';
+import { useMarkerTracksViewChanges } from '@/components/map/useMarkerTracksViewChanges';
 import type { MapEntity } from '@/types';
 
 interface ClusterMarkerProps {
@@ -12,36 +12,9 @@ interface ClusterMarkerProps {
 
 export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
   const count = entity.friends.length;
-  const pulse = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 1400,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0,
-          duration: 0,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
-
-  const ringScale = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.8, 1.6],
-  });
-  const ringOpacity = pulse.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.45, 0],
-  });
+  // Android snapshots marker children to a bitmap, so a looping Animated pulse
+  // can never play inside a Marker — the ring is a static halo instead.
+  const tracksViewChanges = useMarkerTracksViewChanges(String(count));
 
   return (
     <Marker
@@ -51,20 +24,19 @@ export default function ClusterMarker({ entity, onPress }: ClusterMarkerProps) {
       }}
       anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(entity) : undefined}
-      tracksViewChanges={false}
+      tracksViewChanges={tracksViewChanges}
     >
       <View style={{ alignItems: 'center', width: 72, height: 80 }}>
-        {/* Animated pulse ring */}
-        <Animated.View
+        {/* Static halo ring */}
+        <View
           style={{
             position: 'absolute',
-            top: 4,
-            width: 60,
-            height: 60,
-            borderRadius: 30,
+            top: 1,
+            width: 66,
+            height: 66,
+            borderRadius: 33,
             backgroundColor: COLORS.signal,
-            opacity: ringOpacity,
-            transform: [{ scale: ringScale }],
+            opacity: 0.18,
           }}
         />
 

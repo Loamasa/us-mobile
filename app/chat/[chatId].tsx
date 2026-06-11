@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
-  Platform,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -244,11 +243,10 @@ export default function ChatDetailScreen() {
       </View>
 
       {/* Messages */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
+      {/* behavior="padding" on Android too: edge-to-edge (SDK 54 default)
+          means the window no longer resizes for the keyboard, so without
+          padding the input is fully covered. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         {loaded && !chat ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: 'rgba(242,244,246,0.4)' }}>

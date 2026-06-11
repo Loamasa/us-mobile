@@ -29,6 +29,19 @@ import type {
   Message,
 } from '@/types';
 
+// ─── Listener error handling ─────────────────────────
+
+// Every onSnapshot gets an error callback: without one, a single
+// permission-denied (e.g. the teardown race while switching accounts, when a
+// listener fires with auth momentarily null) becomes an "Uncaught Error in
+// snapshot listener" red box AND silently kills the listener. Subscriptions
+// re-wire on auth change, so logging is the right recovery here.
+function onSnapshotError(label: string) {
+  return (err: unknown) => {
+    console.warn(`[firestore] ${label} listener error:`, err);
+  };
+}
+
 // ─── User Profile ────────────────────────────────────
 
 export function userRef(userId: string): DocumentReference {
@@ -51,10 +64,14 @@ export function onUserProfile(
   userId: string,
   callback: (profile: UserProfile | null) => void
 ): Unsubscribe {
-  return onSnapshot(userRef(userId), (snap) => {
-    if (!snap.exists()) return callback(null);
-    callback({ id: snap.id, ...snap.data() } as UserProfile);
-  });
+  return onSnapshot(
+    userRef(userId),
+    (snap) => {
+      if (!snap.exists()) return callback(null);
+      callback({ id: snap.id, ...snap.data() } as UserProfile);
+    },
+    onSnapshotError('onUserProfile')
+  );
 }
 
 // ─── Handle Uniqueness ───────────────────────────────
@@ -79,9 +96,13 @@ export function onFriends(
 ): Unsubscribe {
   const friendsCol = collection(db, 'users', userId, 'friends');
   const q = query(friendsCol, where('status', '==', 'ACTIVE'));
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({ userId: d.id, ...d.data() } as Friend)));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ userId: d.id, ...d.data() } as Friend)));
+    },
+    onSnapshotError('onFriends')
+  );
 }
 
 export function onFriendRequests(
@@ -90,9 +111,13 @@ export function onFriendRequests(
 ): Unsubscribe {
   const reqCol = collection(db, 'users', userId, 'friendRequests');
   const q = query(reqCol, where('status', '==', 'PENDING'), orderBy('createdAt', 'desc'));
-  return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as FriendRequest)));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as FriendRequest)));
+    },
+    onSnapshotError('onFriendRequests')
+  );
 }
 
 export async function sendFriendRequest(
@@ -152,10 +177,14 @@ export function onLocation(
   userId: string,
   callback: (location: LocationPresence | null) => void
 ): Unsubscribe {
-  return onSnapshot(doc(db, 'locations', userId), (snap) => {
-    if (!snap.exists()) return callback(null);
-    callback({ userId: snap.id, ...snap.data() } as LocationPresence);
-  });
+  return onSnapshot(
+    doc(db, 'locations', userId),
+    (snap) => {
+      if (!snap.exists()) return callback(null);
+      callback({ userId: snap.id, ...snap.data() } as LocationPresence);
+    },
+    onSnapshotError('onLocation')
+  );
 }
 
 export async function updateLocation(
@@ -179,9 +208,13 @@ export function onUserSpots(
   callback: (spots: UserSpot[]) => void
 ): Unsubscribe {
   const spotsCol = collection(db, 'users', userId, 'spots');
-  return onSnapshot(spotsCol, (snap) => {
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as UserSpot)));
-  });
+  return onSnapshot(
+    spotsCol,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as UserSpot)));
+    },
+    onSnapshotError('onUserSpots')
+  );
 }
 
 export async function createUserSpot(
@@ -227,28 +260,36 @@ export function onChats(
     collection(db, 'chats'),
     where('memberIds', 'array-contains', userId)
   );
-  return onSnapshot(q, (snap) => {
-    const chats = snap.docs.map(
-      (d) => ({ id: d.id, ...d.data() } as ChatSummary)
-    );
-    // Sort client-side to avoid a composite index on (memberIds, lastMessageAt).
-    chats.sort((a, b) => {
-      const aT = a.lastMessageAt?.toMillis() ?? a.createdAt?.toMillis() ?? 0;
-      const bT = b.lastMessageAt?.toMillis() ?? b.createdAt?.toMillis() ?? 0;
-      return bT - aT;
-    });
-    callback(chats);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const chats = snap.docs.map(
+        (d) => ({ id: d.id, ...d.data() } as ChatSummary)
+      );
+      // Sort client-side to avoid a composite index on (memberIds, lastMessageAt).
+      chats.sort((a, b) => {
+        const aT = a.lastMessageAt?.toMillis() ?? a.createdAt?.toMillis() ?? 0;
+        const bT = b.lastMessageAt?.toMillis() ?? b.createdAt?.toMillis() ?? 0;
+        return bT - aT;
+      });
+      callback(chats);
+    },
+    onSnapshotError('onChats')
+  );
 }
 
 export function onChatSummary(
   chatId: string,
   callback: (chat: ChatSummary | null) => void
 ): Unsubscribe {
-  return onSnapshot(doc(db, 'chats', chatId), (snap) => {
-    if (!snap.exists()) return callback(null);
-    callback({ id: snap.id, ...snap.data() } as ChatSummary);
-  });
+  return onSnapshot(
+    doc(db, 'chats', chatId),
+    (snap) => {
+      if (!snap.exists()) return callback(null);
+      callback({ id: snap.id, ...snap.data() } as ChatSummary);
+    },
+    onSnapshotError('onChatSummary')
+  );
 }
 
 export function onMessages(
@@ -261,13 +302,17 @@ export function onMessages(
     orderBy('createdAt', 'desc'),
     limit(max)
   );
-  return onSnapshot(q, (snap) => {
-    callback(
-      snap.docs.map(
-        (d) => ({ id: d.id, chatId, ...d.data() } as Message)
-      )
-    );
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(
+        snap.docs.map(
+          (d) => ({ id: d.id, chatId, ...d.data() } as Message)
+        )
+      );
+    },
+    onSnapshotError('onMessages')
+  );
 }
 
 export async function sendMessage(

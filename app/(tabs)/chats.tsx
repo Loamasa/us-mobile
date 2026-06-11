@@ -34,6 +34,7 @@ import {
   SettingsIcon,
   MessageSquareIcon,
   XIcon,
+  CheckIcon,
 } from '@/components/ui/icons';
 import { COLORS } from '@/config/constants';
 
@@ -84,6 +85,9 @@ export default function ChatsScreen() {
   const [handleInput, setHandleInput] = useState('');
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
+  // Set to the @handle after a request goes out — swaps the modal body to a
+  // styled success state (no native Alert), then auto-dismisses.
+  const [addSuccess, setAddSuccess] = useState<string | null>(null);
 
   // Single Messenger-style composer: pick 1+ friends in a "To:" list.
   // 1 selected → DM, 2+ → group (optional name).
@@ -97,6 +101,16 @@ export default function ChatsScreen() {
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => setUserId(u?.uid ?? undefined));
   }, []);
+
+  // Auto-dismiss the add-friend success state.
+  useEffect(() => {
+    if (!addSuccess) return;
+    const timer = setTimeout(() => {
+      setShowAddModal(false);
+      setAddSuccess(null);
+    }, 1600);
+    return () => clearTimeout(timer);
+  }, [addSuccess]);
 
   useEffect(() => {
     setChats([]);
@@ -267,9 +281,8 @@ export default function ChatsScreen() {
         return;
       }
       await sendFriendRequest(userId, targetUserId);
-      setShowAddModal(false);
       setHandleInput('');
-      Alert.alert('Request Sent', `Friend request sent to @${sanitized}`);
+      setAddSuccess(sanitized);
     } catch (err) {
       setAddError(err instanceof Error ? err.message : 'Failed to send request');
     } finally {
@@ -544,6 +557,17 @@ export default function ChatsScreen() {
       {/* Add Friend modal (by handle) */}
       <Modal visible={showAddModal} transparent animationType="slide">
         <View className="flex-1 justify-end">
+          {addSuccess ? (
+            <View className="bg-void border-t border-glass-border rounded-t-3xl p-6 items-center">
+              <View className="w-14 h-14 rounded-full bg-mint/15 border border-mint/40 items-center justify-center mb-4 mt-2">
+                <CheckIcon size={26} color={COLORS.mint} />
+              </View>
+              <Text className="text-fog text-xl font-bold mb-1">Request sent</Text>
+              <Text className="text-fog/40 text-sm mb-4">
+                @{addSuccess} will see it in their chats.
+              </Text>
+            </View>
+          ) : (
           <View className="bg-void border-t border-glass-border rounded-t-3xl p-6">
             <Text className="text-fog text-xl font-bold mb-1">Add Friend</Text>
             <Text className="text-fog/40 text-sm mb-5">Search by their handle</Text>
@@ -588,6 +612,7 @@ export default function ChatsScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          )}
         </View>
       </Modal>
 
@@ -705,19 +730,17 @@ export default function ChatsScreen() {
                 renderItem={({ item }) => {
                   const selected = selectedFriendIds.includes(item.friend.userId);
                   return (
+                    // Layout lives on the inner className View, NOT in the
+                    // Pressable's function style — function-style layout props
+                    // get dropped on native (rows rendered stacked on device).
                     <Pressable
                       onPress={() => toggleSelectedFriend(item.friend.userId)}
-                      style={({ pressed }) => ({
-                        opacity: pressed ? 0.6 : 1,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingVertical: 10,
-                        paddingHorizontal: 6,
-                        borderRadius: 12,
-                        backgroundColor: selected
-                          ? 'rgba(46,92,255,0.12)'
-                          : 'transparent',
-                      })}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+                    >
+                    <View
+                      className={`flex-row items-center rounded-xl px-1.5 py-2.5 ${
+                        selected ? 'bg-signal/10' : ''
+                      }`}
                     >
                       <UserAvatar
                         displayName={item.profile?.displayName}
@@ -759,6 +782,7 @@ export default function ChatsScreen() {
                           </Text>
                         )}
                       </View>
+                    </View>
                     </Pressable>
                   );
                 }}
