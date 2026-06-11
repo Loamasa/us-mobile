@@ -1,9 +1,3 @@
-import { View, Text } from 'react-native';
-
-export default function SpotsScreen() {
-    return (
-        <View className="flex-1 bg-void items-center justify-center">
-            <Text className="text-fog">Spots Map is not supported on web natively.</Text>
-        </View>
-    );
-}
+// On web, react-native-maps resolves to the dev shim (metro.config.js →
+// src/dev/fakeMaps.tsx), so the real spots step runs in the browser too.
+export { default } from './spots.native';

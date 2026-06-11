@@ -7,11 +7,13 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import MapView, { Marker, Circle, type Region } from 'react-native-maps';
 import { GeoPoint } from 'firebase/firestore';
 import { auth } from '@/config/firebase';
 import { createUserSpot } from '@/lib/firestore';
+import { GlowBlob } from '@/components/auth/AuthLayout';
 import {
   COLORS,
   MAP_DEFAULTS,
@@ -100,17 +102,19 @@ export default function SpotsScreen() {
   };
 
   return (
-    <View className="flex-1 bg-void">
+    <SafeAreaView className="flex-1 bg-void">
+      <GlowBlob hex={COLORS.mint} position="corner" />
+
       {/* Header */}
-      <View className="px-8 pt-16 pb-4">
-        <Text className="text-fog text-3xl font-bold text-center mb-2">
-          Your Spots
+      <View className="px-6 pt-4 pb-4 items-center">
+        <Text className="text-white text-4xl font-black uppercase tracking-tight text-center mb-3">
+          Anchor.
         </Text>
-        <Text className="text-fog/50 text-sm text-center mb-4">
-          Pin the places you hang out. Your friends will see when you're there.
+        <Text className="text-fog/50 text-base text-center max-w-[300px] mb-3">
+          Pin the places you hang out. Friends only see you while you're inside one.
         </Text>
-        <Text className="text-fog/30 text-xs text-center">
-          Tap the map to place a spot ({spots.length}/{MAX_ONBOARDING_SPOTS})
+        <Text className="text-mint text-[10px] font-bold uppercase tracking-widest">
+          Tap the map to place a spot · {spots.length}/{MAX_ONBOARDING_SPOTS}
         </Text>
       </View>
 
@@ -174,17 +178,16 @@ export default function SpotsScreen() {
       )}
 
       {/* Actions */}
-      <View className="px-8 pb-8 pt-2">
+      <View className="px-6 pb-8 pt-2">
         <TouchableOpacity
-          className={`rounded-2xl py-4 items-center mb-3 ${saving ? 'bg-signal/50' : 'bg-signal'
-            }`}
+          className={`w-full py-4 rounded-2xl items-center bg-mint ${saving ? 'opacity-50' : ''}`}
           onPress={handleContinue}
           disabled={saving}
           activeOpacity={0.8}
         >
-          <Text className="text-fog font-semibold text-base">
+          <Text className="text-black font-bold text-lg">
             {saving
-              ? 'Saving...'
+              ? 'Saving…'
               : spots.length > 0
                 ? `Continue with ${spots.length} spot${spots.length > 1 ? 's' : ''}`
                 : 'Continue without spots'}
@@ -192,8 +195,8 @@ export default function SpotsScreen() {
         </TouchableOpacity>
 
         {spots.length === 0 && (
-          <TouchableOpacity className="py-2" onPress={handleSkip}>
-            <Text className="text-fog/40 text-sm text-center">Skip for now</Text>
+          <TouchableOpacity className="py-4" onPress={handleSkip} activeOpacity={0.7}>
+            <Text className="text-fog/40 text-sm font-bold text-center">Skip for now</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -202,7 +205,9 @@ export default function SpotsScreen() {
       <Modal visible={showModal} transparent animationType="slide">
         <View className="flex-1 justify-end">
           <View className="bg-void border-t border-glass-border rounded-t-3xl p-6">
-            <Text className="text-fog text-xl font-bold mb-4">Name this spot</Text>
+            <Text className="text-white text-xl font-black uppercase tracking-tight mb-4">
+              Name this spot.
+            </Text>
 
             {/* Emoji Picker */}
             <ScrollView
@@ -260,6 +265,6 @@ export default function SpotsScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
