@@ -39,7 +39,8 @@ function findContainingSpot(
  * the location doc is deleted — friends see nothing.
  *
  * Respects ghost mode (globalLocationSharing): when off, tracking halts and
- * the location doc is removed. Call once in the root tab layout.
+ * the location doc is removed. Called once from the map screen (the initial
+ * tab, which stays mounted for the life of the tab navigator).
  */
 export function useLocationTracking() {
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);

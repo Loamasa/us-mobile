@@ -11,7 +11,15 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  Timestamp,
+} from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import {
   onFriends,
@@ -280,6 +288,27 @@ export default function ChatsScreen() {
         setAddError("That's you!");
         return;
       }
+      if (friends.some((f) => f.userId === targetUserId)) {
+        setAddError(`You're already friends with @${sanitized}`);
+        return;
+      }
+      if (requests.some((r) => r.fromUserId === targetUserId)) {
+        setAddError(`@${sanitized} already sent YOU a request — accept it in your Pending list.`);
+        return;
+      }
+      // Outgoing already pending? Query their inbox filtered to our own
+      // requests — the rules allow reads where fromUserId == caller.
+      const pending = await getDocs(
+        query(
+          collection(db, 'users', targetUserId, 'friendRequests'),
+          where('fromUserId', '==', userId),
+          where('status', '==', 'PENDING')
+        )
+      );
+      if (!pending.empty) {
+        setAddError(`Request to @${sanitized} already sent — waiting for them to accept.`);
+        return;
+      }
       await sendFriendRequest(userId, targetUserId);
       setHandleInput('');
       setAddSuccess(sanitized);
@@ -292,12 +321,28 @@ export default function ChatsScreen() {
 
   const handleAccept = async (request: FriendRequest) => {
     if (!userId) return;
-    await acceptFriendRequest(userId, request.id, request.fromUserId);
+    try {
+      await acceptFriendRequest(userId, request.id, request.fromUserId);
+    } catch (e) {
+      console.error('acceptFriendRequest failed', e);
+      Alert.alert(
+        'Could not accept',
+        e instanceof Error ? e.message : 'Check your connection and try again.'
+      );
+    }
   };
 
   const handleReject = async (request: FriendRequest) => {
     if (!userId) return;
-    await rejectFriendRequest(userId, request.id);
+    try {
+      await rejectFriendRequest(userId, request.id);
+    } catch (e) {
+      console.error('rejectFriendRequest failed', e);
+      Alert.alert(
+        'Could not ignore',
+        e instanceof Error ? e.message : 'Check your connection and try again.'
+      );
+    }
   };
 
   const openCompose = () => {

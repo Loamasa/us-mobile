@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { collection, getDocs, limit, query } from 'firebase/firestore';
 import * as Location from 'expo-location';
-import { auth } from '@/config/firebase';
+import { auth, db } from '@/config/firebase';
 import { TESTER_EMAIL_DOMAIN } from '@/config/constants';
 import AuthLayout from '@/components/auth/AuthLayout';
 import { UserIcon, ShieldIcon } from '@/components/ui/icons';
@@ -34,11 +35,22 @@ export default function SignInScreen() {
 
     try {
       const email = id.includes('@') ? id : `${id}@${TESTER_EMAIL_DOMAIN}`;
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
 
-      // First run on this device → ask for location; otherwise straight to the map.
+      // Permission already granted → straight to the map. Otherwise only a
+      // truly fresh account (no spots yet) gets the first-run permissions →
+      // spots flow; a returning tester goes to the map, where the location
+      // permission is requested natively anyway. One-shot read is fine here
+      // (imperative post-login check, not reactive UI).
       const { status } = await Location.getForegroundPermissionsAsync();
-      router.replace(status === 'granted' ? '/(tabs)/map' : '/(auth)/permissions');
+      if (status === 'granted') {
+        router.replace('/(tabs)/map');
+        return;
+      }
+      const spotsSnap = await getDocs(
+        query(collection(db, 'users', cred.user.uid, 'spots'), limit(1))
+      );
+      router.replace(spotsSnap.empty ? '/(auth)/permissions' : '/(tabs)/map');
     } catch (err: any) {
       const code: string = err?.code ?? '';
       if (

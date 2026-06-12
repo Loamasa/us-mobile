@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,17 @@ import {
   ScrollView,
   Modal,
   KeyboardAvoidingView,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import { GeoPoint } from 'firebase/firestore';
 import { auth } from '@/config/firebase';
 import { createUserSpot } from '@/lib/firestore';
 import { GlowBlob } from '@/components/auth/AuthLayout';
+import { NavigationIcon } from '@/components/ui/icons';
 import RadiusChips from '@/features/spots/RadiusChips';
 import ScheduleFields from '@/features/spots/ScheduleFields';
 import { normalizeTime } from '@/features/spots/spotSchedule';
@@ -66,6 +69,51 @@ export default function SpotsScreen() {
   const [saving, setSaving] = useState(false);
   const mapRef = useRef<MapView>(null);
   const router = useRouter();
+
+  const animateTo = (lat: number, lng: number) => {
+    mapRef.current?.animateToRegion(
+      { latitude: lat, longitude: lng, latitudeDelta: 0.005, longitudeDelta: 0.005 },
+      400
+    );
+  };
+
+  /** Current GPS fix if permission is already granted (no prompt). */
+  const getQuietFix = async () => {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status !== 'granted') return null;
+    const pos = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  };
+
+  // Center on the tester instead of the Malmö default — they usually onboard
+  // from the first place they'll pin (home). Permission was just asked on the
+  // previous step, so this is quiet: no fix, no movement.
+  useEffect(() => {
+    (async () => {
+      try {
+        const fix = await getQuietFix();
+        if (fix) animateTo(fix.lat, fix.lng);
+      } catch {
+        // No GPS (web preview, airplane mode) — keep the default region.
+      }
+    })();
+  }, []);
+
+  const handleMyLocation = async () => {
+    try {
+      let fix = await getQuietFix();
+      if (!fix) {
+        const req = await Location.requestForegroundPermissionsAsync();
+        if (req.status !== 'granted') return;
+        fix = await getQuietFix();
+      }
+      if (fix) animateTo(fix.lat, fix.lng);
+    } catch {
+      // GPS unavailable — leave the camera where it is.
+    }
+  };
 
   const handleMapPress = (e: any) => {
     if (spots.length >= MAX_ONBOARDING_SPOTS) return;
@@ -122,8 +170,10 @@ export default function SpotsScreen() {
 
     setSaving(true);
     try {
-      // Save all spots to Firestore
-      for (const spot of spots) {
+      // Save all spots to Firestore. createUserSpot generates the doc id, so
+      // a retry after a partial failure can duplicate already-saved spots —
+      // remove each from local state as it lands.
+      for (const spot of [...spots]) {
         await createUserSpot(userId, {
           name: spot.name,
           emoji: spot.emoji,
@@ -132,11 +182,25 @@ export default function SpotsScreen() {
           isActive: true,
           schedule: spot.schedule,
         });
+        setSpots((prev) => prev.filter((s) => s !== spot));
       }
       router.replace('/(tabs)/map');
-    } catch {
-      // Continue even if saving fails
-      router.replace('/(tabs)/map');
+    } catch (err) {
+      // Spots are the only way friends ever see you — a silent failure here
+      // makes the app look dead, so keep the tester on this screen.
+      console.error('onboarding spot save failed', err);
+      Alert.alert(
+        'Could not save your spots',
+        'Check your connection and try again — without spots, friends can never see you on the map.',
+        [
+          {
+            text: 'Skip anyway',
+            style: 'destructive',
+            onPress: () => router.replace('/(tabs)/map'),
+          },
+          { text: 'Try Again' },
+        ]
+      );
     } finally {
       setSaving(false);
     }
@@ -204,6 +268,15 @@ export default function SpotsScreen() {
             />
           ))}
         </MapView>
+
+        {/* Find-me — centers the camera, never places a spot */}
+        <TouchableOpacity
+          className="absolute bottom-3 right-3 w-11 h-11 rounded-full bg-void/70 border border-glass-border items-center justify-center"
+          onPress={handleMyLocation}
+          activeOpacity={0.8}
+        >
+          <NavigationIcon size={18} color="#F2F4F6" />
+        </TouchableOpacity>
       </View>
 
       {/* Spot List */}

@@ -4,9 +4,13 @@
 > `.context/memory.md`; the Phase 3 plan in `docs/plans/2026-06-11-phase3-readiness-plan.md`.
 
 ## Last Updated
-2026-06-12 (session wrap) — Phase 3 Steps 0–3 effectively done, all code-side work complete
-and browser-verified. Billing decided: **Spark (free) for Phase 3**. My Spots editor gained
-place search + find-yourself; chats friendless empty state fixed; distribution runbook at
+2026-06-12 (readiness review + fixes) — Full code + UX review for external testers: tsc
+clean, verify suite green (17 rules checks), complete tester journey browser-verified.
+Review fixes landed and re-verified: accurate permissions-screen privacy copy ("only your
+friends, only at spots"), returning sign-ins skip onboarding (spots-probe routing),
+onboarding spot saves surface failures with retry, duplicate friend-request guards +
+accept/reject error alerts, onboarding spots map auto-centers + find-me button.
+Billing decided: **Spark (free) for Phase 3**. Distribution runbook at
 `docs/tester-distribution.md`.
 
 **Blocked ONLY on user console/terminal actions** — next session starts here:
@@ -67,11 +71,14 @@ distribution**, **background location IN scope** (it's the product — needs the
    doc. Freshness check or TTL policy before public release.
 6. **Expo Go two-phone testing**: both phones auto-sign-in as `dev-user` — phone B must switch
    personas (Settings → Developer → Switch Account, e.g. alice).
-7. Minor: `profile.tsx` writes `avatarUrl: ''` (type says `string | null`); auth spots step
-   swallows save errors; dev fixture passwords ship in the JS bundle; inline-style drift in
-   `app/(tabs)/chats.tsx` (compose modal + header icons should be NativeWind classes).
+7. Minor: `profile.tsx` writes `avatarUrl: ''` (type says `string | null`); dev fixture
+   passwords ship in the JS bundle; inline-style drift in `app/(tabs)/chats.tsx` (compose
+   modal + header icons should be NativeWind classes).
 8. **Tutorial overlay chain** — deferred to post-user-testing backlog (4 of 8 prototype
    tutorials target MVP features; ~1 session if built).
+9. **(2026-06-12 readiness review) Onboarding slides 2–3 oversell** — carousel pitches
+   Cultures and Events but the Communities tab is a "Coming soon" placeholder. User chose
+   to keep the slides for now; set expectations via the runbook's copy-paste message.
 
 ## Testing Methods
 
