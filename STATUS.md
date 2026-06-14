@@ -4,21 +4,27 @@
 > `.context/memory.md`; the Phase 3 plan in `docs/plans/2026-06-11-phase3-readiness-plan.md`.
 
 ## Last Updated
-2026-06-12 (readiness review + fixes) — Full code + UX review for external testers: tsc
-clean, verify suite green (17 rules checks), complete tester journey browser-verified.
-Review fixes landed and re-verified: accurate permissions-screen privacy copy ("only your
-friends, only at spots"), returning sign-ins skip onboarding (spots-probe routing),
-onboarding spot saves surface failures with retry, duplicate friend-request guards +
-accept/reject error alerts, onboarding spots map auto-centers + find-me button.
-Billing decided: **Spark (free) for Phase 3**. Distribution runbook at
-`docs/tester-distribution.md`.
+2026-06-14 (Step 4 started — maps upgrade + EAS scaffolding) — react-native-maps bumped
+1.20.1 → **1.27.2** (pinned, `expo.install.exclude` guards it against doctor downgrades)
+and the EAS pipeline scaffolded code-side: NEW `eas.json` (dev-client/preview/production
+profiles), `expo-dev-client`/`expo-updates`/`expo-task-manager` installed, app.json
+`runtimeVersion: fingerprint` + `updates`, NEW `.npmrc` (`legacy-peer-deps=true`). tsc
+clean; expo-doctor 17/18 (lone failure = pre-existing patch drift, not this work; rnm
+correctly excluded). **The marker fix is UNCONFIRMED** — 1.27.2 is the best candidate but
+[#5877](https://github.com/react-native-maps/react-native-maps/issues/5877) is still open;
+validate on the dev build. Prior state (2026-06-12 readiness review) still holds: tester
+journey browser-verified, Spark billing, runbook at `docs/tester-distribution.md`.
 
 **Blocked ONLY on user console/terminal actions** — next session starts here:
 1. `firebase login` (terminal) → then `firebase deploy --only firestore` finishes Step 2
 2. Firebase console → Authentication → enable **Email/Password** provider
 3. `node src/dev/provisionTesters.js --count 20` → real tester accounts (finishes Step 3)
-4. Then Step 4: EAS pipeline, leading with the react-native-maps 1.27.x upgrade
-   (fixes the clipped markers; device testing moves to the dev client)
+4. **Step 4 EAS build (account-gated)**: `eas login` → `eas init` (writes
+   `extra.eas.projectId`) → `eas update:configure` (writes `updates.url`) →
+   `eas build --platform android --profile development` → **device-validate the markers on
+   1.27.2** (the actual test of Task A). Build needs `google-services.json` as an EAS file
+   secret (it's gitignored); Maps-key restriction (Open Item #2) needs the keystore SHA-1
+   from `eas credentials` after build #1.
 
 ## Where We Are — Phase 3 (Android, trusted testers)
 
@@ -50,10 +56,16 @@ distribution**, **background location IN scope** (it's the product — needs the
       spots empty states fine). Distribution runbook: `docs/tester-distribution.md`.
       REMAINING: prod provisioning run (needs the Step 2 deploy + Email/Password provider
       enabled in console).
-- [ ] Step 4 — EAS pipeline. **First item: react-native-maps 1.20.1 → 1.27.x** (closes Step 0's
-      marker box; device testing moves to the dev client from here). Then `eas init`/`eas.json`,
-      `expo-updates` + `expo-task-manager` in build #1, Maps key restriction via keystore SHA-1,
-      version in Settings.
+- [~] Step 4 — EAS pipeline. **Code-side DONE (2026-06-14)**: react-native-maps 1.20.1 →
+      **1.27.2** (pinned + `expo.install.exclude` guard); NEW `eas.json`
+      (development/preview/production); `expo-dev-client` + `expo-updates` + `expo-task-manager`
+      installed; app.json `runtimeVersion: { policy: fingerprint }` + `updates`; NEW `.npmrc`
+      (`legacy-peer-deps=true`). tsc clean, expo-doctor 17/18 (rnm excluded; lone failure is
+      pre-existing patch drift). **The marker fix is a CANDIDATE, not confirmed** ([#5877](https://github.com/react-native-maps/react-native-maps/issues/5877)
+      still open) — must be device-validated on the dev build; fallbacks noted in CHANGELOG.
+      REMAINING (account-gated): `eas login`/`eas init`/`eas update:configure`/`eas build` →
+      device-validate markers; `google-services.json` as an EAS file secret; Maps key
+      restriction via keystore SHA-1; version-in-Settings.
 - [ ] Step 5 — background location implementation + field test (needs the dev build)
 - [ ] Step 6 — field readiness (Sentry, tester runbook, success criteria, privacy one-liner, CI)
 
@@ -127,3 +139,6 @@ distribution**, **background location IN scope** (it's the product — needs the
 | `src/dev/verify{Projection,GroupPins,Rules}.js` | Device-free verification harness |
 | `firestore.rules` / `firestore.indexes.json` | Security rules (17 verified guarantees) + indexes |
 | `firebase.json` | Emulators: auth 9099, firestore **8088**, UI 4000 |
+| `eas.json` | EAS Build profiles: development (dev-client APK), preview (internal APK), production (AAB) |
+| `.npmrc` | `legacy-peer-deps=true` — encodes the React-19 install rule for EAS Build + CI |
+| `app.json` | Native config — now also `runtimeVersion: { policy: fingerprint }` + `updates` (OTA); `eas init` adds `extra.eas.projectId` |
