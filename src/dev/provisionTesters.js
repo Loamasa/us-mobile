@@ -165,8 +165,16 @@ async function main() {
       if (r.ok) {
         ({ idToken, localId: uid } = r.data);
         state = 'existing';
-      } else if (r.data?.error?.message?.includes('USER_NOT_FOUND') || r.data?.error?.message?.includes('EMAIL_NOT_FOUND')) {
-        password = null; // stale CSV row (fresh emulator) — recreate below
+      } else if (
+        r.data?.error?.message?.includes('USER_NOT_FOUND') ||
+        r.data?.error?.message?.includes('EMAIL_NOT_FOUND') ||
+        r.data?.error?.message?.includes('INVALID_LOGIN_CREDENTIALS')
+      ) {
+        // Stale CSV row → recreate below. Emulator returns USER_NOT_FOUND/EMAIL_NOT_FOUND;
+        // PRODUCTION returns the modern generic INVALID_LOGIN_CREDENTIALS (anti-enumeration)
+        // for both no-such-account and wrong-password. If the account truly exists with a
+        // different password, the signUp below returns EMAIL_EXISTS and we report that.
+        password = null;
       } else {
         results.push({ accountId, state: `❌ sign-in failed: ${r.data?.error?.message ?? r.status}` });
         continue;

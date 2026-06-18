@@ -4,27 +4,26 @@
 > `.context/memory.md`; the Phase 3 plan in `docs/plans/2026-06-11-phase3-readiness-plan.md`.
 
 ## Last Updated
-2026-06-14 (Step 4 started — maps upgrade + EAS scaffolding) — react-native-maps bumped
-1.20.1 → **1.27.2** (pinned, `expo.install.exclude` guards it against doctor downgrades)
-and the EAS pipeline scaffolded code-side: NEW `eas.json` (dev-client/preview/production
-profiles), `expo-dev-client`/`expo-updates`/`expo-task-manager` installed, app.json
-`runtimeVersion: fingerprint` + `updates`, NEW `.npmrc` (`legacy-peer-deps=true`). tsc
-clean; expo-doctor 17/18 (lone failure = pre-existing patch drift, not this work; rnm
-correctly excluded). **The marker fix is UNCONFIRMED** — 1.27.2 is the best candidate but
-[#5877](https://github.com/react-native-maps/react-native-maps/issues/5877) is still open;
-validate on the dev build. Prior state (2026-06-12 readiness review) still holds: tester
-journey browser-verified, Spark billing, runbook at `docs/tester-distribution.md`.
+2026-06-14 (Steps 2 & 3 DONE + Step 4 code-side done) — **Production is live**: `firebase
+deploy --only firestore` shipped the rules + indexes (Step 2 ✅), Email/Password provider
+enabled in the console (Step 3), and **20 tester accounts provisioned in prod**
+(`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`) — Step 3 ✅. En
+route, fixed `provisionTesters.js` to treat prod's `INVALID_LOGIN_CREDENTIALS` as
+recreate-needed (emulator returns `USER_NOT_FOUND`; prod returns the generic error), which
+had stranded tester01–03 on a first attempt. Audited (5-agent workflow): tester accounts
+are fully disjoint from the debug/dev system (dev = `@test.dev` emulator-only personas;
+testers = `@us.test` prod) — no debug routine can clobber or sign in as a tester.
+Step 4 code-side still done: react-native-maps **1.27.2** (pinned + `expo.install.exclude`),
+`eas.json`, `expo-dev-client`/`expo-updates`/`expo-task-manager`, app.json
+`runtimeVersion: fingerprint` + `updates`, `.npmrc`. **Marker fix still UNCONFIRMED**
+([#5877](https://github.com/react-native-maps/react-native-maps/issues/5877) open) — validate on the dev build.
 
-**Blocked ONLY on user console/terminal actions** — next session starts here:
-1. `firebase login` (terminal) → then `firebase deploy --only firestore` finishes Step 2
-2. Firebase console → Authentication → enable **Email/Password** provider
-3. `node src/dev/provisionTesters.js --count 20` → real tester accounts (finishes Step 3)
-4. **Step 4 EAS build (account-gated)**: `eas login` → `eas init` (writes
-   `extra.eas.projectId`) → `eas update:configure` (writes `updates.url`) →
-   `eas build --platform android --profile development` → **device-validate the markers on
-   1.27.2** (the actual test of Task A). Build needs `google-services.json` as an EAS file
-   secret (it's gitignored); Maps-key restriction (Open Item #2) needs the keystore SHA-1
-   from `eas credentials` after build #1.
+**Only remaining gate — Step 4 EAS build (account-gated)**: `eas login` (done this session) →
+`eas init` (writes `extra.eas.projectId`) → `eas update:configure` (writes `updates.url`) →
+`eas build --platform android --profile development` → **device-validate the markers on
+1.27.2** (the actual test of Task A). Build needs `google-services.json` as an EAS file
+secret (it's gitignored); Maps-key restriction (Open Item #2) needs the keystore SHA-1 from
+`eas credentials` after build #1.
 
 ## Where We Are — Phase 3 (Android, trusted testers)
 
@@ -44,18 +43,18 @@ distribution**, **background location IN scope** (it's the product — needs the
       composite (getOrCreateGroupChat needs it in prod — emulator never enforces indexes);
       `EXPO_PUBLIC_USE_EMULATORS=false` override in `src/config/firebase.ts`. Verified: tsc
       clean, full verify suite green, browser boot + map render clean.
-      **ONE ITEM OPEN: `firebase deploy --only firestore`** — run `firebase login` in a
-      terminal first, then the deploy (any session can finish this in 2 minutes).
-- [ ] Step 3 — **re-scoped: 20 fixed tester accounts** (user decision — no self-registration;
+      **DONE 2026-06-14: `firebase deploy --only firestore` shipped to prod** (rules compiled +
+      released, indexes deployed) — Step 2 complete.
+- [x] Step 3 — **re-scoped: 20 fixed tester accounts** (user decision — no self-registration;
       testers get Account ID + password, can change display name in Settings; handles fixed).
-      BUILT & browser-verified: `src/dev/provisionTesters.js` (REST-only, idempotent,
-      rules-compliant — emulator run = prod-rules proof; CSV gitignored) + `app/(auth)/signin.tsx`
-      (bare ID → `@us.test`, first-login → permissions → spots → map) + phone/OTP demoted to a
-      dev-only link + `ensureDevUser` persistence-race fix. Empty-state audit DONE (chats
-      friendless state now shows an explicit "Add Friend" CTA into the by-handle modal; map +
-      spots empty states fine). Distribution runbook: `docs/tester-distribution.md`.
-      REMAINING: prod provisioning run (needs the Step 2 deploy + Email/Password provider
-      enabled in console).
+      `src/dev/provisionTesters.js` (REST-only, idempotent, rules-compliant; CSV gitignored) +
+      `app/(auth)/signin.tsx` (bare ID → `@us.test`, first-login → permissions → spots → map) +
+      phone/OTP demoted to a dev-only link + `ensureDevUser` persistence-race fix. Empty-state
+      audit DONE. Runbook: `docs/tester-distribution.md`. **DONE 2026-06-14: Email/Password
+      enabled in console + 20 testers provisioned in prod** (`tester01`…`tester20`; creds in
+      gitignored `testers-credentials.csv`). Provisioner fixed to handle prod's
+      `INVALID_LOGIN_CREDENTIALS`. Tester namespace audited as disjoint from the dev/debug
+      account system — no debug routine can touch it.
 - [~] Step 4 — EAS pipeline. **Code-side DONE (2026-06-14)**: react-native-maps 1.20.1 →
       **1.27.2** (pinned + `expo.install.exclude` guard); NEW `eas.json`
       (development/preview/production); `expo-dev-client` + `expo-updates` + `expo-task-manager`
