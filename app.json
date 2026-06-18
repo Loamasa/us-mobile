@@ -2,11 +2,13 @@
   "expo": {
     "name": "us",
     "slug": "us-mobile",
+    "owner": "lomasas-team",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "fingerprint"
     },
     "updates": {
+      "url": "https://u.expo.dev/b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d",
       "fallbackToCacheTimeout": 0
     },
     "orientation": "portrait",
@@ -62,9 +64,23 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "us needs camera access to scan QR codes for adding friends."
+          "cameraPermission": "us needs camera access to scan QR codes for adding friends.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "microphonePermission": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d"
+      }
+    }
   }
 }

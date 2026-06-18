@@ -2,6 +2,7 @@
 
 > Current state only. Dated session history lives in `docs/CHANGELOG.md`; project gotchas in
 > `.context/memory.md`; the Phase 3 plan in `docs/plans/2026-06-11-phase3-readiness-plan.md`.
+> **Active finish plan (Steps 4–6 → multi-user test): `docs/plans/2026-06-18-phase3-finish-plan.md`.**
 
 ## Last Updated
 2026-06-14 (Steps 2 & 3 DONE + Step 4 code-side done) — **Production is live**: `firebase
@@ -18,12 +19,21 @@ Step 4 code-side still done: react-native-maps **1.27.2** (pinned + `expo.instal
 `runtimeVersion: fingerprint` + `updates`, `.npmrc`. **Marker fix still UNCONFIRMED**
 ([#5877](https://github.com/react-native-maps/react-native-maps/issues/5877) open) — validate on the dev build.
 
-**Only remaining gate — Step 4 EAS build (account-gated)**: `eas login` (done this session) →
-`eas init` (writes `extra.eas.projectId`) → `eas update:configure` (writes `updates.url`) →
-`eas build --platform android --profile development` → **device-validate the markers on
-1.27.2** (the actual test of Task A). Build needs `google-services.json` as an EAS file
-secret (it's gitignored); Maps-key restriction (Open Item #2) needs the keystore SHA-1 from
-`eas credentials` after build #1.
+**EAS project linked (2026-06-14)**: `eas login` ✅ (as lomasa) + `eas init` ✅ → project
+**`@lomasas-team/us-mobile`** (id `b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d`); app.json now has
+`owner`, `extra.eas.projectId`, and `updates.url`. **Android permissions hardened**: `eas
+init`'s config sync had injected duplicate `android.permission.*` entries + `RECORD_AUDIO`
+(microphone); removed the dups and disabled the mic at BOTH contributing plugins —
+expo-camera (`recordAudioAndroid:false`) and expo-image-picker (`microphonePermission:false`,
+which also manifest-blocks RECORD_AUDIO). Verified via `expo config --type introspect`:
+resolved perms = FINE/COARSE/BACKGROUND_LOCATION + CAMERA, no RECORD_AUDIO. (No
+`google-services.json` needed — app uses the Firebase JS SDK, not @react-native-firebase.)
+
+**Only remaining gate — the build itself (account-gated)**: `eas build --platform android
+--profile development` (~15 min on EAS servers, uses build quota) → side-load the dev-client
+APK on the Pixel 7 → **device-validate the markers on 1.27.2** (the actual test of Task A).
+Maps-key restriction (Open Item #2) needs the keystore SHA-1 from `eas credentials` after
+build #1.
 
 ## Where We Are — Phase 3 (Android, trusted testers)
 
