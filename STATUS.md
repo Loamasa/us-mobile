@@ -5,18 +5,24 @@
 > **Active finish plan (Steps 4–6 → multi-user test): `docs/plans/2026-06-18-phase3-finish-plan.md`.**
 
 ## Last Updated
-2026-06-14 (Steps 2 & 3 DONE + Step 4 code-side done) — **Production is live**: `firebase
-deploy --only firestore` shipped the rules + indexes (Step 2 ✅), Email/Password provider
-enabled in the console (Step 3), and **20 tester accounts provisioned in prod**
-(`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`) — Step 3 ✅. En
-route, fixed `provisionTesters.js` to treat prod's `INVALID_LOGIN_CREDENTIALS` as
-recreate-needed (emulator returns `USER_NOT_FOUND`; prod returns the generic error), which
-had stranded tester01–03 on a first attempt. Audited (5-agent workflow): tester accounts
-are fully disjoint from the debug/dev system (dev = `@test.dev` emulator-only personas;
-testers = `@us.test` prod) — no debug routine can clobber or sign in as a tester.
-Step 4 code-side still done: react-native-maps **1.27.2** (pinned + `expo.install.exclude`),
-`eas.json`, `expo-dev-client`/`expo-updates`/`expo-task-manager`, app.json
-`runtimeVersion: fingerprint` + `updates`, `.npmrc`. **Marker fix still UNCONFIRMED**
+2026-07-03 — **Spot-aware presence shipped in chat surfaces** (prototype parity, user
+request): chat list rows + chat headers now show "🛹 At Hangout" / "With Bob" / "2 together"
+via the new `src/features/presence/presence.ts` (cluster > spot hierarchy; ONE friend-wide
+cluster universe shared by map, list, and header — sorted anchors, incl. `useMapProjection`);
+DM View-Map pill aims at the peer's cluster centroid; ClusterCard titles name the shared
+spot. Adversarially reviewed (3-lens workflow; universe-mismatch + same-named-spot false
+positives fixed), tsc + `npm run verify` green, browser-verified. Details in CHANGELOG.
+A **full MVP review workflow also ran** (settings audit, chat-info audit, gap matrix, arch
+review, feature + compliance research) — headline: **auth persistence is memory-only on
+native (testers sign out on every app kill; fix before distributing builds)**, background
+location is declared in app.json but not implemented, no crash reporting, stock Expo icon.
+
+Prior state (2026-06-14, Steps 2 & 3 DONE + Step 4 code-side): **Production is live** —
+rules + indexes deployed, Email/Password enabled, **20 tester accounts provisioned in prod**
+(`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`). Tester namespace
+audited as disjoint from dev/debug. react-native-maps **1.27.2** (pinned +
+`expo.install.exclude`), `eas.json`, `expo-dev-client`/`expo-updates`/`expo-task-manager`,
+app.json `runtimeVersion: fingerprint` + `updates`, `.npmrc`. **Marker fix still UNCONFIRMED**
 ([#5877](https://github.com/react-native-maps/react-native-maps/issues/5877) open) — validate on the dev build.
 
 **EAS project linked (2026-06-14)**: `eas login` ✅ (as lomasa) + `eas init` ✅ → project
@@ -138,6 +144,7 @@ distribution**, **background location IN scope** (it's the product — needs the
 | `src/lib/firestore.ts` | All Firestore helpers (every `onSnapshot` has an error callback) |
 | `src/config/firebase.ts` | Firebase config + emulator connection (`getEmulatorHost()` + web proxy helpers) |
 | `src/features/map/groupPins.ts` | `buildGroupPins` — named-group pin reconciliation (proximity wins) |
+| `src/features/presence/presence.ts` | Chat-surface presence: cluster peers (sorted anchors, friend-wide universe) + group cluster>spot>visible hierarchy |
 | `src/features/broadcasts/…` | Broadcast/Gathering feature (useBroadcasts, marker, card, composer) |
 | `src/features/spots/spotSchedule.ts` | Spot schedule logic (single source of truth; mirrored in `runSeed.js`) |
 | `src/features/spots/searchPlace.ts` | Forward geocoding (native: expo-location; web: Nominatim) for the spots editor |

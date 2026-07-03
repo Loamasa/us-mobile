@@ -203,9 +203,19 @@ export default function ClusterCard({
 }
 
 function deriveClusterTitle(entity: MapEntity): string {
-  // If every friend is inside the same spot snapshot, use "{Owner}'s {Spot}".
-  // Otherwise fall back to a generic label.
+  // Every member inside a same-named spot → name the place. Spot snapshots
+  // are always the owner's OWN spot (ids never match across users), so
+  // name+emoji equality is the strongest "same place" signal available.
   const first = entity.friends[0];
   if (!first) return 'Friends Nearby';
+  const spot = first.spot;
+  if (
+    spot &&
+    entity.friends.every(
+      (f) => f.spot?.name === spot.name && f.spot?.emoji === spot.emoji
+    )
+  ) {
+    return `${spot.emoji} At ${spot.name}`;
+  }
   return `${entity.friends.length} Friends Nearby`;
 }

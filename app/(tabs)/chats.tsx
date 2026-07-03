@@ -33,7 +33,17 @@ import {
   getOrCreateDmChat,
   getOrCreateGroupChat,
 } from '@/lib/firestore';
-import type { ChatSummary, Friend, FriendRequest, UserProfile } from '@/types';
+import type {
+  ChatSummary,
+  Friend,
+  FriendRequest,
+  LocationPresence,
+  UserProfile,
+} from '@/types';
+import {
+  computeClusterPeers,
+  deriveGroupPresence,
+} from '@/features/presence/presence';
 import GlassCard from '@/components/ui/GlassCard';
 import UserAvatar from '@/components/UserAvatar';
 import {
@@ -53,6 +63,8 @@ type ChatRow = {
   timestampLabel: string;
   peerId?: string;
   peerVisible?: boolean;
+  // Spot/cluster presence pill (prototype hierarchy: cluster > spot).
+  presence?: { kind: 'cluster' | 'spot'; label: string; emoji?: string };
 };
 
 function formatTimestamp(t: Timestamp | null | undefined): string {
@@ -84,7 +96,11 @@ export default function ChatsScreen() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
-  const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+  // Full location docs (not just visibility) — rows derive spot/cluster
+  // presence from the payload. Keyed by userId; absent = not on the map.
+  const [presenceMap, setPresenceMap] = useState<
+    Record<string, LocationPresence>
+  >({});
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -192,30 +208,58 @@ export default function ChatsScreen() {
 
   useEffect(() => {
     if (!presenceIdKey) {
-      setVisibleIds(new Set());
+      setPresenceMap({});
       return;
     }
     const ids = presenceIdKey.split('|');
+    // Prune ids that left the subscription set — no null callback fires
+    // after unsubscribe, so an unfriended user's entry would linger.
+    const keep = new Set(ids);
+    setPresenceMap((prev) => {
+      const stale = Object.keys(prev).filter((id) => !keep.has(id));
+      if (stale.length === 0) return prev;
+      const next = { ...prev };
+      stale.forEach((id) => delete next[id]);
+      return next;
+    });
     const unsubs = ids.map((id) =>
       onLocation(id, (loc) => {
-        setVisibleIds((prev) => {
-          const has = prev.has(id);
-          if (loc && !has) {
-            const next = new Set(prev);
-            next.add(id);
-            return next;
+        setPresenceMap((prev) => {
+          if (loc) {
+            // Skip metadata-only rewrites (the 60s republish tick) — a fresh
+            // object identity here re-renders every row for nothing.
+            const cur = prev[id];
+            if (
+              cur &&
+              cur.lat === loc.lat &&
+              cur.lng === loc.lng &&
+              cur.spot?.name === loc.spot?.name &&
+              cur.spot?.emoji === loc.spot?.emoji
+            ) {
+              return prev;
+            }
+            return { ...prev, [id]: loc };
           }
-          if (!loc && has) {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          }
-          return prev;
+          if (!(id in prev)) return prev;
+          const next = { ...prev };
+          delete next[id];
+          return next;
         });
       })
     );
     return () => unsubs.forEach((u) => u());
   }, [presenceIdKey]);
+
+  const visibleIds = useMemo(
+    () => new Set(Object.keys(presenceMap)),
+    [presenceMap]
+  );
+
+  // Proximity clusters among everyone we can see (same math as the map).
+  const clusterPeers = useMemo(
+    () => computeClusterPeers(presenceMap),
+    [presenceMap]
+  );
 
   // Build view model — resolve DM titles/avatars from peer profile.
   const chatRows: ChatRow[] = useMemo(() => {
@@ -224,6 +268,26 @@ export default function ChatsScreen() {
       if (chat.type === 'DM') {
         const peerId = chat.memberIds.find((id) => id !== userId);
         const peer = peerId ? profiles[peerId] : undefined;
+
+        // Presence pill: clustered with friends beats being at a spot.
+        let presence: ChatRow['presence'];
+        const peers = peerId ? (clusterPeers[peerId] ?? []) : [];
+        if (peers.length > 0) {
+          // `||` not `??` — an empty displayName would render "With ".
+          const first =
+            profiles[peers[0]]?.displayName?.split(' ')[0] || 'a friend';
+          presence = {
+            kind: 'cluster',
+            label:
+              peers.length === 1 ? `With ${first}` : `With ${first} +${peers.length - 1}`,
+          };
+        } else {
+          const spot = peerId ? presenceMap[peerId]?.spot : undefined;
+          if (spot) {
+            presence = { kind: 'spot', label: `At ${spot.name}`, emoji: spot.emoji };
+          }
+        }
+
         return {
           chat,
           title: peer?.displayName ?? 'Unknown',
@@ -231,8 +295,24 @@ export default function ChatsScreen() {
           timestampLabel: formatTimestamp(chat.lastMessageAt ?? chat.createdAt),
           peerId,
           peerVisible: peerId ? visibleIds.has(peerId) : false,
+          presence,
         };
       }
+
+      // GROUP: dominant status across the other members (2+ required).
+      let presence: ChatRow['presence'];
+      const others = chat.memberIds.filter((id) => id !== userId);
+      const group = deriveGroupPresence(others, presenceMap, clusterPeers);
+      if (group.kind === 'CLUSTER') {
+        presence = { kind: 'cluster', label: `${group.count} together` };
+      } else if (group.kind === 'SPOT' && group.spot) {
+        presence = {
+          kind: 'spot',
+          label: `${group.count} at ${group.spot.name}`,
+          emoji: group.spot.emoji,
+        };
+      }
+
       const memberCount = chat.memberIds.length;
       return {
         chat,
@@ -241,9 +321,10 @@ export default function ChatsScreen() {
           chat.lastMessage ??
           `${memberCount} member${memberCount === 1 ? '' : 's'}`,
         timestampLabel: formatTimestamp(chat.lastMessageAt ?? chat.createdAt),
+        presence,
       };
     });
-  }, [chats, profiles, visibleIds, userId]);
+  }, [chats, profiles, visibleIds, presenceMap, clusterPeers, userId]);
 
   const filteredChats: ChatRow[] = searchQuery.trim()
     ? chatRows.filter((row) => {
@@ -584,6 +665,47 @@ export default function ChatsScreen() {
                           }}
                         >
                           GROUP
+                        </Text>
+                      </View>
+                    )}
+                    {item.presence && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 3,
+                          backgroundColor:
+                            item.presence.kind === 'cluster'
+                              ? 'rgba(46,92,255,0.15)'
+                              : 'rgba(255,255,255,0.08)',
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                          marginRight: 6,
+                          // Long spot names must truncate, not crush the
+                          // last-message preview (default flexShrink is 0).
+                          flexShrink: 1,
+                          maxWidth: '55%',
+                        }}
+                      >
+                        {item.presence.emoji ? (
+                          <Text style={{ fontSize: 9 }}>
+                            {item.presence.emoji}
+                          </Text>
+                        ) : null}
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            color:
+                              item.presence.kind === 'cluster'
+                                ? COLORS.signal
+                                : COLORS.fog,
+                            fontSize: 9,
+                            fontWeight: '800',
+                            letterSpacing: 0.5,
+                          }}
+                        >
+                          {item.presence.label}
                         </Text>
                       </View>
                     )}

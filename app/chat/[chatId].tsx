@@ -20,8 +20,14 @@ import {
   sendMessage,
 } from '@/lib/firestore';
 import UserAvatar from '@/components/UserAvatar';
-import { COLORS, MAP_DEFAULTS } from '@/config/constants';
-import { haversineDistance, calculateCentroid } from '@/utils/distance';
+import { useFriendLocations } from '@/features/map/useFriendLocations';
+import {
+  computeClusterPeers,
+  deriveGroupPresence,
+  largestMemberKnot,
+} from '@/features/presence/presence';
+import { COLORS } from '@/config/constants';
+import { calculateCentroid } from '@/utils/distance';
 import { MapPinIcon, UsersIcon } from '@/components/ui/icons';
 import type { ChatSummary, LocationPresence, Message, UserProfile } from '@/types';
 
@@ -36,10 +42,6 @@ export default function ChatDetailScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<Record<string, UserProfile>>({});
   const [peerLocation, setPeerLocation] = useState<LocationPresence | null>(null);
-  // GROUP chats: live locations of the other members (for the map pill).
-  const [memberPresence, setMemberPresence] = useState<
-    Record<string, LocationPresence>
-  >({});
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -92,32 +94,32 @@ export default function ChatDetailScreen() {
     return onLocation(peerId, setPeerLocation);
   }, [peerId]);
 
-  // For GROUP chats, subscribe to the other members' locations so the header
-  // can offer "View Map" when the crew is on it. Stable string key — array
-  // deps would re-subscribe on every snapshot (see chats.tsx gotcha).
-  const groupPresenceKey = useMemo(() => {
-    if (!chat || chat.type !== 'GROUP' || !userId) return '';
-    return chat.memberIds
-      .filter((id) => id !== userId)
-      .sort()
-      .join('|');
-  }, [chat, userId]);
+  // All friends' locations — the SAME cluster universe as the map and the
+  // chats tab, so "together" here always matches a rendered map cluster.
+  // Covers group members too: only members who friended the viewer are
+  // readable under the rules anyway. The SDK multiplexes same-doc listeners,
+  // so overlap with peerLocation costs nothing extra.
+  const { friendLocations } = useFriendLocations();
+  const friendPresence = useMemo(() => {
+    const record: Record<string, LocationPresence> = {};
+    for (const [id, data] of Object.entries(friendLocations)) {
+      record[id] = data.location;
+    }
+    return record;
+  }, [friendLocations]);
+  const friendClusterPeers = useMemo(
+    () => computeClusterPeers(friendPresence),
+    [friendPresence]
+  );
+  const peerClusterIds = useMemo(
+    () => (peerId ? (friendClusterPeers[peerId] ?? []) : []),
+    [friendClusterPeers, peerId]
+  );
 
-  useEffect(() => {
-    setMemberPresence({});
-    if (!groupPresenceKey) return;
-    const unsubs = groupPresenceKey.split('|').map((id) =>
-      onLocation(id, (loc) => {
-        setMemberPresence((prev) => {
-          const next = { ...prev };
-          if (loc) next[id] = loc;
-          else delete next[id];
-          return next;
-        });
-      })
-    );
-    return () => unsubs.forEach((u) => u());
-  }, [groupPresenceKey]);
+  const otherMemberIds = useMemo(() => {
+    if (!chat || chat.type !== 'GROUP' || !userId) return [];
+    return chat.memberIds.filter((id) => id !== userId);
+  }, [chat, userId]);
 
   // Where this chat lives on the map right now, if anywhere.
   // DM: the peer's live position. GROUP: a live proximity cluster of members
@@ -128,21 +130,34 @@ export default function ChatDetailScreen() {
   >(() => {
     if (!chat) return null;
     if (chat.type === 'DM') {
-      return peerLocation
-        ? { lat: peerLocation.lat, lng: peerLocation.lng, live: true }
-        : null;
-    }
-    const located = Object.values(memberPresence);
-    for (const anchor of located) {
-      const near = located.filter(
-        (l) =>
-          haversineDistance(anchor.lat, anchor.lng, l.lat, l.lng) <=
-          MAP_DEFAULTS.clusterRadiusMeters
-      );
-      if (near.length >= 2) {
-        const c = calculateCentroid(near.map((l) => ({ lat: l.lat, lng: l.lng })));
+      if (!peerLocation) return null;
+      // Peer clustered with other friends → aim at the knot, not the person.
+      const peers = peerClusterIds
+        .map((id) => friendPresence[id])
+        .filter(Boolean);
+      if (peers.length > 0) {
+        const c = calculateCentroid(
+          [peerLocation, ...peers].map((l) => ({ lat: l.lat, lng: l.lng }))
+        );
         return { lat: c.lat, lng: c.lng, live: true };
       }
+      return { lat: peerLocation.lat, lng: peerLocation.lng, live: true };
+    }
+    // Live proximity knot of members (friend universe — same clustering as
+    // the map and the header copy). Aim at its centroid.
+    const knot = largestMemberKnot(
+      otherMemberIds,
+      friendPresence,
+      friendClusterPeers
+    );
+    if (knot.length >= 2) {
+      const c = calculateCentroid(
+        knot.map((id) => ({
+          lat: friendPresence[id].lat,
+          lng: friendPresence[id].lng,
+        }))
+      );
+      return { lat: c.lat, lng: c.lng, live: true };
     }
     if (chat.mapVisibility === 'ALWAYS' && chat.name && chat.fixedLocation) {
       return {
@@ -152,7 +167,14 @@ export default function ChatDetailScreen() {
       };
     }
     return null;
-  }, [chat, memberPresence, peerLocation]);
+  }, [
+    chat,
+    otherMemberIds,
+    peerLocation,
+    peerClusterIds,
+    friendPresence,
+    friendClusterPeers,
+  ]);
 
   const handleViewOnMap = useCallback(() => {
     if (!mapTarget) return;
@@ -176,9 +198,45 @@ export default function ChatDetailScreen() {
 
   const headerSubtitle = useMemo(() => {
     if (!chat) return '';
-    if (chat.type === 'GROUP') return `${chat.memberIds.length} members`;
+    if (chat.type === 'GROUP') {
+      const base = `${chat.memberIds.length} members`;
+      const group = deriveGroupPresence(
+        otherMemberIds,
+        friendPresence,
+        friendClusterPeers
+      );
+      if (group.kind === 'CLUSTER') return `${base} · ${group.count} together now`;
+      if (group.kind === 'SPOT' && group.spot) {
+        return `${base} · ${group.count} at ${group.spot.emoji} ${group.spot.name}`;
+      }
+      if (group.kind === 'VISIBLE') {
+        return `${base} · ${group.count} on the map`;
+      }
+      return base;
+    }
+    // DM hierarchy: with-friends cluster > at-spot > online/offline.
+    if (peerClusterIds.length > 0) {
+      // `||` not `??` — an empty displayName would otherwise render "With ".
+      const first =
+        friendLocations[peerClusterIds[0]]?.profile.displayName.split(' ')[0] ||
+        'a friend';
+      return peerClusterIds.length === 1
+        ? `With ${first}`
+        : `With ${first} +${peerClusterIds.length - 1}`;
+    }
+    if (peerLocation?.spot) {
+      return `${peerLocation.spot.emoji} At ${peerLocation.spot.name}`;
+    }
     return peerLocation ? 'Online' : 'Offline';
-  }, [chat, peerLocation]);
+  }, [
+    chat,
+    otherMemberIds,
+    friendPresence,
+    friendClusterPeers,
+    peerClusterIds,
+    friendLocations,
+    peerLocation,
+  ]);
 
   const handleSend = useCallback(async () => {
     if (!chatId || !userId) return;

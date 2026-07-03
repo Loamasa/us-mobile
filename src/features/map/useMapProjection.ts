@@ -22,7 +22,12 @@ export function useMapProjection(
   return useMemo(() => {
     const entities: MapEntity[] = [];
     const processed = new Set<string>();
-    const entries = Object.entries(friendLocations);
+    // Sorted ids keep anchor selection deterministic — chat surfaces
+    // (src/features/presence/presence.ts) sort the same way so "together"
+    // there always matches a rendered cluster here.
+    const entries = Object.entries(friendLocations).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0
+    );
 
     if (entries.length === 0) return entities;
 
