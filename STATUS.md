@@ -5,17 +5,27 @@
 > **Active finish plan (Steps 4–6 → multi-user test): `docs/plans/2026-06-18-phase3-finish-plan.md`.**
 
 ## Last Updated
-2026-07-03 — **Spot-aware presence shipped in chat surfaces** (prototype parity, user
-request): chat list rows + chat headers now show "🛹 At Hangout" / "With Bob" / "2 together"
-via the new `src/features/presence/presence.ts` (cluster > spot hierarchy; ONE friend-wide
-cluster universe shared by map, list, and header — sorted anchors, incl. `useMapProjection`);
-DM View-Map pill aims at the peer's cluster centroid; ClusterCard titles name the shared
-spot. Adversarially reviewed (3-lens workflow; universe-mismatch + same-named-spot false
-positives fixed), tsc + `npm run verify` green, browser-verified. Details in CHANGELOG.
-A **full MVP review workflow also ran** (settings audit, chat-info audit, gap matrix, arch
-review, feature + compliance research) — headline: **auth persistence is memory-only on
-native (testers sign out on every app kill; fix before distributing builds)**, background
-location is declared in app.json but not implemented, no crash reporting, stock Expo icon.
+2026-07-04 — **Wave 1 (tester-readiness) SHIPPED**: auth persistence fixed
+(AsyncStorage `initializeAuth` — was memory-only, would sign testers out on every app
+kill; device-confirm on the EAS build), chat info sheet (member list, member/peer
+profiles, **Leave Group**, **Remove Friend**, Message), message timestamps + day
+separators, placebo toggles fixed (`allowFriendRequests` enforced client-side; dead
+online-status row removed), presence honesty (`isLocationFresh` — frozen docs never read
+as "At Home"; FriendCard shows LIVE NOW / LAST SEEN), Settings Help group (Report a Bug
+mailto + in-app Privacy Notice) + version footer, Sentry scaffolding (DSN-gated) + root
+ErrorBoundary, GDPR notice (in-app + `docs/privacy-notice.md`, DRAFT) + `locations.expireAt`
+TTL field, camera/QR deps + CAMERA permission removed, real app icon/splash. Adversarially
+reviewed (3-lens workflow) — all confirmed findings fixed. tsc clean; verify suite green
+(**21 rules checks** incl. 4 new for the leave rule); extensive live browser pass.
+**NEW USER ACTIONS (before/with the EAS build):**
+1. `firebase deploy --only firestore:rules` — the group-leave rule is emulator-only until
+   deployed; Leave Group FAILS in prod without it.
+2. Enable the Firestore TTL policy on `locations.expireAt` (console/gcloud) — the privacy
+   notice's 24h-expiry line depends on it.
+3. Create a Sentry project → set `EXPO_PUBLIC_SENTRY_DSN` (+ `SENTRY_ORG`/`SENTRY_PROJECT`/
+   `SENTRY_AUTH_TOKEN` for sourcemaps) as EAS env vars.
+4. Review `docs/privacy-notice.md` (legal draft) + confirm `SUPPORT_EMAIL` in
+   `src/config/constants.ts` (set to pal.schakonat@gmail.com).
 
 Prior state (2026-06-14, Steps 2 & 3 DONE + Step 4 code-side): **Production is live** —
 rules + indexes deployed, Email/Password enabled, **20 tester accounts provisioned in prod**
@@ -92,10 +102,13 @@ distribution**, **background location IN scope** (it's the product — needs the
    Step 4 (needs the EAS keystore).
 3. **`currentSignal` has no setter UI** (intentional, since the Gathering redesign) — badges/HUD
    still display signals; fold the concept into gatherings or re-add a setter later.
-4. **`allowFriendRequests` is client-side only** — rules accept request docs regardless of the
-   recipient's toggle. Fine for trusted testers; rules `get()` before public release.
-5. **No location-doc TTL** — cold-start cleanup handles reopen; a killed-forever app leaves the
-   doc. Freshness check or TTL policy before public release.
+4. **`allowFriendRequests` enforced client-side ONLY (since 2026-07-04)** — the add-friend
+   flow now checks the recipient's toggle, but rules still accept request docs regardless.
+   Rules `get()` before public release.
+5. **Location TTL half-done (2026-07-04)** — `locations.expireAt` (+24h) is written by app
+   + seeds, and chat surfaces treat >5-min-old docs as offline (`isLocationFresh`), but the
+   Firestore **console TTL policy is NOT enabled yet** (user action) and **map markers are
+   still stale-blind** (wave 2: grey/hide stale markers).
 6. **Expo Go two-phone testing**: both phones auto-sign-in as `dev-user` — phone B must switch
    personas (Settings → Developer → Switch Account, e.g. alice).
 7. Minor: `profile.tsx` writes `avatarUrl: ''` (type says `string | null`); dev fixture
@@ -144,7 +157,10 @@ distribution**, **background location IN scope** (it's the product — needs the
 | `src/lib/firestore.ts` | All Firestore helpers (every `onSnapshot` has an error callback) |
 | `src/config/firebase.ts` | Firebase config + emulator connection (`getEmulatorHost()` + web proxy helpers) |
 | `src/features/map/groupPins.ts` | `buildGroupPins` — named-group pin reconciliation (proximity wins) |
-| `src/features/presence/presence.ts` | Chat-surface presence: cluster peers (sorted anchors, friend-wide universe) + group cluster>spot>visible hierarchy |
+| `src/features/presence/presence.ts` | Chat-surface presence: cluster peers (sorted anchors, friend-wide universe), freshness cutoff, group cluster>spot>visible hierarchy |
+| `src/features/chat/ChatInfoSheet.tsx` | Tap-the-header sheet: group member list, member/peer profiles, Leave Group, Remove Friend, Message |
+| `src/components/ErrorBoundary.tsx` | Root crash screen (recoverable) + Sentry capture when a DSN is configured |
+| `app/settings/privacy-notice.tsx` | In-app GDPR notice (hostable copy: `docs/privacy-notice.md`) |
 | `src/features/broadcasts/…` | Broadcast/Gathering feature (useBroadcasts, marker, card, composer) |
 | `src/features/spots/spotSchedule.ts` | Spot schedule logic (single source of truth; mirrored in `runSeed.js`) |
 | `src/features/spots/searchPlace.ts` | Forward geocoding (native: expo-location; web: Nominatim) for the spots editor |

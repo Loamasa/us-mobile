@@ -1,6 +1,22 @@
 import { haversineDistance } from '@/utils/distance';
-import { MAP_DEFAULTS } from '@/config/constants';
+import { LOCATION_STALE_MS, MAP_DEFAULTS } from '@/config/constants';
 import type { LocationPresence } from '@/types';
+
+/**
+ * A location doc counts as live only while its publisher keeps rewriting it
+ * (every 60s inside a spot) — an old updatedAt means the app was killed and
+ * the doc is frozen, not that the friend is there. Pending serverTimestamps
+ * (own optimistic writes) count as fresh. Chat surfaces filter with this so
+ * "At Home" is never claimed off a frozen doc; the map's markers stay
+ * stale-blind until the marker-staleness pass (wave 2).
+ */
+export function isLocationFresh(
+  loc: LocationPresence,
+  now: number = Date.now()
+): boolean {
+  const t = loc.updatedAt?.toMillis?.();
+  return t == null || now - t <= LOCATION_STALE_MS;
+}
 
 /**
  * Chat-surface presence helpers (list rows + chat headers).

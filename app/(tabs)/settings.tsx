@@ -1,10 +1,20 @@
 import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  Linking,
+  Platform,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
+import * as Application from 'expo-application';
+import Constants from 'expo-constants';
 import { auth } from '@/config/firebase';
 import { onUserProfile, deleteLocation, onUserSpots } from '@/lib/firestore';
-import { COLORS } from '@/config/constants';
+import { COLORS, SUPPORT_EMAIL } from '@/config/constants';
 import type { UserProfile, UserSpot } from '@/types';
 import UserAvatar from '@/components/UserAvatar';
 import MySpotsModal from '@/features/spots/MySpotsModal';
@@ -17,6 +27,7 @@ import {
   TerminalIcon,
   LogOutIcon,
   ChevronRightIcon,
+  MessageSquareIcon,
 } from '@/components/ui/icons';
 
 export default function SettingsScreen() {
@@ -42,6 +53,29 @@ export default function SettingsScreen() {
       unsubSpots();
     };
   }, [userId]);
+
+  // Native version comes from the installed APK; web/Expo Go fall back to
+  // app.json. Build number ties tester reports to a specific EAS build.
+  const appVersion =
+    Application.nativeApplicationVersion ??
+    Constants.expoConfig?.version ??
+    '?';
+  const buildNumber = Application.nativeBuildVersion;
+
+  const handleReportBug = async () => {
+    const subject = encodeURIComponent(
+      `us bug report — v${appVersion}${buildNumber ? ` (${buildNumber})` : ''} ${Platform.OS}`
+    );
+    const body = encodeURIComponent(
+      `What happened:\n\nWhat I expected:\n\nSteps to reproduce:\n\n— sent from us v${appVersion}, ${Platform.OS}`
+    );
+    const url = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('No mail app', `Email your report to ${SUPPORT_EMAIL}`);
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure?', [
@@ -100,7 +134,7 @@ export default function SettingsScreen() {
         />
         <SettingRow
           label="Privacy & Safety"
-          subtitle="Location sharing, requests, status"
+          subtitle="Location sharing, friend requests"
           icon={<ShieldIcon size={18} color={COLORS.fog} />}
           onPress={() => router.push('/settings/privacy')}
         />
@@ -110,6 +144,22 @@ export default function SettingsScreen() {
           icon={<MapPinIcon size={18} color={COLORS.fog} />}
           badge={spots.length}
           onPress={() => setShowSpotsModal(true)}
+        />
+      </SettingsGroup>
+
+      {/* Help & about */}
+      <SettingsGroup title="Help">
+        <SettingRow
+          label="Report a Bug"
+          subtitle="Email the developer — version is attached"
+          icon={<MessageSquareIcon size={18} color={COLORS.fog} />}
+          onPress={handleReportBug}
+        />
+        <SettingRow
+          label="Privacy Notice"
+          subtitle="What we store and why"
+          icon={<ShieldIcon size={18} color={COLORS.fog} />}
+          onPress={() => router.push('/settings/privacy-notice')}
         />
       </SettingsGroup>
 
@@ -135,6 +185,12 @@ export default function SettingsScreen() {
           right={<View />}
         />
       </SettingsGroup>
+
+      {/* Version footer — testers quote this in bug reports */}
+      <Text className="text-fog/25 text-xs text-center mt-6">
+        us v{appVersion}
+        {buildNumber ? ` (build ${buildNumber})` : ''}
+      </Text>
 
       <MySpotsModal visible={showSpotsModal} onClose={() => setShowSpotsModal(false)} />
     </ScrollView>

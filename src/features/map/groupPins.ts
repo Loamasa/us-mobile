@@ -76,6 +76,7 @@ export function buildGroupPins(params: {
           location,
           signal: activeSignal(profile),
           isOnline: false,
+          updatedAt: null,
           spot: null,
         };
       });

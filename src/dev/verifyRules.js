@@ -20,6 +20,9 @@
  *      an invitee can accept (move themselves invitedIds → memberIds).
  *   7. SOLO gatherings (visibility FRIENDS) are additionally readable by the
  *      creator's friends — but NOT by non-friends.
+ *   8. Leaving a group (self-removal from memberIds) is allowed, but ONLY as
+ *      a pure self-removal: no other fields, no removing anyone else.
+ *   9. Unfriending deletes BOTH friend edges in one batch as either party.
  */
 
 const FIRESTORE_PROJECT = 'us-v1-ff6b3';
@@ -205,6 +208,70 @@ async function main() {
   // dev-user IS charlie's friend (seeded); bob is NOT.
   check('friend reads solo gathering (dev-user → gathering_solo_charlie)', await readDoc('broadcasts/gathering_solo_charlie', devToken), [200]);
   check('non-friend blocked from solo gathering (bob → gathering_solo_charlie)', await readDoc('broadcasts/gathering_solo_charlie', bobToken), [403]);
+
+  // ── Group leave: strict self-removal branch (chat_mollevangen = dev-user,
+  //    alice, bob). Denials first — they mutate nothing. ──
+  const membersArr = (...ids) => ({
+    arrayValue: { values: ids.map((id) => ({ stringValue: id })) },
+  });
+  const leaveAndVandalize = [
+    {
+      update: {
+        name: docName('chats/chat_mollevangen'),
+        fields: { memberIds: membersArr('dev-user', 'alice'), name: { stringValue: 'HACKED' } },
+      },
+      updateMask: { fieldPaths: ['memberIds', 'name'] },
+    },
+  ];
+  check('leave + rename in one write blocked (bob)', await commitWrites(leaveAndVandalize, bobToken), [403]);
+
+  const leaveRemovingOther = [
+    {
+      update: {
+        name: docName('chats/chat_mollevangen'),
+        fields: { memberIds: membersArr('dev-user') },
+      },
+      updateMask: { fieldPaths: ['memberIds'] },
+    },
+  ];
+  check('leave that also removes another member blocked (alice removes self+bob)', await commitWrites(leaveRemovingOther, aliceToken), [403]);
+
+  const selfLeave = [
+    {
+      update: {
+        name: docName('chats/chat_mollevangen'),
+        fields: { memberIds: membersArr('bob', 'dev-user') },
+      },
+      updateMask: { fieldPaths: ['memberIds'] },
+    },
+  ];
+  check('member leaves group (alice, pure self-removal)', await commitWrites(selfLeave, aliceToken), [200]);
+
+  // ── Unfriend: one party deletes BOTH friend edges in one batch ──
+  const unfriend = [
+    { delete: docName('users/dev-user/friends/alice') },
+    { delete: docName('users/alice/friends/dev-user') },
+  ];
+  check('unfriend batch deletes both edges (dev-user ↔ alice)', await commitWrites(unfriend, devToken), [200]);
+
+  // Restore seeded state (admin bypass) so repeated runs stay deterministic.
+  await fetch(`${DOCS.replace('/documents', '')}/documents:commit`, {
+    method: 'POST',
+    headers: ADMIN_HEADERS,
+    body: JSON.stringify({
+      writes: [
+        {
+          update: {
+            name: docName('chats/chat_mollevangen'),
+            fields: { memberIds: membersArr('dev-user', 'alice', 'bob') },
+          },
+          updateMask: { fieldPaths: ['memberIds'] },
+        },
+        { update: { name: docName('users/dev-user/friends/alice'), fields: friendFields } },
+        { update: { name: docName('users/alice/friends/dev-user'), fields: friendFields } },
+      ],
+    }),
+  });
 
   console.log(failures === 0 ? '\n✅ PASS — all rules checks green' : `\n❌ FAIL — ${failures} rule check(s) failed`);
   process.exit(failures === 0 ? 0 : 1);

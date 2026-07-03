@@ -4,8 +4,23 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text } from 'react-native';
 import { onAuthStateChanged, signInWithEmailAndPassword, type User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import * as Sentry from '@sentry/react-native';
 import { auth, db, getAuthEmulatorUrl } from '@/config/firebase';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import '../global.css';
+
+// Crash reporting for tester builds. Everything no-ops without a DSN — set
+// EXPO_PUBLIC_SENTRY_DSN as an EAS env var once the Sentry project exists
+// (docs/tester-distribution.md). Dev sessions stay local either way.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    enabled: !__DEV__,
+    // Privacy positioning: report the crash, not the person.
+    sendDefaultPii: false,
+  });
+}
 
 const DEV_EMAIL = 'dev@test.dev';
 const DEV_PASSWORD = 'test123456';
@@ -140,7 +155,7 @@ async function ensureDevUser() {
   }
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -177,11 +192,15 @@ export default function RootLayout() {
   }
 
   return (
-    <>
+    <ErrorBoundary>
       <StatusBar style="light" />
       {/* Root stack (not Slot): keeps (tabs) mounted under pushed routes like
           /chat/[chatId], so back returns to the tab you came from. */}
       <Stack screenOptions={{ headerShown: false }} />
-    </>
+    </ErrorBoundary>
   );
 }
+
+// Sentry.wrap adds touch-event breadcrumbs + native-crash context; skip the
+// wrapper entirely in DSN-less builds (it warns when uninitialized).
+export default SENTRY_DSN ? Sentry.wrap(RootLayout) : RootLayout;

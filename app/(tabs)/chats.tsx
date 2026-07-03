@@ -43,6 +43,7 @@ import type {
 import {
   computeClusterPeers,
   deriveGroupPresence,
+  isLocationFresh,
 } from '@/features/presence/presence';
 import GlassCard from '@/components/ui/GlassCard';
 import UserAvatar from '@/components/UserAvatar';
@@ -250,15 +251,27 @@ export default function ChatsScreen() {
     return () => unsubs.forEach((u) => u());
   }, [presenceIdKey]);
 
+  // Presence honesty: a frozen doc (publisher killed mid-spot) must not read
+  // as "At Home" — only fresh docs feed the pills, dots, and clusters.
+  // Recomputed per snapshot; an idle list can lag by one snapshot (accepted,
+  // same compute-at-render posture as FriendCard).
+  const freshPresence = useMemo(() => {
+    const next: Record<string, LocationPresence> = {};
+    for (const [id, loc] of Object.entries(presenceMap)) {
+      if (isLocationFresh(loc)) next[id] = loc;
+    }
+    return next;
+  }, [presenceMap]);
+
   const visibleIds = useMemo(
-    () => new Set(Object.keys(presenceMap)),
-    [presenceMap]
+    () => new Set(Object.keys(freshPresence)),
+    [freshPresence]
   );
 
   // Proximity clusters among everyone we can see (same math as the map).
   const clusterPeers = useMemo(
-    () => computeClusterPeers(presenceMap),
-    [presenceMap]
+    () => computeClusterPeers(freshPresence),
+    [freshPresence]
   );
 
   // Build view model — resolve DM titles/avatars from peer profile.
@@ -282,7 +295,7 @@ export default function ChatsScreen() {
               peers.length === 1 ? `With ${first}` : `With ${first} +${peers.length - 1}`,
           };
         } else {
-          const spot = peerId ? presenceMap[peerId]?.spot : undefined;
+          const spot = peerId ? freshPresence[peerId]?.spot : undefined;
           if (spot) {
             presence = { kind: 'spot', label: `At ${spot.name}`, emoji: spot.emoji };
           }
@@ -302,7 +315,7 @@ export default function ChatsScreen() {
       // GROUP: dominant status across the other members (2+ required).
       let presence: ChatRow['presence'];
       const others = chat.memberIds.filter((id) => id !== userId);
-      const group = deriveGroupPresence(others, presenceMap, clusterPeers);
+      const group = deriveGroupPresence(others, freshPresence, clusterPeers);
       if (group.kind === 'CLUSTER') {
         presence = { kind: 'cluster', label: `${group.count} together` };
       } else if (group.kind === 'SPOT' && group.spot) {
@@ -324,7 +337,7 @@ export default function ChatsScreen() {
         presence,
       };
     });
-  }, [chats, profiles, visibleIds, presenceMap, clusterPeers, userId]);
+  }, [chats, profiles, visibleIds, freshPresence, clusterPeers, userId]);
 
   const filteredChats: ChatRow[] = searchQuery.trim()
     ? chatRows.filter((row) => {
@@ -388,6 +401,18 @@ export default function ChatsScreen() {
       );
       if (!pending.empty) {
         setAddError(`Request to @${sanitized} already sent — waiting for them to accept.`);
+        return;
+      }
+      // Honor the recipient's "Allow Friend Requests" toggle — checked LAST
+      // so the more actionable pending-request messages win over a dead end.
+      // Client-side only for now; the rules-level get() check is on the
+      // pre-public hardening ledger (STATUS Open Item #4).
+      const targetProfile = await getDoc(doc(db, 'users', targetUserId));
+      if (
+        targetProfile.exists() &&
+        targetProfile.data().settings?.allowFriendRequests === false
+      ) {
+        setAddError(`@${sanitized} isn't accepting friend requests right now.`);
         return;
       }
       await sendFriendRequest(userId, targetUserId);

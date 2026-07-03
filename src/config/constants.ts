@@ -17,6 +17,10 @@ export const COLORS = {
 // src/dev/provisionTesters.js. .test is RFC-reserved — no mail is ever sent.
 export const TESTER_EMAIL_DOMAIN = 'us.test';
 
+// Where the in-app "Report a Bug" row and the privacy notice point. The
+// project owner's address (same account that owns the Firebase project).
+export const SUPPORT_EMAIL = 'pal.schakonat@gmail.com';
+
 // Map Defaults
 export const MAP_DEFAULTS = {
   // Malmö, Sweden (dev default)
@@ -54,6 +58,16 @@ export const SIGNAL_DURATIONS = [
 
 // Group broadcast "here now" containment radius in meters
 export const BROADCAST_RADIUS = 150;
+
+// Location docs carry expireAt = now + this, the target of a Firestore TTL
+// policy (console: TTL on locations.expireAt) — GDPR storage limitation +
+// cleanup for apps killed while inside a spot.
+export const LOCATION_TTL_MS = 24 * 60 * 60 * 1000;
+
+// A location doc older than this renders as stale ("last seen") instead of
+// live — the publisher rewrites every 60s while in a spot, so a few missed
+// beats means the app is gone, not the friend.
+export const LOCATION_STALE_MS = 5 * 60 * 1000;
 
 // Spot Emoji Presets (for onboarding)
 export const SPOT_EMOJI_PRESETS = [

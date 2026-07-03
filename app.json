@@ -26,8 +26,7 @@
       "bundleIdentifier": "com.us.mobile",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "us needs your location to show you on the map and help friends find each other.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "us uses background location to keep your position updated on the map for your friends.",
-        "NSCameraUsageDescription": "us needs camera access to scan QR codes for adding friends."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "us uses background location to keep your position updated on the map for your friends."
       }
     },
     "android": {
@@ -40,8 +39,7 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA"
+        "ACCESS_BACKGROUND_LOCATION"
       ],
       "config": {
         "googleMaps": {
@@ -55,24 +53,11 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      "@sentry/react-native/expo",
       [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "us uses your location to show you on the map for your friends."
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "us needs camera access to scan QR codes for adding friends.",
-          "microphonePermission": false,
-          "recordAudioAndroid": false
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "microphonePermission": false
         }
       ]
     ],

@@ -22,6 +22,7 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { LOCATION_TTL_MS } from '@/config/constants';
 import type {
   UserProfile,
   Friend,
@@ -175,6 +176,23 @@ export async function rejectFriendRequest(
   await updateDoc(reqRef, { status: 'REJECTED' });
 }
 
+/**
+ * Ends a friendship in both directions. Rules authorize each delete because
+ * every write touches an edge where the caller is userId or friendId (the
+ * same both-parties rule that lets acceptFriendRequest batch both inserts).
+ * Location visibility revokes automatically — the rules read gate checks
+ * exists(users/{owner}/friends/{reader}).
+ */
+export async function removeFriend(
+  userId: string,
+  friendId: string
+): Promise<void> {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'users', userId, 'friends', friendId));
+  batch.delete(doc(db, 'users', friendId, 'friends', userId));
+  await batch.commit();
+}
+
 // ─── Location ────────────────────────────────────────
 
 export function onLocation(
@@ -193,11 +211,15 @@ export function onLocation(
 
 export async function updateLocation(
   userId: string,
-  data: Omit<LocationPresence, 'userId' | 'updatedAt'>
+  data: Omit<LocationPresence, 'userId' | 'updatedAt' | 'expireAt'>
 ): Promise<void> {
   await setDoc(doc(db, 'locations', userId), {
     ...data,
     updatedAt: serverTimestamp(),
+    // Firestore TTL target: a console TTL policy on locations.expireAt makes
+    // a doc left behind by a killed-forever app self-delete (GDPR retention
+    // + no immortal frozen markers). Client clock is fine at day granularity.
+    expireAt: Timestamp.fromMillis(Date.now() + LOCATION_TTL_MS),
   });
 }
 
@@ -519,6 +541,19 @@ export async function getOrCreateGroupChat(params: {
       : {}),
   });
   return ref.id;
+}
+
+/**
+ * Leave a group chat: remove yourself from memberIds. Authorized by the
+ * rules' self-removal branch (only memberIds may change, only you may be
+ * removed). Navigate away BEFORE awaiting — losing membership kills the
+ * caller's own chat listeners.
+ */
+export async function leaveGroupChat(
+  chatId: string,
+  userId: string
+): Promise<void> {
+  await updateDoc(doc(db, 'chats', chatId), { memberIds: arrayRemove(userId) });
 }
 
 /**

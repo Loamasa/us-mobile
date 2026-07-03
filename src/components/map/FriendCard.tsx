@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { XIcon } from '@/components/ui/icons';
-import { COLORS } from '@/config/constants';
+import { COLORS, LOCATION_STALE_MS } from '@/config/constants';
 import type { MapEntity } from '@/types';
 
 interface FriendCardProps {
@@ -10,12 +10,30 @@ interface FriendCardProps {
   onMessage: (entity: MapEntity) => void;
 }
 
+// "2M AGO" / "3H AGO" / "2D AGO" for the stale-location status line.
+function formatAge(ms: number): string {
+  const min = Math.max(1, Math.round(ms / 60000));
+  if (min < 60) return `${min}M AGO`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr}H AGO`;
+  return `${Math.round(hr / 24)}D AGO`;
+}
+
 export default function FriendCard({ entity, onClose, onMessage }: FriendCardProps) {
   const friend = entity.friends[0];
   if (!friend) return null;
 
-  const statusLabel = friend.isOnline ? 'ONLINE' : 'OFFLINE';
-  const statusColor = friend.isOnline ? COLORS.mint : '#6B7280';
+  // Truthful liveness, computed when the card opens: the publisher rewrites
+  // the location doc every 60s while in a spot, so an old updatedAt means the
+  // app is gone and the marker is frozen — say so instead of "ONLINE".
+  const ageMs = friend.updatedAt ? Date.now() - friend.updatedAt.toMillis() : null;
+  const isLive = ageMs !== null ? ageMs <= LOCATION_STALE_MS : friend.isOnline;
+  const statusLabel = isLive
+    ? 'LIVE NOW'
+    : ageMs !== null
+      ? `LAST SEEN ${formatAge(ageMs)}`
+      : 'OFFLINE';
+  const statusColor = isLive ? COLORS.mint : '#6B7280';
 
   return (
     <View

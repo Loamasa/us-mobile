@@ -1,5 +1,17 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import {
+  getAuth,
+  initializeAuth,
+  connectAuthEmulator,
+  type Auth,
+} from 'firebase/auth';
+// getReactNativePersistence lives only in the react-native entry of
+// @firebase/auth. Metro resolves it via the "react-native" exports condition;
+// tsc can't (the export map's "types" condition takes precedence and the
+// public browser types don't declare it) — hence the expect-error.
+// @ts-expect-error — typed only in the react-native entry (see above)
+import { getReactNativePersistence } from '@firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
@@ -17,7 +29,28 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+
+// Native needs EXPLICIT AsyncStorage persistence: plain getAuth() on React
+// Native is memory-only in the JS SDK, signing every user out on app kill.
+// Web keeps getAuth's indexedDB default. The try/catch handles Fast Refresh
+// re-evaluating this module — initializeAuth throws on a second call.
+function createAuth(): Auth {
+  if (Platform.OS === 'web') return getAuth(app);
+  try {
+    return initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch (e) {
+    // Expected on Fast Refresh (initializeAuth throws when called twice —
+    // the existing instance KEPT its persistence). Any other cause means the
+    // fallback is memory-only and testers would sign out on app kill, so
+    // make the downgrade loud instead of silent.
+    console.warn('initializeAuth fell back to getAuth:', e);
+    return getAuth(app);
+  }
+}
+
+export const auth = createAuth();
 export const db = getFirestore(app);
 
 // ─── Emulator Connection ─────────────────────────────

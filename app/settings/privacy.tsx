@@ -77,11 +77,9 @@ export default function PrivacySettingsScreen() {
                 profile.settings.allowFriendRequests
               )}
             />
-            <SettingRow
-              label="Show Online Status"
-              subtitle="Let friends see when you're active"
-              right={renderSwitch('showOnlineStatus', profile.settings.showOnlineStatus)}
-            />
+            {/* "Show Online Status" is deliberately NOT rendered: no presence
+                system reads settings.showOnlineStatus yet — a toggle that does
+                nothing erodes tester trust. Re-add when presence ships. */}
           </SettingsGroup>
         </>
       )}

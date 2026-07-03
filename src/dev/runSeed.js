@@ -219,6 +219,9 @@ async function runSeed() {
             lat: location.lat,
             lng: location.lng,
             updatedAt: now,
+            // Mirror updateLocation's TTL field (locations self-delete under
+            // the console TTL policy; emulator ignores it — shape parity).
+            expireAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
             precision: 'EXACT',
             spot: {
               id: containingSpot.id,

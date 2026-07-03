@@ -69,6 +69,7 @@ export function useMapProjection(
             location: { lat: data.location.lat, lng: data.location.lng },
             signal: !memberSignalExpired ? memberSignal : null,
             isOnline: true,
+            updatedAt: data.location.updatedAt ?? null,
             spot: data.location.spot
               ? { name: data.location.spot.name, emoji: data.location.spot.emoji }
               : null,
@@ -114,6 +115,7 @@ export function useMapProjection(
             location: { lat: data.location.lat, lng: data.location.lng },
             signal: !isExpired ? signal : null,
             isOnline: true,
+            updatedAt: data.location.updatedAt ?? null,
             spot: data.location.spot
               ? { name: data.location.spot.name, emoji: data.location.spot.emoji }
               : null,

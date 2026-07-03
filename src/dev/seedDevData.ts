@@ -227,6 +227,8 @@ export default async function seedDevData(): Promise<void> {
             lat: location.lat,
             lng: location.lng,
             updatedAt: now,
+            // Mirror updateLocation's TTL field — shape parity with real writes.
+            expireAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
             precision: 'EXACT',
             spot: {
               id: containingSpot.id,

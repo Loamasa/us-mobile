@@ -55,6 +55,9 @@ export interface LocationPresence {
   lat: number;
   lng: number;
   updatedAt: Timestamp;
+  // Firestore TTL target (updatedAt + LOCATION_TTL_MS) — docs left behind by
+  // a killed-forever app self-delete via the console TTL policy.
+  expireAt?: Timestamp;
   precision: 'EXACT' | 'APPROXIMATE';
   // Snapshot of the active spot containing the user at the time of this write.
   // Friends render this circle on the map. Only leaks the current spot, not
@@ -113,6 +116,9 @@ export interface FriendOnMap {
   location: { lat: number; lng: number };
   signal: UserSignal | null;
   isOnline: boolean;
+  // Last location write — cards derive "live now" vs "last seen Xm ago" from
+  // it at render time. Null for synthesized entries (resting group rosters).
+  updatedAt: Timestamp | null;
   // Name + emoji of the friend's current containing spot, for the popup status line.
   spot: { name: string; emoji: string } | null;
 }
