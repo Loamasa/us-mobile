@@ -24,8 +24,10 @@ export interface UserSignal {
   emoji: string;
   text: string;
   expiresAt: Timestamp;
-  // Where the signal was broadcast from, when a GPS fix was available at the
-  // time. Nothing renders this yet — never gate broadcasting on it.
+  // ALWAYS null by design (kept for doc-shape compat): users/{uid} is
+  // readable by any authenticated user, so a GPS fix here would route the
+  // most sensitive data around the friends-only locations gate. Nothing
+  // renders it. Never populate it — and never gate broadcasting on it.
   location: GeoPoint | null;
 }
 

@@ -7,6 +7,7 @@ import {
   ScrollView,
   Modal,
   KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { auth } from '@/config/firebase';
 import { onFriends, onUserProfile, createBroadcast } from '@/lib/firestore';
@@ -33,6 +34,10 @@ export function expiryFromDuration(durationMs: number): Date {
   if (durationMs === 0) {
     const d = new Date();
     d.setHours(23, 59, 0, 0);
+    // Submitted DURING the 23:59 minute, today's 23:59 is already in the
+    // past — the write would succeed but expire instantly (silent no-op
+    // everywhere). "Tonight" then means the night now starting: roll a day.
+    if (d.getTime() <= Date.now()) d.setDate(d.getDate() + 1);
     return d;
   }
   return new Date(Date.now() + durationMs);
@@ -185,7 +190,14 @@ export default function BroadcastComposerModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    // Web never finishes the slide-close animation (sheet sticks with
+    // visible=false); Android back needs onRequestClose. Mirrors SignalModal.
+    <Modal
+      visible={visible}
+      transparent
+      animationType={Platform.OS === 'web' ? 'none' : 'slide'}
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         behavior="padding"
         style={{ flex: 1, justifyContent: 'flex-end' }}

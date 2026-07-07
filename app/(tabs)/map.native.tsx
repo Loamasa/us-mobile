@@ -17,6 +17,7 @@ import {
   setBroadcastChat,
   deleteBroadcast,
   createBroadcast,
+  clearCurrentSignal,
 } from '@/lib/firestore';
 import { haversineDistance } from '@/utils/distance';
 import { COLORS, MAP_DEFAULTS, BROADCAST_RADIUS } from '@/config/constants';
@@ -33,6 +34,7 @@ import ClusterMarker from '@/components/map/ClusterMarker';
 import ClusterCard from '@/components/map/ClusterCard';
 import FriendCard from '@/components/map/FriendCard';
 import ActiveSignalHUD from '@/features/signals/ActiveSignalHUD';
+import SignalModal from '@/features/signals/SignalModal';
 import { useBroadcasts } from '@/features/broadcasts/useBroadcasts';
 import BroadcastMarker from '@/features/broadcasts/BroadcastMarker';
 import BroadcastCard from '@/features/broadcasts/BroadcastCard';
@@ -46,6 +48,7 @@ import {
   RadioIcon,
   NavigationIcon,
   GhostIcon,
+  ZapIcon,
 } from '@/components/ui/icons';
 import type { UserSpot, UserProfile, ChatSummary, MapEntity, Broadcast } from '@/types';
 import type MapView from 'react-native-maps';
@@ -65,6 +68,7 @@ export default function MapScreen() {
   // finished draft here and the next map tap creates the broadcast there.
   // broadcastCoord is only pre-set by the long-press shortcut.
   const [composerVisible, setComposerVisible] = useState(false);
+  const [signalModalVisible, setSignalModalVisible] = useState(false);
   const [broadcastCoord, setBroadcastCoord] = useState<{ lat: number; lng: number } | null>(null);
   const [pendingDraft, setPendingDraft] = useState<BroadcastDraft | null>(null);
   const [broadcastBusy, setBroadcastBusy] = useState(false);
@@ -172,6 +176,20 @@ export default function MapScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  // Owner-side signal hygiene: once your own signal lapses, the HUD (the only
+  // manual clear) is gone, so the stale currentSignal map would sit in the
+  // auth-readable profile doc forever. Clear it ourselves; the minute tick
+  // keeps re-evaluating (and retrying a failed clear) while it persists.
+  // Paused while the setter is open — an edit may be about to replace the
+  // lapsed signal, and the clear must never race the fresh write.
+  const lapsedSignal = !!profile?.currentSignal && !activeSignal;
+  useEffect(() => {
+    if (!lapsedSignal || !userId || signalModalVisible) return;
+    clearCurrentSignal(userId).catch((e) =>
+      console.warn('auto-clear of expired signal failed:', e)
+    );
+  }, [lapsedSignal, userId, signalModalVisible, currentTime]);
+
   // Clear selected cluster if it stops existing (members moved apart, went ghost, etc.)
   useEffect(() => {
     if (selectedClusterId && !selectedCluster) setSelectedClusterId(null);
@@ -274,7 +292,11 @@ export default function MapScreen() {
   const clearSignal = async () => {
     const userId = auth.currentUser?.uid;
     if (!userId) return;
-    await updateDoc(doc(db, 'users', userId), { currentSignal: null });
+    try {
+      await clearCurrentSignal(userId);
+    } catch (err) {
+      console.error('clearCurrentSignal failed:', err);
+    }
   };
 
   const handleMessageFriend = async (entity: MapEntity) => {
@@ -668,7 +690,11 @@ export default function MapScreen() {
 
       {/* ── Active Signal HUD ── */}
       {activeSignal && (
-        <ActiveSignalHUD signal={activeSignal} onClear={clearSignal} />
+        <ActiveSignalHUD
+          signal={activeSignal}
+          onClear={clearSignal}
+          onEdit={() => setSignalModalVisible(true)}
+        />
       )}
 
       {/* ── Broadcast placement banner ── */}
@@ -717,7 +743,12 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* ── Top-right controls ── */}
+      {/* ── Top-right controls — hidden while placing a broadcast pin: with
+            three buttons the column now reaches the placement banner's row
+            (top: 150), and at zIndex 50 it would swallow taps meant for the
+            banner's dismiss ✕ on narrow screens. Placement mode is modal
+            anyway (tap map or cancel). ── */}
+      {!pendingDraft && (
       <View
         style={{
           position: 'absolute',
@@ -755,6 +786,47 @@ export default function MapScreen() {
           </BlurView>
         </TouchableOpacity>
 
+        {/* Signal button — visible even in ghost mode: signals never store
+            location (setCurrentSignal) and are profile-level, so a ghost may
+            broadcast one (group resting pins already display ghosts' signals;
+            their own marker shows it once they turn sharing back on). Opens
+            the setter; an active signal opens it prefilled for editing. */}
+        <TouchableOpacity
+            onPress={() => {
+              setSelectedClusterId(null);
+              setSelectedFriendId(null);
+              setSelectedBroadcastId(null);
+              setSignalModalVisible(true);
+            }}
+            activeOpacity={0.8}
+          >
+            <BlurView
+              tint="light"
+              intensity={20}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: activeSignal
+                  ? 'rgba(46,92,255,0.35)'
+                  : 'rgba(46,92,255,0.1)',
+                borderWidth: 1,
+                borderColor: activeSignal
+                  ? COLORS.signal
+                  : 'rgba(46,92,255,0.3)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+              }}
+            >
+              <ZapIcon
+                size={20}
+                color={COLORS.signal}
+                fill={activeSignal ? COLORS.signal : 'none'}
+              />
+            </BlurView>
+          </TouchableOpacity>
+
         {/* Broadcast button — hidden in ghost mode. Opens the "Broadcast a
             spot" menu; placement on the map comes AFTER the menu ("Place on
             map" CTA). Long-press is the location-first shortcut. */}
@@ -790,6 +862,7 @@ export default function MapScreen() {
           </TouchableOpacity>
         )}
       </View>
+      )}
 
       {/* ── My location button (hidden while a card is open; both sit above the
             floating glass tab bar at bottom: 96) ── */}
@@ -865,6 +938,13 @@ export default function MapScreen() {
           onEnd={handleEndBroadcast}
         />
       )}
+
+      {/* ── Signal setter ── */}
+      <SignalModal
+        visible={signalModalVisible}
+        activeSignal={activeSignal}
+        onClose={() => setSignalModalVisible(false)}
+      />
 
       {/* ── Broadcast Composer ("Broadcast a spot" menu) ── */}
       <BroadcastComposerModal

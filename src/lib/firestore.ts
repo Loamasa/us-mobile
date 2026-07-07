@@ -79,6 +79,34 @@ export function onUserProfile(
   );
 }
 
+// ─── Signals ─────────────────────────────────────────
+
+/**
+ * Broadcast a status signal to all friends: writes users/{uid}.currentSignal.
+ * Expiry is client-checked against expiresAt everywhere it renders (HUD,
+ * marker badges, projection) — no server TTL needed. `location` is ALWAYS
+ * null: users/{uid} is readable by any authenticated user, so a GPS fix here
+ * would route the most sensitive data around the friends-only locations gate
+ * (and outlive the location doc's TTL). Nothing renders the field.
+ */
+export async function setCurrentSignal(
+  userId: string,
+  signal: { emoji: string; text: string; expiresAt: Date }
+): Promise<void> {
+  await updateDoc(userRef(userId), {
+    currentSignal: {
+      emoji: signal.emoji,
+      text: signal.text,
+      expiresAt: Timestamp.fromDate(signal.expiresAt),
+      location: null,
+    },
+  });
+}
+
+export async function clearCurrentSignal(userId: string): Promise<void> {
+  await updateDoc(userRef(userId), { currentSignal: null });
+}
+
 // ─── Handle Uniqueness ───────────────────────────────
 
 export async function isHandleAvailable(handle: string, currentUserId?: string): Promise<boolean> {

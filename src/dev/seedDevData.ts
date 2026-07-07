@@ -194,13 +194,14 @@ export default async function seedDevData(): Promise<void> {
       createdAt: now.toISOString(),
     };
 
-    // Alice has an active signal
+    // Alice has an active signal. location stays null — signals never carry
+    // GPS (users/{uid} is auth-readable; see setCurrentSignal).
     if (profile.signal && location) {
       profileData.currentSignal = {
         emoji: profile.signal.emoji,
         text: profile.signal.text,
         expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
-        location: new GeoPoint(location.lat, location.lng),
+        location: null,
       };
     }
 

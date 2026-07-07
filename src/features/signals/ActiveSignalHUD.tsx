@@ -7,6 +7,8 @@ import type { UserSignal } from '@/types';
 interface ActiveSignalHUDProps {
     signal: UserSignal;
     onClear: () => void;
+    /** Tap the pill body to reopen the setter prefilled. */
+    onEdit?: () => void;
 }
 
 function getTimeLeft(expiresAt: { toDate: () => Date } | Date | string): string {
@@ -22,7 +24,7 @@ function getTimeLeft(expiresAt: { toDate: () => Date } | Date | string): string 
     return `${minutes}m left`;
 }
 
-export default function ActiveSignalHUD({ signal, onClear }: ActiveSignalHUDProps) {
+export default function ActiveSignalHUD({ signal, onClear, onEdit }: ActiveSignalHUDProps) {
     const [timeLeft, setTimeLeft] = useState(() => getTimeLeft(signal.expiresAt));
 
     useEffect(() => {
@@ -41,6 +43,10 @@ export default function ActiveSignalHUD({ signal, onClear }: ActiveSignalHUDProp
                 top: 112,
                 alignSelf: 'center',
                 zIndex: 40,
+                // Clamp: a 30-char signal text would otherwise widen the pill
+                // until the clear ✕ slides under the top-right button column
+                // (zIndex 50 wins the taps) on narrow screens.
+                maxWidth: '60%',
                 flexDirection: 'row',
                 alignItems: 'center',
                 backgroundColor: 'rgba(0,0,0,0.5)',
@@ -54,11 +60,24 @@ export default function ActiveSignalHUD({ signal, onClear }: ActiveSignalHUDProp
                 overflow: 'hidden',
             }}
         >
-            {/* Emoji + text + timer */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {/* Emoji + text + timer — tap to edit the signal */}
+            <TouchableOpacity
+                onPress={onEdit}
+                disabled={!onEdit}
+                activeOpacity={0.7}
+                style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexShrink: 1,
+                }}
+            >
                 <Text style={{ fontSize: 18 }}>{signal.emoji}</Text>
-                <View>
-                    <Text style={{ color: '#F2F4F6', fontSize: 12, fontWeight: '700' }}>
+                <View style={{ flexShrink: 1 }}>
+                    <Text
+                        numberOfLines={1}
+                        style={{ color: '#F2F4F6', fontSize: 12, fontWeight: '700' }}
+                    >
                         {signal.text}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 }}>
@@ -76,7 +95,7 @@ export default function ActiveSignalHUD({ signal, onClear }: ActiveSignalHUDProp
                         </Text>
                     </View>
                 </View>
-            </View>
+            </TouchableOpacity>
 
             {/* Clear button */}
             <TouchableOpacity

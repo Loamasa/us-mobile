@@ -189,12 +189,14 @@ async function runSeed() {
       createdAt: now.toISOString(),
     };
 
+    // location stays null — signals never carry GPS (users/{uid} is
+    // auth-readable; mirrors setCurrentSignal).
     if (profile.signal && location) {
       profileData.currentSignal = {
         emoji: profile.signal.emoji,
         text: profile.signal.text,
         expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
-        location: { lat: location.lat, lng: location.lng },
+        location: null,
       };
     }
 

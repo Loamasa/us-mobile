@@ -36,6 +36,11 @@
 > `createdBy+visibility` query fan-out (`onFriendSoloBroadcasts`); the card has a read-only
 > PEEK mode ("Charlie is/isn't here right now"). verifyRules: 17 checks. The personal signal
 > (`currentSignal`) no longer has a setter UI — display paths still work; fold into a later pass.
+>
+> v2.1 (2026-07-07, Wave 2): **that later pass shipped — the dedicated signal setter is back**:
+> ⚡ map button + `src/features/signals/SignalModal.tsx` (presets / custom text / duration,
+> keep-current-expiry editing via a tap on the HUD, all-friends audience, allowed in ghost
+> mode, `location` always null by privacy design). Gatherings unchanged; the two coexist.
 
 **One-liner:** Upgrade the personal signal broadcast into a placeable, invite-based map event: pin a broadcast anywhere on the map, invite friends, invitees accept to join, the group sees who's in — and it can spawn a group chat, exactly like clusters do.
 
