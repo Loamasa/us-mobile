@@ -104,6 +104,10 @@ export interface MapEntity {
   location: { lat: number; lng: number };
   friends: FriendOnMap[];
   signal?: { emoji: string; text: string };
+  // FRIEND whose location doc froze (publisher gone > LOCATION_STALE_MS).
+  // Stale friends never cluster — they render as individual dimmed markers
+  // at their last position. CLUSTER entities are always fresh.
+  stale?: boolean;
   // Set when a named group chat (mapVisibility = 'ALWAYS') matches this cluster.
   // `fixed` = the cluster was synthesized at the chat's fixedLocation because its
   // members are NOT physically clustered right now (resting "home base" pin),

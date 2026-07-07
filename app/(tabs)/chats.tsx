@@ -227,15 +227,19 @@ export default function ChatsScreen() {
       onLocation(id, (loc) => {
         setPresenceMap((prev) => {
           if (loc) {
-            // Skip metadata-only rewrites (the 60s republish tick) — a fresh
-            // object identity here re-renders every row for nothing.
+            // Dedup only TRUE no-op snapshots. updatedAt MUST be part of the
+            // comparison: the heartbeat rewrite is what keeps a stationary
+            // friend fresh — retaining the old object would let its
+            // updatedAt age past the staleness cutoff and read a live
+            // friend as offline once the freshness tick re-filters.
             const cur = prev[id];
             if (
               cur &&
               cur.lat === loc.lat &&
               cur.lng === loc.lng &&
               cur.spot?.name === loc.spot?.name &&
-              cur.spot?.emoji === loc.spot?.emoji
+              cur.spot?.emoji === loc.spot?.emoji &&
+              cur.updatedAt?.toMillis?.() === loc.updatedAt?.toMillis?.()
             ) {
               return prev;
             }
@@ -251,17 +255,24 @@ export default function ChatsScreen() {
     return () => unsubs.forEach((u) => u());
   }, [presenceIdKey]);
 
+  // Freshness is a function of TIME, not just data: a lone frozen doc never
+  // sends another snapshot, so without a clock the memo below would keep a
+  // dead "At Home" pill alive forever. Minute cadence matches the publisher.
+  const [freshnessTick, setFreshnessTick] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setFreshnessTick(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Presence honesty: a frozen doc (publisher killed mid-spot) must not read
   // as "At Home" — only fresh docs feed the pills, dots, and clusters.
-  // Recomputed per snapshot; an idle list can lag by one snapshot (accepted,
-  // same compute-at-render posture as FriendCard).
   const freshPresence = useMemo(() => {
     const next: Record<string, LocationPresence> = {};
     for (const [id, loc] of Object.entries(presenceMap)) {
-      if (isLocationFresh(loc)) next[id] = loc;
+      if (isLocationFresh(loc, freshnessTick)) next[id] = loc;
     }
     return next;
-  }, [presenceMap]);
+  }, [presenceMap, freshnessTick]);
 
   const visibleIds = useMemo(
     () => new Set(Object.keys(freshPresence)),

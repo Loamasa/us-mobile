@@ -20,6 +20,12 @@ export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
   const friend = entity.friends[0];
   if (!friend) return null;
 
+  // Stale = the location doc froze (app killed > LOCATION_STALE_MS ago).
+  // Dim the whole marker; the root keeps its FIXED size (marker rule) and
+  // the status dot reads offline via friend.isOnline. FriendCard says
+  // "LAST SEEN Xm AGO" on tap.
+  const stale = entity.stale === true;
+
   return (
     <Marker
       coordinate={{
@@ -36,6 +42,7 @@ export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
           height: 120,
           alignItems: 'center',
           justifyContent: 'center',
+          opacity: stale ? 0.45 : 1,
         }}
       >
         {/* Signal Badge */}

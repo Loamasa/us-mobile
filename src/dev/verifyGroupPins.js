@@ -94,6 +94,9 @@ function haversineDistance(lat1, lng1, lat2, lng2) {
 }
 const CLUSTER_RADIUS_M = 100;
 
+// NOTE: this mirror deliberately omits Wave 2's fresh/stale partition — the
+// inputs are freshened above, so every doc is fresh and the partition would
+// be a no-op. Staleness itself is regression-tested in verifyProjection.js.
 function project(friendLocations) {
   const entities = [];
   const processed = new Set();
@@ -206,9 +209,23 @@ async function main() {
   const fx = mollevangen.fixedLocation;
 
   // Assemble friendLocations + member profiles exactly as the app does.
+  // Freshen updatedAt first: since Wave 2 the app's projection excludes
+  // stale docs (>5 min) from clustering, and seed timestamps freeze at seed
+  // time — without the heartbeat mirror, Case A would dissolve minutes
+  // after seeding. Staleness itself is regression-tested in verifyProjection.
   const friendLocations = {};
   const memberProfiles = {};
   for (const id of friendIds) {
+    await fetch(
+      `${BASE}/locations/${id}?updateMask.fieldPaths=updatedAt&currentDocument.exists=true`,
+      {
+        method: 'PATCH',
+        headers: { ...HEADERS, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: { updatedAt: { timestampValue: new Date().toISOString() } },
+        }),
+      }
+    );
     const [profile, location] = await Promise.all([
       getDoc(`users/${id}`),
       getDoc(`locations/${id}`),

@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "seed": "node src/dev/runSeed.js",
+    "freshen": "node src/dev/freshenLocations.js --watch",
     "verify": "node src/dev/verifyProjection.js && node src/dev/verifyGroupPins.js && node src/dev/verifyRules.js",
     "emulators": "firebase emulators:start --project demo-us-app",
     "postinstall": "npx patch-package"

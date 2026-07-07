@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { haversineDistance, calculateCentroid } from '@/utils/distance';
 import { MAP_DEFAULTS } from '@/config/constants';
+import { isLocationFresh } from '@/features/presence/presence';
 import type { MapEntity, FriendOnMap, LocationPresence, UserProfile } from '@/types';
 
 interface FriendLocationData {
@@ -13,11 +14,21 @@ interface FriendLocationData {
  * Ported from the web prototype's useMapProjection hook.
  *
  * Algorithm:
- * 1. Find clusters: group friends within CLUSTER_RADIUS of each other
- * 2. Remaining friends become individual markers
+ * 1. Partition into fresh and stale docs (isLocationFresh at `now`) — a
+ *    frozen doc means the publisher's app is gone, not that the friend is
+ *    still there, so stale friends never form or join clusters. This keeps
+ *    the map's cluster universe identical to the chat surfaces', which have
+ *    filtered stale docs since Wave 1.
+ * 2. Find clusters among the FRESH: group friends within CLUSTER_RADIUS.
+ * 3. Remaining fresh friends become individual markers; stale friends become
+ *    individual markers flagged `stale` (rendered dimmed at last position).
+ *
+ * `now` is a minute-quantized timestamp (the map screen's clock tick) so
+ * staleness flips re-project without any Firestore change.
  */
 export function useMapProjection(
-  friendLocations: Record<string, FriendLocationData>
+  friendLocations: Record<string, FriendLocationData>,
+  now: number
 ): MapEntity[] {
   return useMemo(() => {
     const entities: MapEntity[] = [];
@@ -31,15 +42,38 @@ export function useMapProjection(
 
     if (entries.length === 0) return entities;
 
-    // Step 1: Find clusters (2+ friends within radius)
-    for (let i = 0; i < entries.length; i++) {
-      const [idA, dataA] = entries[i];
+    const fresh = entries.filter(([, data]) => isLocationFresh(data.location, now));
+    const stale = entries.filter(([, data]) => !isLocationFresh(data.location, now));
+
+    const toFriendOnMap = (id: string): FriendOnMap => {
+      const data = friendLocations[id];
+      const signal = data.profile.currentSignal;
+      const isExpired = signal?.expiresAt
+        ? signal.expiresAt.toDate().getTime() < now
+        : true;
+      return {
+        userId: id,
+        displayName: data.profile.displayName,
+        avatarUrl: data.profile.avatarUrl,
+        location: { lat: data.location.lat, lng: data.location.lng },
+        signal: !isExpired ? signal : null,
+        isOnline: isLocationFresh(data.location, now),
+        updatedAt: data.location.updatedAt ?? null,
+        spot: data.location.spot
+          ? { name: data.location.spot.name, emoji: data.location.spot.emoji }
+          : null,
+      };
+    };
+
+    // Step 1: Find clusters (2+ FRESH friends within radius)
+    for (let i = 0; i < fresh.length; i++) {
+      const [idA, dataA] = fresh[i];
       if (processed.has(idA)) continue;
 
       const clusterMembers: string[] = [idA];
 
-      for (let j = i + 1; j < entries.length; j++) {
-        const [idB, dataB] = entries[j];
+      for (let j = i + 1; j < fresh.length; j++) {
+        const [idB, dataB] = fresh[j];
         if (processed.has(idB)) continue;
 
         const dist = haversineDistance(
@@ -55,27 +89,6 @@ export function useMapProjection(
       }
 
       if (clusterMembers.length >= 2) {
-        // Create cluster entity
-        const friends: FriendOnMap[] = clusterMembers.map((id) => {
-          const data = friendLocations[id];
-          const memberSignal = data.profile.currentSignal;
-          const memberSignalExpired = memberSignal?.expiresAt
-            ? memberSignal.expiresAt.toDate() < new Date()
-            : true;
-          return {
-            userId: id,
-            displayName: data.profile.displayName,
-            avatarUrl: data.profile.avatarUrl,
-            location: { lat: data.location.lat, lng: data.location.lng },
-            signal: !memberSignalExpired ? memberSignal : null,
-            isOnline: true,
-            updatedAt: data.location.updatedAt ?? null,
-            spot: data.location.spot
-              ? { name: data.location.spot.name, emoji: data.location.spot.emoji }
-              : null,
-          };
-        });
-
         const centroid = calculateCentroid(
           clusterMembers.map((id) => ({
             lat: friendLocations[id].location.lat,
@@ -87,47 +100,30 @@ export function useMapProjection(
           id: `cluster-${clusterMembers.sort().join('-')}`,
           type: 'CLUSTER',
           location: centroid,
-          friends,
+          friends: clusterMembers.map(toFriendOnMap),
         });
 
         clusterMembers.forEach((id) => processed.add(id));
       }
     }
 
-    // Step 2: Individual friends (not in any cluster)
-    for (const [userId, data] of entries) {
+    // Step 2: Individual friends — unclustered fresh, then stale (dimmed).
+    for (const [userId, data] of [...fresh, ...stale]) {
       if (processed.has(userId)) continue;
 
-      const signal = data.profile.currentSignal;
-      const isExpired = signal?.expiresAt
-        ? signal.expiresAt.toDate() < new Date()
-        : true;
-
+      const friend = toFriendOnMap(userId);
       entities.push({
         id: `friend-${userId}`,
         type: 'FRIEND',
         location: { lat: data.location.lat, lng: data.location.lng },
-        friends: [
-          {
-            userId,
-            displayName: data.profile.displayName,
-            avatarUrl: data.profile.avatarUrl,
-            location: { lat: data.location.lat, lng: data.location.lng },
-            signal: !isExpired ? signal : null,
-            isOnline: true,
-            updatedAt: data.location.updatedAt ?? null,
-            spot: data.location.spot
-              ? { name: data.location.spot.name, emoji: data.location.spot.emoji }
-              : null,
-          },
-        ],
-        signal:
-          !isExpired && signal
-            ? { emoji: signal.emoji, text: signal.text }
-            : undefined,
+        friends: [friend],
+        signal: friend.signal
+          ? { emoji: friend.signal.emoji, text: friend.signal.text }
+          : undefined,
+        ...(friend.isOnline ? {} : { stale: true }),
       });
     }
 
     return entities;
-  }, [friendLocations]);
+  }, [friendLocations, now]);
 }

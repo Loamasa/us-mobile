@@ -4,11 +4,12 @@ import type { LocationPresence } from '@/types';
 
 /**
  * A location doc counts as live only while its publisher keeps rewriting it
- * (every 60s inside a spot) — an old updatedAt means the app was killed and
- * the doc is frozen, not that the friend is there. Pending serverTimestamps
- * (own optimistic writes) count as fresh. Chat surfaces filter with this so
- * "At Home" is never claimed off a frozen doc; the map's markers stay
- * stale-blind until the marker-staleness pass (wave 2).
+ * (heartbeat while inside a spot) — an old updatedAt means the app was
+ * killed and the doc is frozen, not that the friend is there. Pending
+ * serverTimestamps (own optimistic writes) count as fresh. Chat surfaces
+ * filter with this, and since Wave 2 the map projection does too: stale
+ * friends never cluster and render as dimmed individual markers. All
+ * surfaces re-evaluate on a minute tick (freshness decays without data).
  */
 export function isLocationFresh(
   loc: LocationPresence,

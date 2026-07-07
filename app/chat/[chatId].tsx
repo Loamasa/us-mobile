@@ -134,15 +134,23 @@ export default function ChatDetailScreen() {
   // readable under the rules anyway. The SDK multiplexes same-doc listeners,
   // so overlap with peerLocation costs nothing extra.
   const { friendLocations } = useFriendLocations();
+  // Freshness decays with TIME: a lone frozen doc never snapshots again, so
+  // a minute tick re-filters (and re-renders the header's direct
+  // isLocationFresh calls) — otherwise "At Home" could outlive the friend.
+  const [freshnessTick, setFreshnessTick] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setFreshnessTick(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
   // Fresh docs only — a frozen doc (publisher killed mid-spot) must not feed
   // "With Alice" / "At Home" copy or the info sheet's presence lines.
   const friendPresence = useMemo(() => {
     const record: Record<string, LocationPresence> = {};
     for (const [id, data] of Object.entries(friendLocations)) {
-      if (isLocationFresh(data.location)) record[id] = data.location;
+      if (isLocationFresh(data.location, freshnessTick)) record[id] = data.location;
     }
     return record;
-  }, [friendLocations]);
+  }, [friendLocations, freshnessTick]);
   const friendClusterPeers = useMemo(
     () => computeClusterPeers(friendPresence),
     [friendPresence]

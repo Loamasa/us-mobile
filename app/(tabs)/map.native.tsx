@@ -108,8 +108,9 @@ export default function MapScreen() {
   // Get friend locations in real-time
   const { friendLocations } = useFriendLocations();
 
-  // Project friends into map entities (individual + clusters)
-  const rawEntities = useMapProjection(friendLocations);
+  // Project friends into map entities (individual + clusters). The minute
+  // tick re-projects so staleness flips (fresh ↔ dimmed) without new data.
+  const rawEntities = useMapProjection(friendLocations, currentTime.getTime());
 
   // Member profiles for named always-on groups — power the facepile of a resting
   // fixed-location pin, whose members may be ghost / absent from friendLocations.
