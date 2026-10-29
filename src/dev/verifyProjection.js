@@ -7,9 +7,10 @@
  *   3. locations/{id}                     (onLocation)
  * then assembles the friendLocations map exactly as useFriendLocations.commit
  * does (a friend appears only when BOTH profile AND location exist) and runs
- * the same clustering projection as src/features/map/useMapProjection.ts.
+ * the production clustering projection used by useMapProjection.
  *
  * Run AFTER `node src/dev/runSeed.js` against a running emulator:
+ *   npm run build:checks
  *   node src/dev/verifyProjection.js
  *
  * Expected output: CLUSTER(alice+bob) + FRIEND(charlie); dana/eve absent.
@@ -27,7 +28,7 @@ function fromValue(v) {
   if ('booleanValue' in v) return v.booleanValue;
   if ('integerValue' in v) return Number(v.integerValue);
   if ('doubleValue' in v) return v.doubleValue;
-  if ('timestampValue' in v) return new Date(v.timestampValue);
+  if ('timestampValue' in v) return { toDate: () => new Date(v.timestampValue) };
   if ('geoPointValue' in v)
     return { lat: v.geoPointValue.latitude, lng: v.geoPointValue.longitude };
   if ('arrayValue' in v) return (v.arrayValue.values || []).map(fromValue);
@@ -54,49 +55,8 @@ async function listIds(path) {
   return (j.documents || []).map((d) => d.name.split('/').pop());
 }
 
-// ── projection (mirrors src/features/map/useMapProjection.ts) ──
-function haversineDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-const CLUSTER_RADIUS_M = 100;
-
-function project(friendLocations) {
-  const entities = [];
-  const processed = new Set();
-  const entries = Object.entries(friendLocations);
-  for (let i = 0; i < entries.length; i++) {
-    const [idA, dataA] = entries[i];
-    if (processed.has(idA)) continue;
-    const members = [idA];
-    for (let j = i + 1; j < entries.length; j++) {
-      const [idB, dataB] = entries[j];
-      if (processed.has(idB)) continue;
-      const dist = haversineDistance(
-        dataA.location.lat,
-        dataA.location.lng,
-        dataB.location.lat,
-        dataB.location.lng
-      );
-      if (dist <= CLUSTER_RADIUS_M) members.push(idB);
-    }
-    if (members.length >= 2) {
-      entities.push({ type: 'CLUSTER', members: [...members].sort() });
-      members.forEach((id) => processed.add(id));
-    }
-  }
-  for (const [id] of entries) {
-    if (!processed.has(id)) entities.push({ type: 'FRIEND', members: [id] });
-  }
-  return entities;
-}
+// Execute the production functions compiled by npm run build:checks.
+const { projectMapEntities: project } = require('../../.expo/test-build/features/map/mapProjection.js');
 
 async function main() {
   const friendIds = await listIds('users/dev-user/friends');
@@ -118,7 +78,7 @@ async function main() {
     if (hasProfile && hasLocation) friendLocations[id] = { profile, location };
   }
 
-  const entities = project(friendLocations);
+  const entities = project(friendLocations).map((e) => ({ ...e, members: e.friends.map((f) => f.userId).sort() }));
   console.log(
     '\nprojection ->',
     entities

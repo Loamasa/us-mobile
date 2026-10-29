@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, type TextInputInstance } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
 import { auth } from '@/config/firebase';
@@ -10,7 +10,7 @@ export default function OtpScreen() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const router = useRouter();
   const { phone, devCode, sessionInfo } = useLocalSearchParams<{ phone: string; devCode?: string; sessionInfo?: string }>();
 

@@ -1,0 +1,38 @@
+name: Development checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version-file: .java-version
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx expo install --check
+      - run: npx --yes expo-doctor@latest
+      - run: npx expo export --platform android --output-dir .expo/ci-android
+      - run: npx expo export --platform web --output-dir .expo/ci-web
+      - run: npm run check:emulators
+      - name: Report dependency advisories
+        run: npm audit
+        continue-on-error: true
+      - name: Report open privacy regressions
+        run: echo '::warning::Three negative rules tests are known failing TODOs. See docs/development-setup.md; this workflow does not establish release readiness.'

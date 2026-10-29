@@ -4,17 +4,25 @@
 > `.context/memory.md`; the Phase 3 plan in `docs/plans/2026-06-11-phase3-readiness-plan.md`.
 
 ## Last Updated
+2026-10-24 — Expo SDK 58 migration on `felix/dev-setup`: React Native 0.88.0,
+React 19.3, Maps 1.29.11, development-client build profile and CI prepared.
+Clean-install audit: 8 affected package entries (5 high, 3 moderate).
+Cloud APK creation is deferred until the user logs in and links EAS; native
+marker/location behavior is not yet verified. Setup: `docs/development-setup.md`;
+audit assessment: `docs/dependency-audit.md`. Three privacy rule regressions are
+reproduced as known failing TODOs; application privacy fixes remain open.
+
+### Previous product milestone
 2026-06-12 (session wrap) — Phase 3 Steps 0–3 effectively done, all code-side work complete
 and browser-verified. Billing decided: **Spark (free) for Phase 3**. My Spots editor gained
 place search + find-yourself; chats friendless empty state fixed; distribution runbook at
 `docs/tester-distribution.md`.
 
-**Blocked ONLY on user console/terminal actions** — next session starts here:
+**Backend distribution prerequisites** (privacy findings also remain open):
 1. `firebase login` (terminal) → then `firebase deploy --only firestore` finishes Step 2
 2. Firebase console → Authentication → enable **Email/Password** provider
 3. `node src/dev/provisionTesters.js --count 20` → real tester accounts (finishes Step 3)
-4. Then Step 4: EAS pipeline, leading with the react-native-maps 1.27.x upgrade
-   (fixes the clipped markers; device testing moves to the dev client)
+4. Step 4: log in/link EAS, build the configured development APK, and verify the upgraded Maps module on a phone.
 
 ## Where We Are — Phase 3 (Android, trusted testers)
 
@@ -46,17 +54,18 @@ distribution**, **background location IN scope** (it's the product — needs the
       spots empty states fine). Distribution runbook: `docs/tester-distribution.md`.
       REMAINING: prod provisioning run (needs the Step 2 deploy + Email/Password provider
       enabled in console).
-- [ ] Step 4 — EAS pipeline. **First item: react-native-maps 1.20.1 → 1.27.x** (closes Step 0's
-      marker box; device testing moves to the dev client from here). Then `eas init`/`eas.json`,
-      `expo-updates` + `expo-task-manager` in build #1, Maps key restriction via keystore SHA-1,
-      version in Settings.
+- [ ] Step 4 — development pipeline PREPARED: Expo 58 + Maps 1.29.11, `expo-dev-client`,
+      Maps/splash config plugins and `eas.json` internal Android development profile.
+      `expo prebuild --platform android --no-install` passes. User deferred EAS login/build;
+      run `eas init` after login, create/install APK, then validate native markers/location.
+      Maps key restriction, background-task/OTA work and Settings version remain separate milestones.
 - [ ] Step 5 — background location implementation + field test (needs the dev build)
 - [ ] Step 6 — field readiness (Sentry, tester runbook, success criteria, privacy one-liner, CI)
 
 ## Open Items (non-blocking for Steps 1–3)
 
-1. **Markers clip in Expo Go** — library bug, fix scheduled Step 4 (see above). Judge marker
-   rendering by the browser shim until then, never by Expo Go.
+1. **Native Maps migration needs device validation** — 1.29.11 is installed, but a new
+   development APK must be built and tested before declaring the old clipping bug resolved.
 2. **Google Maps Android key in `app.json` is unrestricted** — restrict to package + SHA-1 in
    Step 4 (needs the EAS keystore).
 3. **`currentSignal` has no setter UI** (intentional, since the Gathering redesign) — badges/HUD
@@ -72,13 +81,23 @@ distribution**, **background location IN scope** (it's the product — needs the
    `app/(tabs)/chats.tsx` (compose modal + header icons should be NativeWind classes).
 8. **Tutorial overlay chain** — deferred to post-user-testing backlog (4 of 8 prototype
    tutorials target MVP features; ~1 session if built).
+9. **Dependency audit remains open** — 8 affected entries (5 high, 3 moderate), covering
+   three underlying advisories in Expo signing/Zod and Firebase CLI telemetry. Scoped
+   security overrides and limitations are documented in `docs/dependency-audit.md`.
+10. **Privacy regressions reproduced** — unauthorized self-granted friendship/location access,
+    chat creator rewriting and gathering creator rewriting are known failing test TODOs.
+    Those rules were not changed in the selected maintenance scope.
 
 ## Testing Methods
 
 - **Browser (Expo web) is first-class for everything INCLUDING the map**: emulators + seed +
   `npx expo start` → `http://localhost:8081`. Real map screens run via `src/dev/fakeMaps.tsx`.
   Covers data/logic/UI — NOT react-native-maps native rendering.
-- **Expo Go on the Pixel 7** for native UX — markers clip there until Step 4 (known, ignore).
+- **Development client on the Pixel 7** for native UX — APK and device validation pending.
+- `npm test` — 14 tests against the production map functions.
+- `npm run check:emulators` — disposable seeded emulator run, actual projection/group pins,
+  17 existing rule checks, Firebase SDK sign-in/read/listener and new negative rules checks.
+  Three known privacy TODO failures are visible and do not block development CI.
 - **Device-free verification harness** (run after seeding): `npm run verify` —
   `verifyProjection.js` (clustering read path) + `verifyGroupPins.js` (proximity-wins + resting
   pin) + `verifyRules.js` (17 security-rules guarantees as real users).
@@ -88,7 +107,7 @@ distribution**, **background location IN scope** (it's the product — needs the
 1. `npm run emulators` — Firebase emulators, **must be `--project demo-us-app`** (auth-user
    creation targets the emulator's default project)
 2. `npm run seed` — Node-only seed via admin REST `:commit` (5 personas, chats, broadcasts)
-3. `npx expo start --clear` — then Expo Go (scan QR) or browser at `localhost:8081`
+3. `npm run web` for browser; `npm run start:dev` for the rebuilt development client.
 4. `npm run typecheck` — must pass before committing
 5. In-app: Settings → Developer → "Seed Test Data" / account switcher
 6. **Tester accounts**: `node src/dev/provisionTesters.js --emulator --count 3` (or `--count 20`

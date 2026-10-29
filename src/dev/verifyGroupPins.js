@@ -13,6 +13,7 @@
  *            pinned at fixedLocation (55.5917, 13.0070) with roster alice+bob.
  *
  * Run AFTER `node src/dev/runSeed.js` against a running emulator:
+ *   npm run build:checks
  *   node src/dev/verifyGroupPins.js
  */
 const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
@@ -29,7 +30,7 @@ function fromValue(v) {
   if ('booleanValue' in v) return v.booleanValue;
   if ('integerValue' in v) return Number(v.integerValue);
   if ('doubleValue' in v) return v.doubleValue;
-  if ('timestampValue' in v) return new Date(v.timestampValue);
+  if ('timestampValue' in v) return { toDate: () => new Date(v.timestampValue) };
   if ('geoPointValue' in v)
     // Mirror the firestore-js GeoPoint shape buildGroupPins reads (.latitude/.longitude).
     return { latitude: v.geoPointValue.latitude, longitude: v.geoPointValue.longitude };
@@ -80,105 +81,10 @@ async function queryChats(viewerId) {
     .map((r) => ({ id: r.document.name.split('/').pop(), ...fromFields(r.document.fields) }));
 }
 
-// ── projection (mirrors src/features/map/useMapProjection.ts) ──
-function haversineDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-const CLUSTER_RADIUS_M = 100;
-
-function project(friendLocations) {
-  const entities = [];
-  const processed = new Set();
-  const entries = Object.entries(friendLocations);
-  for (let i = 0; i < entries.length; i++) {
-    const [idA, dataA] = entries[i];
-    if (processed.has(idA)) continue;
-    const members = [idA];
-    for (let j = i + 1; j < entries.length; j++) {
-      const [idB, dataB] = entries[j];
-      if (processed.has(idB)) continue;
-      const dist = haversineDistance(
-        dataA.location.lat,
-        dataA.location.lng,
-        dataB.location.lat,
-        dataB.location.lng
-      );
-      if (dist <= CLUSTER_RADIUS_M) members.push(idB);
-    }
-    if (members.length >= 2) {
-      entities.push({
-        id: `cluster-${[...members].sort().join('-')}`,
-        type: 'CLUSTER',
-        location: { lat: dataA.location.lat, lng: dataA.location.lng },
-        friends: members.map((id) => ({ userId: id })),
-      });
-      members.forEach((id) => processed.add(id));
-    }
-  }
-  for (const [id, data] of entries) {
-    if (processed.has(id)) continue;
-    entities.push({
-      id: `friend-${id}`,
-      type: 'FRIEND',
-      location: { lat: data.location.lat, lng: data.location.lng },
-      friends: [{ userId: id }],
-    });
-  }
-  return entities;
-}
-
-// ── buildGroupPins (mirrors src/features/map/groupPins.ts) ──
-function sameMembers(a, b) {
-  if (a.length !== b.length) return false;
-  const sa = [...a].sort();
-  const sb = [...b].sort();
-  return sa.every((id, i) => id === sb[i]);
-}
-function buildGroupPins({ rawEntities, chats, userId, memberProfiles }) {
-  const namedGroups = chats.filter(
-    (c) => c.type === 'GROUP' && c.mapVisibility === 'ALWAYS' && c.name != null
-  );
-  if (namedGroups.length === 0) return rawEntities;
-
-  const matched = new Set();
-  const decorated = rawEntities.map((e) => {
-    if (e.type !== 'CLUSTER') return e;
-    const clusterIds = [...e.friends.map((f) => f.userId), userId].sort();
-    const g = namedGroups.find((grp) => sameMembers(grp.memberIds, clusterIds));
-    if (!g) return e;
-    matched.add(g.id);
-    return { ...e, groupChat: { id: g.id, name: g.name } };
-  });
-
-  const synthesized = [];
-  for (const g of namedGroups) {
-    if (matched.has(g.id) || g.fixedLocation == null) continue;
-    const location = { lat: g.fixedLocation.latitude, lng: g.fixedLocation.longitude };
-    const friends = g.memberIds
-      .filter((id) => id !== userId)
-      .map((id) => ({
-        userId: id,
-        displayName: memberProfiles[id]?.displayName ?? 'Member',
-        location,
-      }));
-    synthesized.push({
-      id: `group-${g.id}`,
-      type: 'CLUSTER',
-      location,
-      friends,
-      groupChat: { id: g.id, name: g.name, fixed: true },
-    });
-  }
-  return [...decorated, ...synthesized];
-}
+// Execute the production functions compiled by npm run build:checks.
+const { projectMapEntities: project } = require('../../.expo/test-build/features/map/mapProjection.js');
+const { buildGroupPins } = require('../../.expo/test-build/features/map/groupPins.js');
+const sameMembers = (a, b) => [...a].sort().join('|') === [...b].sort().join('|');
 
 // ── helpers ──
 function describe(entities) {

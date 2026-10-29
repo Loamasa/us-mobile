@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": [],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "rootDir": "src",
+    "outDir": ".expo/test-build"
+  },
+  "include": [
+    "src/features/map/mapProjection.ts",
+    "src/features/map/groupPins.ts"
+  ]
+}

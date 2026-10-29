@@ -1,76 +1,16 @@
-# Testing Strategy
+# Testing this project
 
-## Unit Tests (Jest)
+- `npm test`: compile the actual pure map functions and run 14 Node map regressions plus three Metro proxy regressions.
+- `npm run typecheck`: compile all application TypeScript without emitting files.
+- `npm run verify`: run the real map projection/group-pin functions against seeded
+  emulator data, plus the existing 17 authorization checks. Requires running emulators.
+- `npm run verify:sdk`: real Firebase SDK sign-in/read/listener against seeded emulators.
+- `npm run test:rules`: run two passing negative authorization checks and three
+  known failing TODO regressions. Uses disposable users/documents and cleans them up.
+- `npm run check:emulators`: manage a temporary emulator instance, seed fixtures,
+  and run both verification suites. Do not use while another instance occupies the ports.
 
-```bash
-npx jest                    # run all
-npx jest --watch            # watch mode
-npx jest path/to/file       # single file
-```
-
-### Testing hooks
-
-```tsx
-import { renderHook, act } from '@testing-library/react-native';
-
-test('useSignal returns active signal', () => {
-  const { result } = renderHook(() => useSignal(mockUid));
-  expect(result.current.isActive).toBe(true);
-});
-```
-
-### Testing components
-
-```tsx
-import { render, fireEvent } from '@testing-library/react-native';
-
-test('FriendCard shows name and signal', () => {
-  const { getByText } = render(<FriendCard friend={mockFriend} onPress={jest.fn()} />);
-  expect(getByText('Alice')).toBeTruthy();
-});
-```
-
-### Mocking Firebase
-
-```tsx
-jest.mock('firebase/firestore', () => ({
-  onSnapshot: jest.fn((ref, callback) => {
-    callback({ data: () => mockData, exists: () => true });
-    return jest.fn(); // unsubscribe
-  }),
-  doc: jest.fn(),
-  collection: jest.fn(),
-}));
-```
-
-## E2E Tests (Maestro)
-
-Maestro is the simplest E2E option for Expo apps.
-
-```yaml
-# .maestro/auth-flow.yaml
-appId: com.usmobile.app
----
-- launchApp
-- tapOn: "Sign In"
-- inputText:
-    id: "email-input"
-    text: "test@example.com"
-- inputText:
-    id: "password-input"
-    text: "testpass123"
-- tapOn: "Submit"
-- assertVisible: "Map"
-```
-
-Run: `maestro test .maestro/auth-flow.yaml`
-
-## What to Test
-
-| Layer          | What                              | Tool    |
-|----------------|-----------------------------------|---------|
-| Utils/helpers  | Pure functions (haversine, etc.)  | Jest    |
-| Hooks          | State logic, subscriptions        | Jest    |
-| Components     | Render output, interactions       | Jest    |
-| Screens        | Navigation, integration           | Maestro |
-| Auth flows     | Sign up, sign in, sign out        | Maestro |
+There is no Jest dependency. Tests use Node’s built-in runner and the existing
+TypeScript compiler. Generated check JavaScript stays ignored under `.expo/test-build`.
+Browser smoke checks exercise the real screens through `src/dev/fakeMaps.tsx`.
+They cannot verify native Maps rendering, location permissions or physical device behavior.

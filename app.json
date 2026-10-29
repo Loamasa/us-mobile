@@ -7,12 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "scheme": "us",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0F1115"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.us.mobile",
@@ -27,22 +21,17 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F1115"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.us.mobile",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "CAMERA"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyDbe2K0Ttie5U24QvxUdRXi_2hFwfTDLEg"
-        }
-      }
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single"
     },
     "plugins": [
       "expo-router",
@@ -58,7 +47,22 @@
         {
           "cameraPermission": "us needs camera access to scan QR codes for adding friends."
         }
-      ]
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "backgroundColor": "#0F1115",
+          "resizeMode": "contain"
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSyDbe2K0Ttie5U24QvxUdRXi_2hFwfTDLEg"
+        }
+      ],
+      "expo-image"
     ]
   }
 }

@@ -4,6 +4,105 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-10-24 — SDK 58, dependency assessment and development checks
+
+- Upgraded incrementally through SDKs 55–58; final Expo 58.0.19, RN 0.88.0, React
+  19.3.0 and Maps 1.29.11. Preserved NativeWind 4/Tailwind 3 and browser emulator proxy/map shim.
+- Added development client/system UI/splash support and current Maps/splash plugins. Removed
+  retired app-config fields, migrated TextInput refs to instance types, declared CSS imports,
+  and let Expo configure Worklets automatically. Removed the upstream-fixed Metro patch and patch-package.
+- Fixed a reproduced Metro emulator-proxy shutdown crash (headers written twice after a
+  partial response). Added three regression cases for upstream/client disconnects.
+- Added an internal Android development APK profile and build/start scripts. EAS login was
+  absent; the user chose to defer login/cloud compilation. Native source generation passed;
+  no APK or physical-phone Maps/location result is claimed.
+- Scoped selector-parser and UUID security updates were checked with byte-identical project
+  CSS and a real local gaxios multipart request. Fresh normal npm ci and npm ls passed.
+  Audit reduced 19 → 8 affected entries (5 high, 3 moderate); three upstream advisories remain.
+  See docs/dependency-audit.md for paths, reachability limits and override rationale.
+- Extracted the existing projection unchanged into mapProjection.ts. Added 14 Node tests;
+  emulator diagnostics now import production functions instead of copied implementations.
+  Added reproducible Firebase SDK and negative authorization checks and a checks-only CI workflow.
+- Existing 17 rules checks and map integration checks pass. Two new denial tests pass; three
+  new negative tests reproduce the privacy defects as explicit TODO failures. Rules and
+  location-sharing behavior remain outside this maintenance scope.
+- Verified 20/20 Expo Doctor checks, TypeScript, Android Hermes and web exports,
+  Android prebuild, the real Firebase SDK and seeded browser map/chat navigation
+  (no captured browser errors or warnings). Hosted Actions/native APK/device checks remain pending.
+- Updated development setup and project agent guidance. Codex project membership now points
+  at US-socmed/us-mobile after the user moved this chat; the active session still reports
+  the old cwd, so commands used the new absolute path explicitly.
+
+## 2026-10-24 — Compatible dependency follow-up
+
+- Kept the existing `felix/dev-setup` branch and the IDE setup changes. Updated
+  Firebase 12.9.0 → 12.19.0, NativeWind 4.2.1 → 4.2.7, QR code SVG 6.3.21 →
+  6.3.27, Reanimated 4.1.6 → 4.1.7, and React Native Web 0.21.0 → 0.21.4.
+- Added a Firestore-scoped gRPC 1.14.6 override and a PostCSS 8.5.31 override.
+  Both retain the existing dependency API majors. Firebase's latest major still
+  pins the affected gRPC branch and also raises its Node requirement; a Firebase
+  major swap would not itself fix this path. Override rationale and advisory
+  links are in `docs/development-setup.md`.
+- Removed the now-unnecessary `.npmrc` peer dependency bypass. Kept the supported
+  Expo TypeScript defaults and project-relative `paths` aliases; removed the
+  obsolete `baseUrl` and invalid TypeScript 6 deprecation suppression from the
+  TypeScript 5.9 project. Preserved the explicit JSX/module settings added by
+  the IDE during this work.
+- npm audit now reports 19 affected package entries: 5 high, 14 moderate, 0
+  critical (previously 23: 10 high, 13 moderate). Counts include parent packages
+  affected by the same underlying advisory. Remaining high paths are Expo's
+  node-forge signing dependencies and Metro's image-size parser. Moderate paths
+  include Router URL decoding, NativeWind/Tailwind selector parsing, and Firebase
+  CLI/tunnel dependencies. The Expo SDK and Maps migration remains the native
+  development-build milestone; the audit is not clear.
+- Verified a fresh `npm ci` with normal peer validation, a clean `npm ls --all`,
+  TypeScript, Expo dependency alignment, all 18 Expo Doctor checks, Android
+  Hermes export, and web export. Firebase SDK sign-in, document reads and a
+  server-backed live listener passed against the existing emulators with the
+  patched gRPC transport. The read-only projection and group-pin checks passed.
+- Browser startup rendered the seeded map and chat list with no captured
+  errors. Switching tabs emits one upstream React Navigation deprecation:
+  `BottomTabBar` calls `CommonActions.navigate(route)` with an object. Kept the
+  working framework integration; revisit during the coordinated SDK migration.
+  The temporary Metro server used for this smoke test was stopped afterwards.
+  Native APK builds, physical-phone rendering and production deployment were
+  not verified in this follow-up.
+
+## 2026-10-24 — Windows development setup
+
+- Created `felix/dev-setup`; changes remain uncommitted for review. Replaced the
+  direct-to-main automatic-commit guidance with the requested `felix/` workflow.
+- Installed side-by-side Node 22.23.4 / npm 10.9.9 and Temurin JDK 21.0.12.1;
+  left system defaults unchanged. Added `Dev-Terminal.cmd`, process-local
+  toolchain activation, `.nvmrc`, `.java-version`, and `.npmrc`.
+- Repaired the mixed framework versions and updated within SDK 54. Installed
+  Expo 54.0.38 / Router 6.0.24, retained React Native 0.81.5 / React 19.1,
+  Firebase 12.9 / NativeWind 4 / Tailwind 3, and aligned SVG with Expo's version.
+  Firebase CLI 15.34.1 is a project dev dependency. Android adb 37.0.1 is
+  installed for physical-device debugging; no full Android SDK or AVD was added.
+- Applied compatible npm audit fixes: 36 advisories (2 critical) became 23
+  (10 high, 13 moderate, 0 critical). Remaining paths include Expo's node-forge
+  and PostCSS, Firestore's gRPC, Router's decode-uri-component, Tailwind's
+  selector parser, image-size, OpenTelemetry, and uuid. Forced framework major
+  swaps/downgrades were not applied. This does not resolve the separate
+  application/security-rule defects in the workspace README.
+- Fixed NativeWind's browser color-scheme startup error with Tailwind
+  `darkMode: 'class'`; a fresh browser startup rendered the seeded map with no
+  captured console errors. Updated setup documentation, STATUS, and project gotchas.
+- Verified TypeScript, Expo's dependency check, all 18 Expo Doctor checks,
+  existing projection/group-pin/rules scripts, browser map rendering with
+  seeded fixtures, and Android JavaScript/Hermes export. An isolated Auth +
+  Firestore smoke test passed under Node 22 / Java 21 on alternate local ports.
+  A clean `npm ci` also passed with the Metro patch applied. Metro was left
+  running on port 8081 in watch mode with two workers. Native APK builds,
+  physical-phone behavior, and production deployment were
+  not verified.
+- Exported existing emulator state to
+  `.expo/emulator-backups/20261024-151953` before seeding; reseeded after the
+  verification suite. Existing main emulator processes were left running.
+  Dependency-file snapshots are under
+  `%LOCALAPPDATA%\us-mobile-toolchain\backups`.
+
 ## 2026-06-11 (Phase 3 start — round-5 verdict + Step 1 cleanup)
 - **Round 5 device result: markers STILL clipped** after attempt #3 (`collapsable={false}` + fixed size + transparent margin). Screenshot evidence: markers reduced to tiny slivers (worse-looking than round-4's quarter-circles — the now-mostly-transparent roots mean a small bitmap crop shows mostly empty margin) and the FriendMarker invisible entirely; all four entities sat at CORRECT coordinates, so data → projection → marker pipeline is confirmed on device — purely a rendering-layer failure. Map style/HUDs/tab bar all correct on device. Escalation research closed the case: it's a **library-level bug** — react-native-maps 1.20.1 + Android New Architecture breaks custom View markers (rnm [#5877](https://github.com/react-native-maps/react-native-maps/issues/5877), [#5655](https://github.com/react-native-maps/react-native-maps/issues/5655); our exact symptoms, incl. quarter circles). Every workaround in those threads was already tried and disproved in rounds 1–4. No JS-side fix exists. The fix (1.27.x, Fabric-native) **crashes Expo Go** (`RNMapsAirModule` not in the Go binary) and `newArchEnabled:false` is untestable in Expo Go (new-arch-only since SDK 53) — so the **marker fix is the first item of Step 4** (EAS dev build), per user decision. Step 0 verdict otherwise stands: all flows functionally confirmed on device.
 - **Step 1 cleanup pass executed**: Antigravity removed (junction unlinked safely, `.antigravity/` + `.agents/` deleted, ready-to-test workflow folded into the expo-devops skill), memory mirror collapsed (`.context/memory.md` = single committed gotchas file; stale browser-testing entry rewritten; marker gotcha added), STATUS.md dieted with history moved here, skill fixes (emulator port 8088 in expo-devops + firebase skills, git-workflow rewritten to the real direct-to-main flow, local skill-creator deleted — plugin supersedes), npm scripts added (`typecheck`/`seed`/`verify`/`emulators`).
