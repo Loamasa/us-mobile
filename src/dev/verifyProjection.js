@@ -7,9 +7,10 @@
  *   3. locations/{id}                     (onLocation)
  * then assembles the friendLocations map exactly as useFriendLocations.commit
  * does (a friend appears only when BOTH profile AND location exist) and runs
- * the same clustering projection as src/features/map/useMapProjection.ts.
+ * the production clustering projection used by useMapProjection.
  *
  * Run AFTER `node src/dev/runSeed.js` against a running emulator:
+ *   npm run build:checks
  *   node src/dev/verifyProjection.js
  *
  * Expected output: CLUSTER(alice+bob) + FRIEND(charlie); dana/eve absent.
@@ -19,6 +20,9 @@ const FIRESTORE_EMULATOR_PORT = 8088;
 const BASE = `http://127.0.0.1:${FIRESTORE_EMULATOR_PORT}/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents`;
 const HEADERS = { Authorization: 'Bearer owner' };
 
+// Firestore Timestamp stand-in — isLocationFresh reads toMillis(), signals toDate().
+const timestamp = (date) => ({ toDate: () => date, toMillis: () => date.getTime() });
+
 // ── Firestore REST Value → plain JS (inverse of seed's toFirestoreValue) ──
 function fromValue(v) {
   if (v == null) return undefined;
@@ -27,7 +31,7 @@ function fromValue(v) {
   if ('booleanValue' in v) return v.booleanValue;
   if ('integerValue' in v) return Number(v.integerValue);
   if ('doubleValue' in v) return v.doubleValue;
-  if ('timestampValue' in v) return new Date(v.timestampValue);
+  if ('timestampValue' in v) return timestamp(new Date(v.timestampValue));
   if ('geoPointValue' in v)
     return { lat: v.geoPointValue.latitude, lng: v.geoPointValue.longitude };
   if ('arrayValue' in v) return (v.arrayValue.values || []).map(fromValue);
@@ -54,68 +58,8 @@ async function listIds(path) {
   return (j.documents || []).map((d) => d.name.split('/').pop());
 }
 
-// ── projection (mirrors src/features/map/useMapProjection.ts) ──
-function haversineDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-const CLUSTER_RADIUS_M = 100;
-
-// Mirrors isLocationFresh (src/features/presence/presence.ts): a doc is live
-// only while the publisher keeps rewriting it; no updatedAt counts as fresh.
-const LOCATION_STALE_MS = 5 * 60 * 1000;
-function isFresh(location, now = Date.now()) {
-  const t = location.updatedAt instanceof Date ? location.updatedAt.getTime() : null;
-  return t == null || now - t <= LOCATION_STALE_MS;
-}
-
-function project(friendLocations, now = Date.now()) {
-  const entities = [];
-  const processed = new Set();
-  // Sorted ids (deterministic anchors) + fresh-only clustering, stale
-  // friends as flagged individuals — mirrors useMapProjection since Wave 2.
-  const entries = Object.entries(friendLocations).sort(([a], [b]) =>
-    a < b ? -1 : a > b ? 1 : 0
-  );
-  const fresh = entries.filter(([, d]) => isFresh(d.location, now));
-  const stale = entries.filter(([, d]) => !isFresh(d.location, now));
-  for (let i = 0; i < fresh.length; i++) {
-    const [idA, dataA] = fresh[i];
-    if (processed.has(idA)) continue;
-    const members = [idA];
-    for (let j = i + 1; j < fresh.length; j++) {
-      const [idB, dataB] = fresh[j];
-      if (processed.has(idB)) continue;
-      const dist = haversineDistance(
-        dataA.location.lat,
-        dataA.location.lng,
-        dataB.location.lat,
-        dataB.location.lng
-      );
-      if (dist <= CLUSTER_RADIUS_M) members.push(idB);
-    }
-    if (members.length >= 2) {
-      entities.push({ type: 'CLUSTER', members: [...members].sort() });
-      members.forEach((id) => processed.add(id));
-    }
-  }
-  for (const [id, d] of [...fresh, ...stale]) {
-    if (!processed.has(id))
-      entities.push({
-        type: 'FRIEND',
-        members: [id],
-        stale: !isFresh(d.location, now),
-      });
-  }
-  return entities;
-}
+// Execute the production functions compiled by npm run build:checks.
+const { projectMapEntities: project } = require('../../.expo/test-build/features/map/mapProjection.js');
 
 // Freshen a location doc's updatedAt to now (admin bypass) — the seed's
 // timestamps freeze at seed time, so minutes later every persona would read
@@ -156,6 +100,8 @@ async function main() {
     if (hasProfile && hasLocation) friendLocations[id] = { profile, location };
   }
 
+  const withMembers = (entities) =>
+    entities.map((e) => ({ ...e, members: e.friends.map((f) => f.userId).sort() }));
   const fmt = (entities) =>
     entities
       .map((e) =>
@@ -165,7 +111,7 @@ async function main() {
       )
       .join(', ');
 
-  const entities = project(friendLocations);
+  const entities = withMembers(project(friendLocations));
   console.log('\nprojection ->', fmt(entities));
 
   const cluster = entities.find((e) => e.type === 'CLUSTER');
@@ -184,11 +130,11 @@ async function main() {
       ...friendLocations.bob,
       location: {
         ...friendLocations.bob.location,
-        updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+        updatedAt: timestamp(new Date(Date.now() - 10 * 60 * 1000)),
       },
     },
   };
-  const staleEntities = project(frozen);
+  const staleEntities = withMembers(project(frozen));
   console.log('stale-bob projection ->', fmt(staleEntities));
   const staleOk =
     !staleEntities.some((e) => e.type === 'CLUSTER') &&

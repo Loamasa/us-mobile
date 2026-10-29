@@ -39,6 +39,10 @@ config.server.enhanceMiddleware = (metroMiddleware, server) => {
       }
     );
     proxyReq.on('error', (err) => {
+      if (res.headersSent || res.destroyed) {
+        res.destroy();
+        return;
+      }
       res.writeHead(502, { 'Content-Type': 'text/plain' });
       res.end(`Emulator proxy error (port ${route.port}): ${err.message}`);
     });

@@ -1,15 +1,18 @@
 ---
 name: react-native-expo
-description: React Native + Expo SDK 54 development patterns. Use when creating screens, navigation, native features, styling with NativeWind v4, platform-specific code, FlatList optimization, or working with Expo Router file-based routing. Covers Expo APIs, EAS Build, and mobile-specific patterns.
+description: React Native + Expo SDK 58 development patterns. Use when creating screens, navigation, native features, styling with NativeWind v4, platform-specific code, FlatList optimization, or working with Expo Router file-based routing. Covers Expo APIs, EAS Build, and mobile-specific patterns.
 ---
 
-# React Native + Expo SDK 54
+# React Native + Expo SDK 58
 
 ## Project Setup
 
-- Expo SDK 54, Expo Router (file-based routing)
+- Expo SDK 58, Expo Router (file-based routing)
 - NativeWind v4 for styling (`className` prop)
 - Dark mode only, glass morphism design system
+- Android uses the development client (`npm run start:dev`); rebuild after native package/config changes.
+- NativeWind 4 + Tailwind 3 remain stable; do not switch to the v5 release candidate for this upgrade.
+- React Native 0.88 refs use instance types such as `TextInputInstance`.
 - Target: iOS + Android
 
 ## Expo Router

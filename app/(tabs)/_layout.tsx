@@ -111,8 +111,13 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => <TabIcon name="communities" focused={focused} />,
         }}
       />
-      {/* Hidden from tab bar — Settings accessed from Chats header gear */}
-      <Tabs.Screen name="settings" options={{ href: null }} />
+      {/* Hidden from tab bar — Settings accessed from Chats header gear.
+          Not `href: null`: since expo-router 58 that marks the route `hidden`,
+          which makes it unreachable (push/URL redirect back to the first tab). */}
+      <Tabs.Screen
+        name="settings"
+        options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }}
+      />
     </Tabs>
   );
 }

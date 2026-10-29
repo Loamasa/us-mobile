@@ -5,51 +5,31 @@
 > **Active finish plan (Steps 4–6 → multi-user test): `docs/plans/2026-06-18-phase3-finish-plan.md`.**
 
 ## Last Updated
-2026-07-04 — **Wave 1 (tester-readiness) SHIPPED**: auth persistence fixed
-(AsyncStorage `initializeAuth` — was memory-only, would sign testers out on every app
-kill; device-confirm on the EAS build), chat info sheet (member list, member/peer
-profiles, **Leave Group**, **Remove Friend**, Message), message timestamps + day
-separators, placebo toggles fixed (`allowFriendRequests` enforced client-side; dead
-online-status row removed), presence honesty (`isLocationFresh` — frozen docs never read
-as "At Home"; FriendCard shows LIVE NOW / LAST SEEN), Settings Help group (Report a Bug
-mailto + in-app Privacy Notice) + version footer, Sentry scaffolding (DSN-gated) + root
-ErrorBoundary, GDPR notice (in-app + `docs/privacy-notice.md`, DRAFT) + `locations.expireAt`
-TTL field, camera/QR deps + CAMERA permission removed, real app icon/splash. Adversarially
-reviewed (3-lens workflow) — all confirmed findings fixed. tsc clean; verify suite green
-(**21 rules checks** incl. 4 new for the leave rule); extensive live browser pass.
-**NEW USER ACTIONS (before/with the EAS build):**
+2026-10-29 — **Merged `felix/dev-setup` into main (Felix = lead developer; his side
+preferred on conflicts).** Main is now Expo SDK 58, React Native 0.88, React 19.3,
+TypeScript 6, Maps 1.29.11 (Expo SDK matrix; the old 1.27.2 pin + `expo.install.exclude` and
+`.npmrc` `legacy-peer-deps` are gone — plain `npm ci`), dev-client build profile and CI
+workflow. Main-side work carried across: Wave 1 (auth persistence, chat info sheet, Sentry,
+GDPR notice, …) + Wave 2 (signal setter, stale-marker honesty — now inside Felix's extracted
+`src/features/map/mapProjection.ts`), EAS project link (`extra.eas.projectId` kept),
+`preview`/`production` EAS profiles + update channels, mic hardening on the re-added
+expo-camera/expo-image-picker plugins. Main-only packages re-added at SDK 58 versions
+(Sentry 7 → **8**, expo-updates, expo-task-manager, expo-application, async-storage).
+Setup: `docs/development-setup.md`; audit: `docs/dependency-audit.md` (11 entries: 3 high,
+3 moderate, 5 low). Native marker/location behavior on SDK 58 is NOT yet device-verified.
+
+**Still-open USER ACTIONS (from Wave 1):**
 1. `firebase deploy --only firestore:rules` — the group-leave rule is emulator-only until
    deployed; Leave Group FAILS in prod without it.
-2. Enable the Firestore TTL policy on `locations.expireAt` (console/gcloud) — the privacy
-   notice's 24h-expiry line depends on it.
+2. Enable the Firestore TTL policy on `locations.expireAt` (console/gcloud).
 3. Create a Sentry project → set `EXPO_PUBLIC_SENTRY_DSN` (+ `SENTRY_ORG`/`SENTRY_PROJECT`/
    `SENTRY_AUTH_TOKEN` for sourcemaps) as EAS env vars.
 4. Review `docs/privacy-notice.md` (legal draft) + confirm `SUPPORT_EMAIL` in
-   `src/config/constants.ts` (set to pal.schakonat@gmail.com).
+   `src/config/constants.ts`.
 
-Prior state (2026-06-14, Steps 2 & 3 DONE + Step 4 code-side): **Production is live** —
-rules + indexes deployed, Email/Password enabled, **20 tester accounts provisioned in prod**
-(`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`). Tester namespace
-audited as disjoint from dev/debug. react-native-maps **1.27.2** (pinned +
-`expo.install.exclude`), `eas.json`, `expo-dev-client`/`expo-updates`/`expo-task-manager`,
-app.json `runtimeVersion: fingerprint` + `updates`, `.npmrc`. **Marker fix still UNCONFIRMED**
-([#5877](https://github.com/react-native-maps/react-native-maps/issues/5877) open) — validate on the dev build.
-
-**EAS project linked (2026-06-14)**: `eas login` ✅ (as lomasa) + `eas init` ✅ → project
-**`@lomasas-team/us-mobile`** (id `b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d`); app.json now has
-`owner`, `extra.eas.projectId`, and `updates.url`. **Android permissions hardened**: `eas
-init`'s config sync had injected duplicate `android.permission.*` entries + `RECORD_AUDIO`
-(microphone); removed the dups and disabled the mic at BOTH contributing plugins —
-expo-camera (`recordAudioAndroid:false`) and expo-image-picker (`microphonePermission:false`,
-which also manifest-blocks RECORD_AUDIO). Verified via `expo config --type introspect`:
-resolved perms = FINE/COARSE/BACKGROUND_LOCATION + CAMERA, no RECORD_AUDIO. (No
-`google-services.json` needed — app uses the Firebase JS SDK, not @react-native-firebase.)
-
-**Only remaining gate — the build itself (account-gated)**: `eas build --platform android
---profile development` (~15 min on EAS servers, uses build quota) → side-load the dev-client
-APK on the Pixel 7 → **device-validate the markers on 1.27.2** (the actual test of Task A).
-Maps-key restriction (Open Item #2) needs the keystore SHA-1 from `eas credentials` after
-build #1.
+**Production is live** (since 2026-06-14): rules + indexes deployed, Email/Password enabled,
+20 tester accounts (`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`).
+**EAS project linked**: `@lomasas-team/us-mobile` (id `b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d`).
 
 ## Where We Are — Phase 3 (Android, trusted testers)
 
@@ -78,37 +58,31 @@ distribution**, **background location IN scope** (it's the product — needs the
       phone/OTP demoted to a dev-only link + `ensureDevUser` persistence-race fix. Empty-state
       audit DONE. Runbook: `docs/tester-distribution.md`. **DONE 2026-06-14: Email/Password
       enabled in console + 20 testers provisioned in prod** (`tester01`…`tester20`; creds in
-      gitignored `testers-credentials.csv`). Provisioner fixed to handle prod's
-      `INVALID_LOGIN_CREDENTIALS`. Tester namespace audited as disjoint from the dev/debug
-      account system — no debug routine can touch it.
-- [~] Step 4 — EAS pipeline. **Code-side DONE (2026-06-14)**: react-native-maps 1.20.1 →
-      **1.27.2** (pinned + `expo.install.exclude` guard); NEW `eas.json`
-      (development/preview/production); `expo-dev-client` + `expo-updates` + `expo-task-manager`
-      installed; app.json `runtimeVersion: { policy: fingerprint }` + `updates`; NEW `.npmrc`
-      (`legacy-peer-deps=true`). tsc clean, expo-doctor 17/18 (rnm excluded; lone failure is
-      pre-existing patch drift). **The marker fix is a CANDIDATE, not confirmed** ([#5877](https://github.com/react-native-maps/react-native-maps/issues/5877)
-      still open) — must be device-validated on the dev build; fallbacks noted in CHANGELOG.
-      REMAINING (account-gated): `eas login`/`eas init`/`eas update:configure`/`eas build` →
-      device-validate markers; `google-services.json` as an EAS file secret; Maps key
-      restriction via keystore SHA-1; version-in-Settings.
+      gitignored `testers-credentials.csv`). Tester namespace audited as disjoint from the
+      dev/debug account system — no debug routine can touch it.
+- [~] Step 4 — development pipeline PREPARED (Felix, SDK 58): Expo 58 + Maps 1.29.11,
+      `expo-dev-client`, Maps/splash config plugins, `eas.json` development/preview/production
+      profiles. `expo prebuild --platform android --no-install` passes. EAS already linked
+      (`eas init` done 2026-06-14 — do NOT re-run it). REMAINING: `npm run android:cloud` →
+      install APK → validate native markers/location; Maps key restriction via keystore
+      SHA-1; background-task/OTA work remain separate milestones.
 - [ ] Step 5 — background location implementation + field test (needs the dev build)
 - [ ] Step 6 — field readiness (Sentry, tester runbook, success criteria, privacy one-liner, CI)
 
 ## Open Items (non-blocking for Steps 1–3)
 
-1. **Markers clip in Expo Go** — library bug, fix scheduled Step 4 (see above). Judge marker
-   rendering by the browser shim until then, never by Expo Go.
+1. **Native Maps migration needs device validation** — 1.29.11 is installed, but a new
+   development APK must be built and tested before declaring the old clipping bug resolved.
 2. **Google Maps Android key in `app.json` is unrestricted** — restrict to package + SHA-1 in
    Step 4 (needs the EAS keystore).
-3. **`currentSignal` has no setter UI** (intentional, since the Gathering redesign) — badges/HUD
-   still display signals; fold the concept into gatherings or re-add a setter later.
+3. ~~`currentSignal` has no setter UI~~ — **resolved 2026-07-07** (⚡ SignalModal on the map, Wave 2).
 4. **`allowFriendRequests` enforced client-side ONLY (since 2026-07-04)** — the add-friend
    flow now checks the recipient's toggle, but rules still accept request docs regardless.
    Rules `get()` before public release.
 5. **Location TTL half-done (2026-07-04)** — `locations.expireAt` (+24h) is written by app
    + seeds, and chat surfaces treat >5-min-old docs as offline (`isLocationFresh`), but the
-   Firestore **console TTL policy is NOT enabled yet** (user action) and **map markers are
-   still stale-blind** (wave 2: grey/hide stale markers).
+   Firestore **console TTL policy is NOT enabled yet** (user action). Map markers handle
+   staleness since Wave 2 (stale friends never cluster; dimmed at last position).
 6. **Expo Go two-phone testing**: both phones auto-sign-in as `dev-user` — phone B must switch
    personas (Settings → Developer → Switch Account, e.g. alice).
 7. Minor: `profile.tsx` writes `avatarUrl: ''` (type says `string | null`); dev fixture
@@ -119,13 +93,24 @@ distribution**, **background location IN scope** (it's the product — needs the
 9. **(2026-06-12 readiness review) Onboarding slides 2–3 oversell** — carousel pitches
    Cultures and Events but the Communities tab is a "Coming soon" placeholder. User chose
    to keep the slides for now; set expectations via the runbook's copy-paste message.
+10. **Dependency audit remains open** — 11 affected entries (3 high, 3 moderate, 5 low) after
+    the merge; scoped security overrides and limitations in `docs/dependency-audit.md`.
+11. **Privacy regressions reproduced** — unauthorized self-granted friendship/location access,
+    chat creator rewriting and gathering creator rewriting are known failing test TODOs.
+12. **expo-camera / expo-image-picker / qrcode-svg are back** (Felix's branch) though no QR UI
+    exists (`QR_CODE_ADD_FRIEND: false`) — CAMERA permission is declared again; drop them or
+    ship the scan-to-add flow before wider distribution.
 
 ## Testing Methods
 
 - **Browser (Expo web) is first-class for everything INCLUDING the map**: emulators + seed +
   `npx expo start` → `http://localhost:8081`. Real map screens run via `src/dev/fakeMaps.tsx`.
   Covers data/logic/UI — NOT react-native-maps native rendering.
-- **Expo Go on the Pixel 7** for native UX — markers clip there until Step 4 (known, ignore).
+- **Development client on the Pixel 7** for native UX — APK and device validation pending.
+- `npm test` — 14 tests against the production map functions.
+- `npm run check:emulators` — disposable seeded emulator run, actual projection/group pins,
+  17 existing rule checks, Firebase SDK sign-in/read/listener and new negative rules checks.
+  Three known privacy TODO failures are visible and do not block development CI.
 - **Device-free verification harness** (run after seeding): `npm run verify` —
   `verifyProjection.js` (clustering read path) + `verifyGroupPins.js` (proximity-wins + resting
   pin) + `verifyRules.js` (17 security-rules guarantees as real users).
@@ -135,7 +120,7 @@ distribution**, **background location IN scope** (it's the product — needs the
 1. `npm run emulators` — Firebase emulators, **must be `--project demo-us-app`** (auth-user
    creation targets the emulator's default project)
 2. `npm run seed` — Node-only seed via admin REST `:commit` (5 personas, chats, broadcasts)
-3. `npx expo start --clear` — then Expo Go (scan QR) or browser at `localhost:8081`
+3. `npm run web` for browser; `npm run start:dev` for the rebuilt development client.
 4. `npm run typecheck` — must pass before committing
 5. In-app: Settings → Developer → "Seed Test Data" / account switcher
 6. **Tester accounts**: `node src/dev/provisionTesters.js --emulator --count 3` (or `--count 20`
@@ -172,5 +157,6 @@ distribution**, **background location IN scope** (it's the product — needs the
 | `firestore.rules` / `firestore.indexes.json` | Security rules (17 verified guarantees) + indexes |
 | `firebase.json` | Emulators: auth 9099, firestore **8088**, UI 4000 |
 | `eas.json` | EAS Build profiles: development (dev-client APK), preview (internal APK), production (AAB) |
-| `.npmrc` | `legacy-peer-deps=true` — encodes the React-19 install rule for EAS Build + CI |
+| `src/features/map/mapProjection.ts` | Map projection (fresh-only clustering, stale flags) — shared by `useMapProjection` and `npm test`/verify |
+| `docs/development-setup.md` | Felix's SDK 58 setup: toolchain, checks, CI, dev-client build |
 | `app.json` | Native config — now also `runtimeVersion: { policy: fingerprint }` + `updates` (OTA); `eas init` adds `extra.eas.projectId` |

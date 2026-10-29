@@ -1,5 +1,5 @@
-import { haversineDistance } from '@/utils/distance';
-import { LOCATION_STALE_MS, MAP_DEFAULTS } from '@/config/constants';
+import { haversineDistance } from '../../utils/distance';
+import { LOCATION_STALE_MS, MAP_DEFAULTS } from '../../config/constants';
 import type { LocationPresence } from '@/types';
 
 /**

@@ -4,6 +4,111 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-10-29 — Merged `felix/dev-setup` into main (Felix's side preferred)
+- Felix (`FSopelsa`) is now the lead developer; his SDK 58 branch (forked from `7933079`) was merged over 9 unpushed main commits (Waves 1–2, EAS link, maps 1.27.2). Backup of pre-merge main: `backup/main-before-felix-merge`.
+- **Felix's side kept**: Expo 58 / RN 0.88 / React 19.3 / TS 6 dependency set + lockfile, Maps 1.29.11 via the SDK matrix (1.27.2 pin + `expo.install.exclude` dropped), `.npmrc` legacy-peer-deps removed, `mapProjection.ts` extraction with verify scripts executing compiled production code, `react-native-maps` config plugin (replaces `android.config.googleMaps`), camera/splash plugins, `cli.appVersionSource: local`, dev-profile emulator env.
+- **Main's work ported onto it**: Wave 2 fresh/stale projection moved into `projectMapEntities(friendLocations, now = Date.now())` (Felix's tests unchanged and passing); `presence.ts` switched to relative imports so the checks build can compile it; verify harness timestamps gained `toMillis()` so the stale scenario exercises the real `isLocationFresh`; `extra.eas.projectId`, preview/production profiles + update channels, mic-off flags on expo-camera/expo-image-picker; main-only packages re-added via `expo install` at SDK 58 versions (Sentry 7 → 8, expo-updates, expo-task-manager, expo-application, async-storage); `freshen` script.
+- **Regression found in browser test + fixed**: expo-router 58 turns `href: null` into `hidden: true`, making the Settings tab unreachable (gear + `/settings` bounced to Chats). `app/(tabs)/_layout.tsx` now hides it via `tabBarButton: () => null` + `display: 'none'`.
+- **Verified after merge** (emulators on Temurin 21.0.12.1): tsc clean; `npm test` 17/17; `npm run verify` green (projection + stale-bob, group pins A1–B5, 21 rules checks); `verify:sdk` PASS; `test:rules` 2 pass + 3 known privacy TODOs; web + Android Metro exports. Live browser as dev-user: map cluster + named-group card, live stale flip (bob dimmed to 0.45, cluster dissolved, fixed group pin appeared, reformed on restore), chats list presence pills, DM send (persisted), Settings + version footer, Privacy Notice, ⚡ signal setter (☕ Fika saved, Keep-current expiry honored). Not covered: native device rendering on SDK 58.
+
+## 2026-10-24 — SDK 58, dependency assessment and development checks
+
+- Upgraded incrementally through SDKs 55–58; final Expo 58.0.19, RN 0.88.0, React
+  19.3.0 and Maps 1.29.11. Preserved NativeWind 4/Tailwind 3 and browser emulator proxy/map shim.
+- Added development client/system UI/splash support and current Maps/splash plugins. Removed
+  retired app-config fields, migrated TextInput refs to instance types, declared CSS imports,
+  and let Expo configure Worklets automatically. Removed the upstream-fixed Metro patch and patch-package.
+- Fixed a reproduced Metro emulator-proxy shutdown crash (headers written twice after a
+  partial response). Added three regression cases for upstream/client disconnects.
+- Added an internal Android development APK profile and build/start scripts. EAS login was
+  absent; the user chose to defer login/cloud compilation. Native source generation passed;
+  no APK or physical-phone Maps/location result is claimed.
+- Scoped selector-parser and UUID security updates were checked with byte-identical project
+  CSS and a real local gaxios multipart request. Fresh normal npm ci and npm ls passed.
+  Audit reduced 19 → 8 affected entries (5 high, 3 moderate); three upstream advisories remain.
+  See docs/dependency-audit.md for paths, reachability limits and override rationale.
+- Extracted the existing projection unchanged into mapProjection.ts. Added 14 Node tests;
+  emulator diagnostics now import production functions instead of copied implementations.
+  Added reproducible Firebase SDK and negative authorization checks and a checks-only CI workflow.
+- Existing 17 rules checks and map integration checks pass. Two new denial tests pass; three
+  new negative tests reproduce the privacy defects as explicit TODO failures. Rules and
+  location-sharing behavior remain outside this maintenance scope.
+- Verified 20/20 Expo Doctor checks, TypeScript, Android Hermes and web exports,
+  Android prebuild, the real Firebase SDK and seeded browser map/chat navigation
+  (no captured browser errors or warnings). Hosted Actions/native APK/device checks remain pending.
+- Updated development setup and project agent guidance. Codex project membership now points
+  at US-socmed/us-mobile after the user moved this chat; the active session still reports
+  the old cwd, so commands used the new absolute path explicitly.
+
+## 2026-10-24 — Compatible dependency follow-up
+
+- Kept the existing `felix/dev-setup` branch and the IDE setup changes. Updated
+  Firebase 12.9.0 → 12.19.0, NativeWind 4.2.1 → 4.2.7, QR code SVG 6.3.21 →
+  6.3.27, Reanimated 4.1.6 → 4.1.7, and React Native Web 0.21.0 → 0.21.4.
+- Added a Firestore-scoped gRPC 1.14.6 override and a PostCSS 8.5.31 override.
+  Both retain the existing dependency API majors. Firebase's latest major still
+  pins the affected gRPC branch and also raises its Node requirement; a Firebase
+  major swap would not itself fix this path. Override rationale and advisory
+  links are in `docs/development-setup.md`.
+- Removed the now-unnecessary `.npmrc` peer dependency bypass. Kept the supported
+  Expo TypeScript defaults and project-relative `paths` aliases; removed the
+  obsolete `baseUrl` and invalid TypeScript 6 deprecation suppression from the
+  TypeScript 5.9 project. Preserved the explicit JSX/module settings added by
+  the IDE during this work.
+- npm audit now reports 19 affected package entries: 5 high, 14 moderate, 0
+  critical (previously 23: 10 high, 13 moderate). Counts include parent packages
+  affected by the same underlying advisory. Remaining high paths are Expo's
+  node-forge signing dependencies and Metro's image-size parser. Moderate paths
+  include Router URL decoding, NativeWind/Tailwind selector parsing, and Firebase
+  CLI/tunnel dependencies. The Expo SDK and Maps migration remains the native
+  development-build milestone; the audit is not clear.
+- Verified a fresh `npm ci` with normal peer validation, a clean `npm ls --all`,
+  TypeScript, Expo dependency alignment, all 18 Expo Doctor checks, Android
+  Hermes export, and web export. Firebase SDK sign-in, document reads and a
+  server-backed live listener passed against the existing emulators with the
+  patched gRPC transport. The read-only projection and group-pin checks passed.
+- Browser startup rendered the seeded map and chat list with no captured
+  errors. Switching tabs emits one upstream React Navigation deprecation:
+  `BottomTabBar` calls `CommonActions.navigate(route)` with an object. Kept the
+  working framework integration; revisit during the coordinated SDK migration.
+  The temporary Metro server used for this smoke test was stopped afterwards.
+  Native APK builds, physical-phone rendering and production deployment were
+  not verified in this follow-up.
+
+## 2026-10-24 — Windows development setup
+
+- Created `felix/dev-setup`; changes remain uncommitted for review. Replaced the
+  direct-to-main automatic-commit guidance with the requested `felix/` workflow.
+- Installed side-by-side Node 22.23.4 / npm 10.9.9 and Temurin JDK 21.0.12.1;
+  left system defaults unchanged. Added `Dev-Terminal.cmd`, process-local
+  toolchain activation, `.nvmrc`, `.java-version`, and `.npmrc`.
+- Repaired the mixed framework versions and updated within SDK 54. Installed
+  Expo 54.0.38 / Router 6.0.24, retained React Native 0.81.5 / React 19.1,
+  Firebase 12.9 / NativeWind 4 / Tailwind 3, and aligned SVG with Expo's version.
+  Firebase CLI 15.34.1 is a project dev dependency. Android adb 37.0.1 is
+  installed for physical-device debugging; no full Android SDK or AVD was added.
+- Applied compatible npm audit fixes: 36 advisories (2 critical) became 23
+  (10 high, 13 moderate, 0 critical). Remaining paths include Expo's node-forge
+  and PostCSS, Firestore's gRPC, Router's decode-uri-component, Tailwind's
+  selector parser, image-size, OpenTelemetry, and uuid. Forced framework major
+  swaps/downgrades were not applied. This does not resolve the separate
+  application/security-rule defects in the workspace README.
+- Fixed NativeWind's browser color-scheme startup error with Tailwind
+  `darkMode: 'class'`; a fresh browser startup rendered the seeded map with no
+  captured console errors. Updated setup documentation, STATUS, and project gotchas.
+- Verified TypeScript, Expo's dependency check, all 18 Expo Doctor checks,
+  existing projection/group-pin/rules scripts, browser map rendering with
+  seeded fixtures, and Android JavaScript/Hermes export. An isolated Auth +
+  Firestore smoke test passed under Node 22 / Java 21 on alternate local ports.
+  A clean `npm ci` also passed with the Metro patch applied. Metro was left
+  running on port 8081 in watch mode with two workers. Native APK builds,
+  physical-phone behavior, and production deployment were
+  not verified.
+- Exported existing emulator state to
+  `.expo/emulator-backups/20261024-151953` before seeding; reseeded after the
+  verification suite. Existing main emulator processes were left running.
+  Dependency-file snapshots are under
+  `%LOCALAPPDATA%\us-mobile-toolchain\backups`.
 ## 2026-07-04 (Wave 1 — tester-readiness pass: auth persistence, chat info sheet, honesty fixes, Sentry, branding, GDPR)
 **Every pre-device-testing blocker from the 2026-07-03 MVP review, implemented, adversarially reviewed (3-lens workflow, all confirmed findings fixed), and browser-verified end-to-end. One new USER ACTION gate: `firebase deploy --only firestore:rules` (leave-group needs the new rule in prod).**
 - **Auth persistence (the blocker)**: `src/config/firebase.ts` now uses `initializeAuth` + `getReactNativePersistence(AsyncStorage)` on native — plain `getAuth()` is memory-only on RN and signed testers out on every app kill. Web keeps `getAuth`. Loud `console.warn` on fallback. `@react-native-async-storage/async-storage` installed. Must be device-confirmed on the EAS build.

@@ -1,166 +1,69 @@
 ---
 name: expo-devops
-description: DevOps workflows for this Expo + Firebase project. Use when setting up EAS Build, configuring Firebase emulators, managing environment variables, running CI/CD, deploying to app stores, managing OTA updates, or configuring testing infrastructure. Covers eas.json profiles, emulator setup, GitHub Actions, and versioning.
+description: Development builds, Firebase emulators, CI and dependency maintenance for this Expo project.
 ---
 
-# Expo + Firebase DevOps
+# Expo development operations
 
-## Local Development
+Use `docs/development-setup.md` and the committed `package.json`, `eas.json` and
+`.github/workflows/checks.yml` as the current configuration. Fetch current Expo
+documentation before changing SDK or build settings.
 
-### Dev server
+## Local tools and startup
 
-```bash
-npx expo start --clear        # clear cache and start
-npx expo start                 # normal start
-```
-
-### Firebase emulators
+On Windows, open `Dev-Terminal.cmd` for the project’s Node 22 and Java 21 tools.
+Use `npm ci` with normal peer dependency checks. Do not add `--legacy-peer-deps`.
 
 ```bash
-firebase emulators:start --project demo-us-app
+npm run emulators
+npm run seed
+npm run web                 # browser map shim
+npm run start:dev           # installed native development client
 ```
 
-Ports (per `firebase.json`): auth **9099**, firestore **8088**, UI 4000.
-The app already connects via `src/config/firebase.ts` (`getEmulatorHost()` + the web
-proxy helpers) — don't duplicate connection code:
-```tsx
-if (__DEV__) {
-  connectAuthEmulator(auth, 'http://localhost:9099');
-  connectFirestoreEmulator(db, 'localhost', 8088);
-}
-```
+Emulators use `--project demo-us-app`: Auth 9099, Firestore 8088, UI 4000.
+Use the existing connection helpers in `src/config/firebase.ts`; do not duplicate them.
+Only stop processes started for your task, by their recorded PID or terminal.
+Never kill all Node or Java processes to restart this project.
 
-### Type checking
+## Android development build
+
+The project uses Expo SDK 58 and a custom development client. Rebuild the client
+when native packages or config plugins change. Old SDK 54 Expo Go cannot run it.
 
 ```bash
-npx tsc --noEmit               # must pass before committing
+npx eas-cli@25.3.0 login
+npm run android:cloud       # internal development APK; requires EAS project linking
+npm run start:dev
 ```
 
-### Dependencies
+`npm run android` builds locally with `expo run:android`; a full Android SDK,
+build tools and NDK are required in addition to adb. Windows cannot build iOS locally.
+No automatic publishing, store submission, Firebase deployment or OTA update is configured.
+
+## Environment
+
+`EXPO_PUBLIC_USE_EMULATORS=true` selects local Firebase in development.
+`false` selects the real backend. The development EAS profile uses `true`.
+`FIREBASE_ENV` is not consumed by this app. Public Expo variables are included in
+the client bundle and must never contain server credentials.
+
+## Checks
 
 ```bash
-npm install --legacy-peer-deps  # always use this flag (React version conflicts)
+npm run typecheck
+npm test
+npx expo install --check
+npx expo-doctor@latest
+npm run check:emulators
+npm audit
 ```
 
-### Ready to Test (restart everything for phone testing via Expo Go)
+`check:emulators` starts temporary emulators, seeds fixtures, runs the real map
+functions and rules checks, then stops its own instance. Existing instances must
+be stopped in their own terminal first. Three security regressions are known
+failing TODOs; CI warns about them. Passing development checks does not establish
+release readiness. Fixes are tracked in the workspace security audit.
 
-Use after finishing an implementation when the user wants to test on their phone.
-Emulators and Metro may already be running — kill them cleanly and restart fresh:
-
-```powershell
-# 1. Kill emulator (java) + Metro (node) processes
-Get-Process -Name "java","node" -ErrorAction SilentlyContinue |
-  ForEach-Object { try { $_.Kill() } catch {} }
-
-# 2. Restart emulators — wait for "All emulators ready!"
-firebase emulators:start --project demo-us-app
-
-# 3. Seed test data (Node-only, no device needed)
-node src/dev/runSeed.js
-
-# 4. Restart the Expo dev server
-npx expo start --clear
-```
-
-Then open **Expo Go** on the phone → scan the QR code. If seeded data is missing,
-Settings → Developer → "Seed Test Data" re-seeds from the device.
-
-## EAS Build
-
-### eas.json profiles
-
-```json
-{
-  "cli": { "version": ">= 12.0.0" },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "ios": { "simulator": true },
-      "env": { "FIREBASE_ENV": "emulator" }
-    },
-    "preview": {
-      "distribution": "internal",
-      "env": { "FIREBASE_ENV": "staging" }
-    },
-    "production": {
-      "env": { "FIREBASE_ENV": "production" }
-    }
-  },
-  "submit": {
-    "production": {
-      "ios": { "appleId": "your@email.com", "ascAppId": "your-app-id" },
-      "android": { "serviceAccountKeyPath": "./google-services-key.json" }
-    }
-  }
-}
-```
-
-### Build commands
-
-```bash
-eas build --platform ios --profile development    # dev client
-eas build --platform all --profile preview        # internal testing
-eas build --platform all --profile production     # store release
-```
-
-### Submit to stores
-
-```bash
-eas submit --platform ios --profile production
-eas submit --platform android --profile production
-```
-
-## Environment Variables
-
-### In app.config.ts
-
-```tsx
-export default ({ config }) => ({
-  ...config,
-  extra: {
-    firebaseEnv: process.env.FIREBASE_ENV || 'emulator',
-    eas: { projectId: process.env.EAS_PROJECT_ID },
-  },
-});
-```
-
-### Secrets (EAS)
-
-```bash
-eas secret:create --name FIREBASE_API_KEY --value "..." --scope project
-eas secret:list
-```
-
-Never commit `.env` files. Use EAS secrets for CI builds.
-
-## OTA Updates
-
-```bash
-eas update --branch production --message "Fix signal expiry check"
-eas update --branch preview --message "Test new clustering"
-```
-
-Configure in app.config.ts:
-```tsx
-updates: {
-  url: "https://u.expo.dev/your-project-id",
-  fallbackToCacheTimeout: 0,
-},
-runtimeVersion: { policy: "appVersion" },
-```
-
-## App Versioning
-
-- `version` in app.config.ts: user-facing (1.0.0, 1.1.0)
-- `ios.buildNumber` / `android.versionCode`: auto-increment per build
-- Bump version on feature releases, not patches
-- EAS auto-increments build numbers with `autoIncrement: true`
-
-## Testing
-
-For testing strategies (Jest unit tests, component tests, E2E), see `references/testing.md`.
-
-## CI/CD
-
-For GitHub Actions workflows, see `references/ci-cd.md`.
+The CI workflow runs checks only. See [CI notes](references/ci-cd.md) and
+[testing notes](references/testing.md).
