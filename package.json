@@ -17,6 +17,7 @@
     "test:rules": "node --test --test-concurrency=1 tests/security.rules.test.cjs",
     "check:emulators": "firebase emulators:exec --only auth,firestore --project demo-us-app \"npm run seed && npm run verify && npm run verify:sdk && npm run test:rules\"",
     "android:cloud": "npx eas-cli@25.3.0 build --platform android --profile development",
+    "apk": "npx eas-cli@25.3.0 build --platform android --profile preview",
     "start:dev": "expo start --dev-client",
     "verify:sdk": "node tests/firebase-sdk.cjs"
   },

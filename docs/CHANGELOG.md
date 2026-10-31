@@ -4,6 +4,12 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-10-31 — Docs reset for Milestone 1
+- New `PLAN.md`: Milestone 1 = friends install APK from link + chat. Later milestones rough on purpose.
+- README now holds every command in one place. New `npm run apk` (preview APK, real backend).
+- Slimmed STATUS, development-setup, tester-distribution, dependency-audit, FEATURES, memory, CLAUDE.md.
+- Moved finished plans `docs/plans/*` → `docs/archive/plans/` (index: `docs/archive/README.md`).
+
 ## 2026-10-29 — Merged `felix/dev-setup` into main (Felix's side preferred)
 - Felix (`FSopelsa`) is now the lead developer; his SDK 58 branch (forked from `7933079`) was merged over 9 unpushed main commits (Waves 1–2, EAS link, maps 1.27.2). Backup of pre-merge main: `backup/main-before-felix-merge`.
 - **Felix's side kept**: Expo 58 / RN 0.88 / React 19.3 / TS 6 dependency set + lockfile, Maps 1.29.11 via the SDK matrix (1.27.2 pin + `expo.install.exclude` dropped), `.npmrc` legacy-peer-deps removed, `mapProjection.ts` extraction with verify scripts executing compiled production code, `react-native-maps` config plugin (replaces `android.config.googleMaps`), camera/splash plugins, `cli.appVersionSource: local`, dev-profile emulator env.

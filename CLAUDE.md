@@ -3,19 +3,19 @@
 Nonprofit location-based social app. Expo SDK 58 + Firebase + NativeWind v4 + Tailwind v3.
 
 ## Session Protocol
-Read `STATUS.md` and `.context/memory.md` (project gotchas) at session start. Keep them current:
+Read `PLAN.md` (current milestone — build only what it needs), `STATUS.md` and `.context/memory.md` (project gotchas) at session start. Keep them current:
 - Update STATUS.md after milestones, before commits, and on "wrap up". Dated history goes to `docs/CHANGELOG.md`, not STATUS.md.
 - Update `.context/memory.md` when discovering gotchas — it is the single committed gotchas file (mirror collapsed 2026-06-11).
 - Always tell the user when you update these files.
-- Work on `felix/` branches (current setup branch: `felix/dev-setup`). Leave changes uncommitted for review unless the user asks for a commit; never push unless asked.
+- Docs: short, plain words. One fact in one place — link, don't copy. Every command lives in README `## Commands`.
+- Work on `felix/` branches (`felix/dev-setup` merged into main 2026-10-29). Leave changes uncommitted for review unless the user asks for a commit; never push unless asked.
 
 ## Commands
-- Windows: open `Dev-Terminal.cmd` to select the project-local Node 22 and Java 21 toolchain. See `docs/development-setup.md`.
-- `npx expo start` / `npx expo start --clear` — dev server
-- `npm test` — production map function regressions; `npm run check:emulators` — seeded integration/rules/SDK checks (three known privacy TODOs)
-- `npx tsc --noEmit` — type check (must pass before committing)
-- `npm ci` — reproducible install with normal peer dependency validation; security overrides are documented in `docs/development-setup.md`
-- `firebase emulators:start --project demo-us-app` — local Firebase
+Full list: `README.md` → Commands. Most used:
+- `npm ci` — install · `npm run typecheck` — must pass before commit · `npm test` — map regressions
+- `npm run emulators` → `npm run seed` → `npm run web` — local app in browser
+- `npm run check:emulators` — full emulator checks (3 known privacy TODOs fail on purpose)
+- `npm run apk` — preview APK for testers (real backend)
 
 ## Code Style
 - Feature-first folders: `src/features/{name}/`

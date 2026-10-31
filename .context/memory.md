@@ -1,85 +1,83 @@
 # us-mobile — Project Memory
-> Single committed gotchas file (mirror collapsed 2026-06-11). Read at session start; update when discovering gotchas.
+> Only committed gotchas file. Read at session start. Add gotcha when found. Short.
+> Plan: [PLAN.md](../PLAN.md) · Commands: [README](../README.md#commands)
 
-## User
-- Pål, solo developer, Malmö Sweden
-- Nonprofit focus, open-source alignment important
-- Studies Business Development & Leadership at Hyper Island
+## People
+- Pål — owner, Malmö. Nonprofit, open-source minded. Studies at Hyper Island.
+- Felix (`FSopelsa`) — lead developer. His branches win conflicts (`felix/dev-setup` merged 2026-10-29).
 
-## Firebase Project
-- Project ID: `us-v1-ff6b3`
-- Package: `com.us.mobile`
-- Auth: Phone enabled + test numbers configured
-- Firestore: Created in test mode
-- Emulators: Auth 9099, Firestore 8088, UI 4000 (per `firebase.json`)
-- `google-services.json` exists for Android
+## Firebase
+- Prod project `us-v1-ff6b3`, package `com.us.mobile`. Spark (free) plan.
+- Auth in prod: Email/Password (testers). Phone auth = dev only (web SDK needs reCAPTCHA → mock verifier on emulator; public release → `@react-native-firebase/auth`).
+- Emulators: Auth 9099, Firestore 8088, UI 4000.
+
+## Collections
+- `users/{uid}` — profile, settings, `currentSignal`
+- `users/{uid}/friends/{friendId}` · `users/{uid}/friendRequests/{id}` · `users/{uid}/spots/{spotId}` (owner-only read)
+- `locations/{uid}` — GPS + geohash, friends-only read, `expireAt` +24h
+- `handles/{handle}` — unique handle lookup
+- `chats/{chatId}` (+ `/messages/{id}`) · `broadcasts/{id}` (gatherings)
+
+## Build / deps
+- Expo 58 / RN 0.88 / React 19.3 / TS 6 / Maps 1.29.11. Native pkgs via `npx expo install` (SDK matrix). Plain `npm ci`, no `--legacy-peer-deps`.
+- Never downgrade Firebase/NativeWind or swap Expo/Router majors alone to quiet `npm audit`. Overrides + advisories: `docs/dependency-audit.md`.
+- npm 10 keeps stale nested versions after incremental install → check `npm ls --all` + lockfile.
+- NativeWind 4.2.7 + react-native-css-interop 0.2.7 need Tailwind **v3** (not v4). Tailwind needs `darkMode: 'class'` for web.
+- babel.config.js: nativewind/babel preset + reanimated plugin.
+- TS paths relative to project root, no `baseUrl`.
+- `npm test` / verify scripts run COMPILED production code (`npm run build:checks`, Node16 output) → modules they import need RELATIVE imports, not `@/` (type-only `@/types` ok).
+- Firebase CLI 15 needs Java 21. Windows: `Dev-Terminal.cmd`.
+- Expo Go can NOT run the app (SDK 58 + Maps 1.29). Use dev client (`npm run android:cloud`) or browser.
+
+## EAS / release
+- `eas.json`: development (dev client APK, emulators) · preview (APK, real backend — testers) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
+- app.json `runtimeVersion: { policy: "fingerprint" }` → any native change = new runtime, OTA won't reach old APKs → rebuild.
+- `google-services.json` gitignored, NOT needed (JS SDK, no `googleServicesFile`).
+- Google Maps key in app.json unrestricted → restrict to package + EAS SHA-1 later.
+- EAS login/build run under user's Expo account. Can't script from here.
 
 ## Testing
-- **Metro proxy disconnects:** after upstream response headers are sent, a later connection error must close the response instead of writing another 502 header. 	ests/metro-proxy.test.cjs covers unavailable upstream, partial-response disconnect and disconnected client.
-- **2026-10-24 migration:** Expo 58.0.19 / RN 0.88.0 / React 19.3 / Maps 1.29.11. Use a rebuilt development client, not SDK 54 Expo Go. EAS login/link/build and physical-phone checks were deferred by the user. `eas.json` and `npm run android:cloud` are prepared.
-- **Privacy findings remain open:** negative emulator tests prove self-granted friendship allows unauthorized location reads; chat/gathering creator fields are writable by members/invitees. The older 17 passing checks do not establish consent or field-level protection. Three new tests execute as known failing TODOs; rules/location behavior were not fixed in this maintenance scope.
-- **Actual map functions are shared:** `useMapProjection` wraps `mapProjection.ts`; tests and REST diagnostics import its compiled output and `groupPins.ts`. Run `npm test` or `npm run verify` (the latter requires seeded emulators). Direct REST diagnostics need `npm run build:checks` first. `npm run check:emulators` manages an isolated run and also verifies the real Firebase SDK.
-- **npm 10 stale nested overrides:** inspect `npm ls --all` after installs. Regenerating the affected lock entries and running normal `npm ci` resolved old nested UUID/parser versions. Current security overrides are documented in `docs/dependency-audit.md`; 8 affected audit entries remain (5 high, 3 moderate). The obsolete Metro Windows patch and patch-package were removed: current Metro converts absolute paths to file URLs itself.
-- Windows development uses `Dev-Terminal.cmd` for side-by-side Node 22 / Java 21; instructions in `docs/development-setup.md`. Do not downgrade Firebase/NativeWind or swap Expo/Router major versions individually to silence npm audit. Tailwind needs `darkMode: 'class'` for NativeWind's web color-scheme observer.
-- Expo Go already installed on physical Android phone (Google Pixel 7)
-- Standard method: scan QR code from `npx expo start`, phone & PC on same Wi-Fi
+- **Browser runs whole app incl. map**: `metro.config.js` swaps `react-native-maps` → `src/dev/fakeMaps.tsx` on web and proxies emulator traffic same-origin (`/identitytoolkit*`→9099, `/google.firestore.v1.Firestore` + `/v1/projects`→8088). Not a test of native markers.
+- **Metro proxy**: after upstream headers sent, a later error must close the response, not write a 2nd 502 header (`tests/metro-proxy.test.cjs`).
+- **Map bugs checkable without device**: emulators → `npm run seed` → `npm run verify`. Reads live data through app's real path.
+- **Privacy holes open**: self-granted friendship reads location; chat/gathering creator rewritable. 3 TODO tests fail on purpose. Old 17 rule checks don't prove consent.
+- Two phones on dev build: both auto-sign-in as `dev-user` → phone B: Settings → Developer → Switch Account.
+- Seed timestamps go stale after 5 min → `npm run freshen`.
 
-## Firestore Collections
-- `users/{uid}` — profile + settings + currentSignal
-- `users/{uid}/friends/{friendId}` — friend relationships
-- `users/{uid}/friendRequests/{id}` — pending/accepted/rejected
-- `users/{uid}/spots/{spotId}` — user's named places
-- `locations/{uid}` — real-time GPS with geohash (top-level for fast queries)
-- `handles/{handle}` — unique handle lookup
-- `chats/{chatId}` — chat summary (name, type, memberIds, createdBy, lastMessage, mapVisibility, fixedLocation)
-- `chats/{chatId}/messages/{messageId}` — individual messages (senderId, content, createdAt)
+## Firebase gotchas
+- **Auth emulator uses its DEFAULT project** for key-based calls → auth users live in `demo-us-app`, Firestore data under `us-v1-ff6b3`. Emulators MUST start with `--project demo-us-app`. Mix-up = `auth/user-not-found`.
+- **Emulator enforces rules on client SDK.** Cross-user seed/admin writes → REST `:commit` with `Authorization: Bearer owner`. Rule tests must use real user tokens (`Bearer owner` bypasses rules).
+- **Multi-user batches**: rules must allow EVERY write as caller. Friends rule = `auth.uid == userId || auth.uid == friendId`.
+- **Emulator rules hot-reload lies (Windows)**: says "Rules updated" but keeps old compile. Restart emulator + reseed after editing rules. Tell: error line numbers don't match file.
+- **Prod index ≠ emulator**: emulator never enforces composite indexes. `==` + `array-contains` (chats) needs one in prod.
+- **Prod sign-in errors**: prod returns `INVALID_LOGIN_CREDENTIALS` for missing user AND wrong password (emulator says `USER_NOT_FOUND`). `provisionTesters.js` handles all three.
+- **Auth persistence restores ASYNC**: never read `auth.currentUser` sync at boot. `ensureDevUser` waits for first `onAuthStateChanged`.
+- **RN auth persistence import**: `getReactNativePersistence` only in `@firebase/auth` react-native entry → `@ts-expect-error` in `src/config/firebase.ts`. Not from `firebase/auth`. `initializeAuth` throws on 2nd call (Fast Refresh) → try/catch fallback to `getAuth`.
+- `getDoc()` ok for button actions / post-login checks. "Always onSnapshot" = reactive UI reads.
 
-## Known Gotchas
-- Use normal `npm ci`; the aligned React versions and NativeWind 4.2.7 resolve without `--legacy-peer-deps`. Keep the gRPC/PostCSS security overrides until upstream dependencies include patched versions.
-- `as const` arrays + useState = narrow literal types. Use `useState<string>()` explicitly
-- NativeWind v4 requires Tailwind CSS v3, NOT v4
-- NativeWind versions: nativewind 4.2.7 + react-native-css-interop 0.2.7
-- TypeScript aliases use `paths` relative to the project root; no `baseUrl` or TypeScript 6 `ignoreDeprecations` setting is needed with the project's TypeScript 5.9.
-- Phone auth web SDK needs reCAPTCHA — mock ApplicationVerifier used for emulator dev
-- For production: switch to `@react-native-firebase/auth` (native SDK, no reCAPTCHA)
-- Metro Node 22 Windows fix persisted via `patch-package` (postinstall script)
-- babel.config.js needs: nativewind/babel preset + react-native-reanimated/plugin
-- Platform splits need a barrel: Metro resolves `.native.tsx` at runtime but tsc doesn't — keep a plain `.tsx` re-export next to `.native.tsx`/`.web.tsx`
-- react-native-maps `MapView` must be imported as `import type MapView` in `.native.tsx` files
-- expo-router Tabs API doesn't support NativeWind `className` for tab-bar styling — inline styles with COLORS are OK there; `tabBarInactiveTintColor` takes an rgba STRING, not hex+alpha
-- **Fan-out Firestore subscriptions need a stable string key, not an array dep**: `useMemo(() => Array.from(set), [snapshotArrays])` returns a fresh identity every snapshot → a dependent `useEffect` tears down + re-creates N listeners on every fire. Memoize to `Array.from(set).sort().join('|')` and depend on that. Reference: `profileIdKey`/`presenceIdKey` in `app/(tabs)/chats.tsx`
-- **DMs have viewer-dependent display names**: `ChatSummary.name` is `string | null` — groups store the name, DMs store `null` and the client resolves the peer's displayName at render. Any `MapEntity.groupChat.name` mapping needs a `c.name !== null` type predicate
-- One-shot `getDoc()` is OK for imperative actions (button presses, post-login checks) — CLAUDE.md's "always onSnapshot" rule is about reactive UI reads
-- Phone auth session is passed via Expo Router route params (`sessionInfo`), not globalThis
-- **Firebase auth persistence restores ASYNC — never check `auth.currentUser` synchronously at boot** (fixed 2026-06-11): it's `null` even when a session exists. `ensureDevUser` (`app/_layout.tsx`) waits for the first `onAuthStateChanged` emission before auto-signing-in; before the fix, every dev reload stomped the signed-in tester/persona session back to dev-user.
-- **Firestore emulator enforces security rules against the client SDK.** Cross-user dev writes (seeding test personas, admin scripts) must go through the REST `:commit` endpoint (`/v1/projects/{pid}/databases/(default)/documents:commit`) with `Authorization: Bearer owner` — this is the documented admin-bypass token, same one already used for auth user creation. `writeBatch(db)` from the JS SDK always runs as the signed-in user.
-- **Multi-user batches need rules that authorize EVERY write as the caller** (added 2026-06-11): `acceptFriendRequest` batches writes into BOTH users' friend lists; the old `users/{uid}/friends/{fid}` rule (owner-only write) denied the whole batch — accepting a friend request could never work. Rule is now `auth.uid == userId || auth.uid == friendId` (you may only write YOUR OWN entry into someone else's list). Locations are friends-only readable (`exists(users/{owner}/friends/{reader})`). Regression: `node src/dev/verifyRules.js` (after `runSeed.js`) — signs in as real users via password REST and asserts 10 rules guarantees with user tokens (NOT `Bearer owner`, which bypasses rules and proves nothing about them).
-- **Chats model** (added 2026-04-18): `onChats` uses `array-contains` on `memberIds` and sorts client-side by `lastMessageAt ?? createdAt` — avoids a composite index. Subcollection rules (`chats/{id}/messages/{id}`) authorize with `get(/databases/$(database)/documents/chats/$(chatId)).data.memberIds`. Named group clusters match proximity clusters by sorted `[viewer, ...cluster.friends]` == `chat.memberIds` and decorate the cluster with `groupChat: { id, name }`. Fixture: `chats[]` in `src/dev/fixtures.json` seeds via `src/dev/seedDevData.ts`.
-- **Floating glass tab bar needs per-screen bottom insets** (added 2026-06-03): `app/(tabs)/_layout.tsx` uses `tabBarStyle.position:'absolute'` + `tabBarBackground` BlurView under a `bg-void/80` overlay so map/list content blurs through. Every tab screen now renders UNDER the ~80px bar: scrolling screens pad `pb-24` (chats FlatList, settings ScrollView); absolutely-positioned bottom controls sit at `bottom ≥ 96` (map my-location button + cluster/friend cards; the my-location button hides while a card is open). New tab screens need the same. Don't import `useBottomTabBarHeight` (`@react-navigation/bottom-tabs` is only transitive) — use a fixed offset. Active tab = icon `scale 1.12` + signal halo + iOS shadow glow.
-- **Settings = nav-list + full-screen detail routes** (added 2026-06-03): `app/(tabs)/settings.tsx` = profile card + grouped `SettingsGroup`/`SettingRow` list; destinations push `app/settings/{account,privacy,developer}.tsx` which live OUTSIDE `(tabs)` (full-screen, own back-header `SettingsDetailLayout`, like chat detail). `/settings` (tab) and `/settings/account` (folder) don't collide — no `settings/index.tsx`. My Spots reuses `MySpotsModal`. Primitives in `src/components/settings/`.
-- **Named group pins — proximity-wins** (added 2026-06-03): a named GROUP chat (`mapVisibility:'ALWAYS'` + non-null `name` + `fixedLocation`) reconciles with the live projection in `src/features/map/groupPins.ts` (`buildGroupPins`): (1) LIVE — members proximity-clustered now → decorate that cluster at their real centroid; (2) RESTING — members apart → synthesize a `CLUSTER` at `fixedLocation` (`id: group-<chatId>`, `groupChat.fixed = true`). **When both apply, proximity wins** (fixed pin suppressed). Fixed pins are **non-absorbing** — an individually-visible member keeps their own real-time pin (truthful presence > tidy map). Facepile profiles for ghost/away members come from `useGroupMemberProfiles` (stable-string-key), NOT `useFriendLocations` (needs a location doc). Verify both branches device-free: `node src/dev/runSeed.js` → `node src/dev/verifyGroupPins.js`.
-- **Map/cluster bugs are verifiable WITHOUT a device** (added 2026-06-02): start the emulator → `node src/dev/runSeed.js` (Node-only seed via REST `:commit`, mirrors `seedDevData.ts`) → `node src/dev/verifyProjection.js`. The verify script reads LIVE emulator data through the app's exact read path (`users/dev-user/friends` → per-friend `users/{id}` + `locations/{id}`), assembles `friendLocations` like `useFriendLocations.commit` (needs BOTH profile + location), and runs the same clustering as `useMapProjection`. Expects `CLUSTER(alice+bob) + FRIEND(charlie)`. This resolved Bug #3 (Alice+Bob not clustering): the whole pipeline was correct — the device symptom was stale emulator data / pre-fix subscription thrash. Far faster than chasing device console logs.
-- **Auth emulator routes key-based requests to its DEFAULT project** (added 2026-06-10): everything the Firebase JS SDK sends (`signInWithPassword` etc.) and admin REST calls WITHOUT a project in the path (`accounts:update`) resolve to the `--project` flag's project (`demo-us-app`). Admin calls WITH a project path go to that literal project. So auth users MUST be created in `demo-us-app` (`AUTH_EMULATOR_PROJECT_ID` in runSeed.js/seedDevData.ts, `EMULATOR_PROJECT_ID` in app/_layout.tsx) while Firestore data stays under `us-v1-ff6b3` (the SDK's projectId). Mixing them up = `auth/user-not-found` on every password sign-in + `USER_NOT_FOUND` on the seed's password update. Emulators MUST start with `--project demo-us-app`.
-- **Whole app INCLUDING the map is testable in a BROWSER** (updated 2026-06-11; was "minus live map"): `npx expo start` + emulators + open `http://localhost:8081` — dev auto-sign-in lands as `dev-user`. Three pieces make it work, all committed: (1) `metro.config.js` resolves `react-native-maps` → `src/dev/fakeMaps.tsx` on web (dark pane, lat/lng→pixel projection, Marker/Circle/animateToRegion/onLongPress, zoom ± buttons) so the REAL map screens run in the browser — markers, clusters, group pins, broadcast pins, cards, ghost/signal HUD all drive live (expo-router's `require.context` pulls `*.native.tsx` ROUTES into the web bundle — platform splits protect `src/` imports but not `app/` routes, hence the resolver); (2) `metro.config.js` `enhanceMiddleware` proxies emulator traffic same-origin by path prefix (`/identitytoolkit.*`→9099, `/google.firestore.v1.Firestore`+`/v1/projects`→8088) because sandboxed preview browsers only reach the Metro port; web clients use `getAuthEmulatorUrl()`/`getFirestoreEmulatorUrl()` from `src/config/firebase.ts`; (3) only the My Spots map EDITOR still renders a web fallback. Browser-shim verification covers data/logic/UI — NOT react-native-maps native rendering (see next gotcha).
-- **Expo Go cannot render custom map markers correctly — LIBRARY bug, not our code** (closed 2026-06-11 after 5 device rounds): react-native-maps 1.20.1 + Android New Architecture clips/flickers/blanks custom View markers (rnm [#5877](https://github.com/react-native-maps/react-native-maps/issues/5877), [#5655](https://github.com/react-native-maps/react-native-maps/issues/5655)). No JS-side workaround exists — tracksViewChanges variants, structural rebuilds, `collapsable={false}` + fixed size + transparent margins were ALL disproved on device. The project has since installed Maps 1.29.11 with Expo 58; a development build and physical-device confirmation are still pending; newer lib versions CRASH Expo Go (`RNMapsAirModule` missing from the Go binary, which bundles 1.20.1). `newArchEnabled:false` is untestable in Expo Go (new-arch-only since SDK 53) and a dead end (legacy removed in SDK 55). Until Step 4: judge marker rendering by the browser shim + verify scripts, never by Expo Go. Keep the marker rules anyway (no tracksViewChanges, `collapsable={false}` fixed-size root, no looping Animated) — they prevent total invisibility on 1.20.1.
-- **Felix (`FSopelsa`) is the lead developer — his branches win conflicts** (added 2026-10-29): `felix/dev-setup` (SDK 58 / RN 0.88 / TS 6 upgrade) was merged into main with his side preferred. Consequences: react-native-maps follows the Expo SDK matrix (1.29.11, no `expo.install.exclude`, use `npx expo install`); `.npmrc` `legacy-peer-deps` was REMOVED — normal peer validation, `npm ci` from the committed lockfile; map projection logic lives in `src/features/map/mapProjection.ts` (the hook is a thin `useMemo` wrapper) and the verify scripts + `npm test` execute that compiled production code via `npm run build:checks` (tsconfig.checks.json, Node16 output) — so modules it imports must use RELATIVE imports, not `@/` aliases (types-only `@/types` imports are fine).
-- **EAS scaffolding lives in `eas.json` + app.json (static)** (added 2026-06-14): `eas.json` profiles = development (dev-client APK, internal dist), preview (internal APK), production (AAB, autoIncrement); `cli.appVersionSource: local` (Felix's dev-setup choice, 2026-10-29; app.json owns the versionCode). app.json uses **`runtimeVersion: { policy: "fingerprint" }`** (auto-bumps the OTA runtime on any native change — chosen over appVersion because build #1 has native churn) and an `updates` block whose `url` is written by `eas update:configure` AFTER `eas init` creates `extra.eas.projectId`. expo-task-manager needs NO plugin entry; expo-updates is auto-applied at prebuild (not listed in plugins[]). **`google-services.json` is gitignored** → EAS Build can't fetch it from git; it must be provided as an EAS file secret. The Google Maps key in app.json is unrestricted (Open Item #2) — restrict to `com.us.mobile` + the EAS keystore SHA-1 (from `eas credentials`) after build #1. EAS-account actions (`eas login`/`init`/`update:configure`/`build`) cannot be scripted — they run under the user's Expo account.
-- **Prod Firebase returns `INVALID_LOGIN_CREDENTIALS`, not `USER_NOT_FOUND`** (added 2026-06-14): `provisionTesters.js` signs in with the CSV-stored password first and recreates the account if sign-in fails. The EMULATOR returns `USER_NOT_FOUND`/`EMAIL_NOT_FOUND` for a missing account, but PRODUCTION returns the generic `INVALID_LOGIN_CREDENTIALS` (anti-enumeration) for BOTH missing-account and wrong-password. The recreate branch now matches all three — without it, a stale CSV row (e.g. tester01–03 left over from an `--emulator` run) makes the prod run report `❌ sign-in failed` and skip creating those accounts (exactly what happened on the first prod run 2026-06-14). If a tester genuinely exists with an unknown password, the follow-up `signUp` returns `EMAIL_EXISTS` and the script reports that instead.
-- **Dev personas and prod testers are two disjoint, isolated account systems — keep them that way** (added 2026-06-14, 5-agent audit): DEBUG = `dev-user`/`alice`/`bob`/`charlie`/`dana`/`eve` at `@test.dev` (word handles), all `__DEV__`-gated and EMULATOR-only (seed, "Switch Account" in `app/settings/developer.tsx`, auto-sign-in `ensureDevUser`). PROD testers = `testerNN` at `@us.test` (`TESTER_EMAIL_DOMAIN`), created ONLY by the manually-run `provisionTesters.js` (create-on-404, never clobbers). No debug routine references, signs in as, or can clobber a tester — the Switch Account list is a closed hardcoded set with no free-text entry, the seed writes only the 5 fixture personas to the emulator, and auto-sign-in is hardcoded to `dev-user` and early-returns if any session is already restored. Protection rests on TWO invariants: (1) NEVER add a tester id / `@us.test` email / `testerNN` handle to `src/dev/fixtures.json` or `DEV_ACCOUNTS` (that's the one thing that would wire a tester into the seeder + switcher); (2) keep all dev tooling `__DEV__`-gated + emulator-targeted (never point `ensureDevUser`/`seedDevData`/`switchAccount` at prod `us-v1-ff6b3`).
+## Accounts
+- Dev personas (`dev-user`, alice, bob, charlie, dana, eve @ `@test.dev`) = `__DEV__` + emulator only.
+- Prod testers (`testerNN` @ `@us.test`) = only via `provisionTesters.js`. Creds in gitignored `testers-credentials.csv`. `.test` mail can't receive reset mail → reset in console.
+- Keep them apart: NEVER put tester ids/emails in `src/dev/fixtures.json` or `DEV_ACCOUNTS`. Never point dev tooling at prod.
 
-- **Chat presence pills share ONE cluster universe with the map** (added 2026-07-03): `computeClusterPeers` (`src/features/presence/presence.ts`) and `useMapProjection` both sort entries by id (deterministic anchors) and must be fed the FULL friend universe (`useFriendLocations` / the chats-tab `presenceMap`) — NEVER a chat's member subset. The anchor pass is input-set sensitive: a member-only universe made the group header contradict the list/map ("2 together" vs "2 on the map"; a non-member friend can bridge two members into one cluster). The group SPOT tier ("2 at Home") requires same name+emoji AND overlapping spot zones (centers within the larger radius) because spot snapshots are always the owner's OWN spot — name equality alone reads two different "Home"s across town as one place. `LocationPresence.spot` (denormalized snapshot) is the ONLY way to see a friend's spot; `users/{uid}/spots` is owner-only readable by design — don't relax that rule to build presence features.
+## React / UI gotchas
+- `as const` arrays + useState = narrow literal types → `useState<string>()`.
+- Platform splits: Metro picks `.native.tsx`, tsc doesn't → keep plain `.tsx` re-export barrel. `app/` routes get pulled into web bundle anyway (hence maps resolver).
+- `MapView` in `.native.tsx`: `import type MapView`.
+- **Fan-out subscriptions need a stable string key**: `Array.from(set).sort().join('|')` as dep, not a fresh array (else N listeners rebuilt every snapshot). See `profileIdKey` in `app/(tabs)/chats.tsx`.
+- DMs: `ChatSummary.name` is `null`, client resolves peer name. Map group names need `c.name !== null` predicate.
+- Phone auth session passed via route params (`sessionInfo`).
+- Tabs: no NativeWind `className` for tab bar → inline styles with COLORS ok. `tabBarInactiveTintColor` takes rgba string.
+- **expo-router 58: `href: null` makes route UNREACHABLE** (rewritten to `hidden: true`). Hide tab with `tabBarButton: () => null` + `tabBarItemStyle: { display: 'none' }`.
+- Floating glass tab bar (~80px, absolute): scroll screens `pb-24`, bottom controls `bottom ≥ 96`. Don't import `useBottomTabBarHeight`.
+- Settings = tab list + full-screen routes in `app/settings/*` (outside `(tabs)`). No `settings/index.tsx`.
+- RN-web: `Modal animationType="slide"` never closes → `'none'` on web. `Alert.alert` is no-op on web → `window.confirm` fallback for destructive actions. Close modals BEFORE `router.push`.
 
-- **Firestore emulator rules hot-reload LIES on Windows** (added 2026-07-04): editing `firestore.rules` while the emulator runs logs `✔ Rules updated.` but the emulator KEEPS ENFORCING THE OLD COMPILE — new rules syntax appears "broken" (denials, phantom `evaluation error at L##` messages whose line numbers match the OLD file). Cost a full debugging detour on the group-leave rule. **Always restart the emulator after editing rules** (then reseed). Diagnostic tell: error line numbers that don't match the current file.
-- **react-native-web Modal + Alert gotchas** (added 2026-07-04): (1) RNW `Modal` with `animationType="slide"` NEVER finishes closing in the preview browser — the close waits for an `animationend` that doesn't fire, so `visible=false` leaves the sheet stuck on screen. Use `animationType={Platform.OS === 'web' ? 'none' : 'slide'}` (see ChatInfoSheet). The pre-existing chats.tsx modals have the same latent issue. (2) RNW `Alert.alert` is a **NO-OP** (`static alert() {}`) — confirm dialogs silently do nothing on web; destructive actions need a `window.confirm` fallback (`confirmDestructive` in ChatInfoSheet). Error-toast Alerts elsewhere just vanish on web. (3) When driving the preview browser, a queued `setState` after `router.push` lands on the backgrounded screen — close modals BEFORE navigating.
-- **firebase v12 RN auth persistence import** (added 2026-07-04): `getReactNativePersistence` exists ONLY in `@firebase/auth`'s react-native export-condition entry. Metro resolves it (react-native condition), but tsc can't — the export map's `types` condition wins and the browser types don't declare it — so the import in `src/config/firebase.ts` carries a `@ts-expect-error`. Never import it from the `firebase/auth` umbrella (not bundled there at all → undefined at runtime). `initializeAuth` throws on second call (Fast Refresh) — the `createAuth()` try/catch fallback to `getAuth(app)` is required.
+## Map / presence
+- Named group pins (`src/features/map/groupPins.ts`): members together → decorate live cluster; apart → pin at `fixedLocation`. Proximity wins. Fixed pins don't absorb visible members.
+- Chat presence + map share ONE cluster universe: feed full friend list, sorted by id. Never a chat's member subset.
+- Spot tier "2 at Home" needs same name+emoji AND overlapping zones. `LocationPresence.spot` snapshot is the only way to see a friend's spot — don't relax spots rule.
+- Old marker clipping (Maps 1.20.1 + New Arch, rnm #5877/#5655) = library bug, no JS fix. Maps 1.29 maybe fixes — check on dev build. Keep marker rules: no `tracksViewChanges`, `collapsable={false}` fixed-size root, no looping Animated.
 
-- **expo-router 58: `href: null` makes a tab route UNREACHABLE** (added 2026-10-29): since the SDK 58 upgrade, `Tabs.Screen options={{ href: null }}` is rewritten to `hidden: true`, which redirects every push/URL to that route back to the first tab — Settings (gear in the Chats header) silently stopped opening, no console output. Hide a tab button with `tabBarButton: () => null` + `tabBarItemStyle: { display: 'none' }` instead (see `app/(tabs)/_layout.tsx`). Check any future hidden tabs the same way.
-- **Firebase CLI 15 needs Java 21** (added 2026-10-29): emulators refuse to start on Java 17 (Android Studio's JBR) or 15. Felix's toolchain path `%LOCALAPPDATA%\us-mobile-toolchain\jdk-21.0.12.1+1` is installed on this machine — set `JAVA_HOME` to it (or use `Dev-Terminal.cmd`) before `npm run emulators`.
-
-## Web Prototype (Reference Setup)
-- Prototype source copied to `.context/prototype/src/` (82 files, finished, won't change)
-- `.context/prototype/prototype-map.md` — file-level index with one-liner per file
-- Skill: `.claude/skills/prototype-reference/SKILL.md`
-- Workflow: read prototype-map.md first → fetch 1-2 specific files → adapt to React Native
-- Prototype is web (React/Leaflet/CSS). Production is React Native/Expo/NativeWind/Firebase.
-- Prototype includes the FULL app. MVP only uses a subset of features at a time.
+## Prototype reference
+- Web prototype in `.context/prototype/src/` (done, won't change). Index: `.context/prototype/prototype-map.md`. Skill: `prototype-reference`. Read map first → fetch 1–2 files → adapt to RN.
