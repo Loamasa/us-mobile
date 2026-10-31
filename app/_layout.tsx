@@ -6,6 +6,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, type User } from 'fireb
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import * as Sentry from '@sentry/react-native';
 import { auth, db, getAuthEmulatorUrl } from '@/config/firebase';
+import { publishPublicKey } from '@/lib/firestore';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import '../global.css';
 
@@ -157,6 +158,13 @@ async function ensureDevUser() {
 
 function RootLayout() {
   const [ready, setReady] = useState(false);
+
+  // Friends can only encrypt to you once your key is published.
+  useEffect(() => {
+    return onAuthStateChanged(auth, (user) => {
+      if (user) publishPublicKey(user.uid).catch((e) => console.warn('[e2ee] publish failed:', e));
+    });
+  }, []);
 
   useEffect(() => {
     if (__DEV__) {

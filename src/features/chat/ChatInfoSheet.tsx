@@ -55,6 +55,8 @@ interface ChatInfoSheetProps {
   friendIds: Set<string>;
   // Friend-universe presence (spot names + on-map dots).
   presence: Record<string, LocationPresence>;
+  // The code two people compare to confirm their chat is really private.
+  safetyCodeFor: (id: string) => string | null;
 }
 
 /**
@@ -69,6 +71,7 @@ export default function ChatInfoSheet({
   members,
   friendIds,
   presence,
+  safetyCodeFor,
 }: ChatInfoSheetProps) {
   const router = useRouter();
   // GROUP root shows the member list; drilling into a member sets profileId.
@@ -206,6 +209,22 @@ export default function ChatInfoSheet({
           />
           <Text className="text-fog/50 text-xs">{label}</Text>
         </View>
+
+        {/* Encryption check */}
+        {id !== viewerId && safetyCodeFor(id) && (
+          <View className="w-full bg-glass border border-glass-border rounded-2xl p-3.5 mt-5">
+            <Text className="text-fog/50 text-xs uppercase tracking-widest mb-1.5">
+              🔒 Safety code
+            </Text>
+            <Text className="text-fog text-base font-bold" selectable>
+              {safetyCodeFor(id)}
+            </Text>
+            <Text className="text-fog/40 text-xs mt-1.5">
+              If {profile?.displayName ?? 'they'} sees the same code, nobody can read
+              your messages but the two of you.
+            </Text>
+          </View>
+        )}
 
         {/* Actions */}
         <View className="w-full mt-6" style={{ gap: 10 }}>

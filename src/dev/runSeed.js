@@ -1,11 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const { geohashForLocation } = require('geofire-common');
+// Compiled by `npm run build:checks` (the seed script runs it first).
+const { devKeyPair, seal } = require('../../.expo/test-build/features/e2ee/envelope.js');
 
 // Firestore data lives under the SDK's projectId; auth users must live in the
 // emulator's default project (started with --project demo-us-app) because
 // key-based SDK requests (signInWithPassword etc.) always resolve there.
-const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
+const EMULATOR_PROJECT_ID = 'us-felix-test-20261030';
 const AUTH_EMULATOR_PROJECT_ID = 'demo-us-app';
 const FIRESTORE_EMULATOR_PORT = 8088;
 const AUTH_EMULATOR_PORT = 9099;
@@ -101,6 +102,9 @@ function toFirestoreValue(v) {
       ? { integerValue: String(v) }
       : { doubleValue: v };
   }
+  if (v instanceof Uint8Array) {
+    return { bytesValue: Buffer.from(v).toString('base64') };
+  }
   if (v instanceof Date) {
     return { timestampValue: v.toISOString() };
   }
@@ -175,6 +179,18 @@ async function runSeed() {
   const writes = [];
   const now = new Date();
 
+  const friendsOf = (id) =>
+    fixtures.friendships.flatMap(([a, b]) => (a === id ? [b] : b === id ? [a] : []));
+  // Same envelope shape the app writes: `readers` plus the sender themselves.
+  const sealTo = (readers, value, scope, senderId) =>
+    seal(
+      typeof value === 'string' ? value : JSON.stringify(value),
+      scope,
+      senderId,
+      devKeyPair(senderId),
+      Object.fromEntries([...readers, senderId].map((r) => [r, devKeyPair(r).publicKey]))
+    );
+
   for (const [id, persona] of personaEntries) {
     const { profile, location, spots } = persona;
 
@@ -189,15 +205,17 @@ async function runSeed() {
       createdAt: now.toISOString(),
     };
 
-    // location stays null — signals never carry GPS (users/{uid} is
-    // auth-readable; mirrors setCurrentSignal).
     if (profile.signal && location) {
-      profileData.currentSignal = {
-        emoji: profile.signal.emoji,
-        text: profile.signal.text,
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
-        location: null,
-      };
+      profileData.currentSignal = sealTo(
+        friendsOf(id),
+        {
+          emoji: profile.signal.emoji,
+          text: profile.signal.text,
+          expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour from now
+        },
+        `signal:${id}`,
+        id
+      );
     }
 
     writes.push({ path: `users/${id}`, data: profileData });
@@ -216,22 +234,25 @@ async function runSeed() {
         writes.push({
           path: `locations/${id}`,
           data: {
-            geohash: geohashForLocation([location.lat, location.lng], 6),
-            geopoint: { lat: location.lat, lng: location.lng },
-            lat: location.lat,
-            lng: location.lng,
+            envelope: sealTo(
+              friendsOf(id),
+              {
+                lat: location.lat,
+                lng: location.lng,
+                spot: {
+                  id: containingSpot.id,
+                  name: containingSpot.name,
+                  emoji: containingSpot.emoji,
+                  center: { latitude: containingSpot.lat, longitude: containingSpot.lng },
+                  radius: containingSpot.radius,
+                },
+              },
+              `location:${id}`,
+              id
+            ),
             updatedAt: now,
-            // Mirror updateLocation's TTL field (locations self-delete under
-            // the console TTL policy; emulator ignores it — shape parity).
+            // Mirror updateLocation's TTL field (emulator ignores it — shape parity).
             expireAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            precision: 'EXACT',
-            spot: {
-              id: containingSpot.id,
-              name: containingSpot.name,
-              emoji: containingSpot.emoji,
-              center: { lat: containingSpot.lat, lng: containingSpot.lng },
-              radius: containingSpot.radius,
-            },
           },
         });
       } else {
@@ -243,12 +264,19 @@ async function runSeed() {
       writes.push({
         path: `users/${id}/spots/${spot.id}`,
         data: {
-          name: spot.name,
-          emoji: spot.emoji,
-          location: { lat: spot.lat, lng: spot.lng },
-          radius: spot.radius,
-          isActive: spot.isActive,
-          ...(spot.schedule ? { schedule: spot.schedule } : {}),
+          envelope: sealTo(
+            [],
+            {
+              name: spot.name,
+              emoji: spot.emoji,
+              location: { latitude: spot.lat, longitude: spot.lng },
+              radius: spot.radius,
+              isActive: spot.isActive,
+              ...(spot.schedule ? { schedule: spot.schedule } : {}),
+            },
+            `spot:${id}:${spot.id}`,
+            id
+          ),
         },
       });
     }
@@ -266,6 +294,11 @@ async function runSeed() {
     });
   }
 
+  // Public keys: the app derives the same fixed keys for these personas in dev.
+  for (const uid of ['dev-user', ...Object.keys(fixtures.personas)]) {
+    writes.push({ path: `publicKeys/${uid}`, data: { key: devKeyPair(uid).publicKey } });
+  }
+
   // Chats
   const chats = fixtures.chats || [];
   for (const chat of chats) {
@@ -276,14 +309,14 @@ async function runSeed() {
     const messageDate = (m) => new Date(now.getTime() - m.minutesAgo * 60 * 1000);
 
     const data = {
-      name: chat.name ?? null,
+      name: chat.name ? sealTo(chat.memberIds, chat.name, `chat-name:${chat.id}`, chat.createdBy) : null,
       avatarUrl: chat.avatarUrl ?? null,
       type: chat.type,
       memberIds: chat.memberIds,
       createdBy: chat.createdBy,
       createdAt: now,
-      lastMessage: newest ? newest.content : chat.lastMessage ?? null,
-      lastMessageAt: newest ? messageDate(newest) : chat.lastMessage ? now : null,
+      lastMessage: newest ? sealTo(chat.memberIds, newest.content, `chat:${chat.id}`, newest.senderId) : null,
+      lastMessageAt: newest ? messageDate(newest) : null,
     };
     if (chat.mapVisibility) data.mapVisibility = chat.mapVisibility;
     if (chat.fixedLocation) data.fixedLocation = { lat: chat.fixedLocation.lat, lng: chat.fixedLocation.lng };
@@ -294,7 +327,7 @@ async function runSeed() {
         path: `chats/${chat.id}/messages/seed_${String(i + 1).padStart(2, '0')}`,
         data: {
           senderId: m.senderId,
-          content: m.content,
+          envelope: sealTo(chat.memberIds, m.content, `chat:${chat.id}`, m.senderId),
           createdAt: messageDate(m),
         },
       });
@@ -308,10 +341,18 @@ async function runSeed() {
       path: `broadcasts/${b.id}`,
       data: {
         createdBy: b.createdBy,
-        emoji: b.emoji,
-        text: b.text,
-        location: { lat: b.location.lat, lng: b.location.lng },
-        radius: b.radius,
+        envelope: sealTo(
+          b.visibility === 'FRIENDS' ? friendsOf(b.createdBy) : [...b.memberIds, ...b.invitedIds],
+          {
+            emoji: b.emoji,
+            text: b.text,
+            latitude: b.location.lat,
+            longitude: b.location.lng,
+            radius: b.radius,
+          },
+          `broadcast:${b.id}`,
+          b.createdBy
+        ),
         createdAt: now,
         expiresAt: new Date(now.getTime() + b.hoursFromNow * 60 * 60 * 1000),
         visibility: b.visibility,

@@ -22,6 +22,8 @@ import {
 } from '@/lib/firestore';
 import UserAvatar from '@/components/UserAvatar';
 import ChatInfoSheet from '@/features/chat/ChatInfoSheet';
+import { useChatKeys } from '@/features/e2ee/useChatKeys';
+import { markChatRead } from '@/features/chat/readMarks';
 import { useFriendLocations } from '@/features/map/useFriendLocations';
 import {
   computeClusterPeers,
@@ -62,6 +64,8 @@ function sameDay(a: Timestamp | null | undefined, b: Timestamp | null | undefine
   return new Date(a.toMillis()).toDateString() === new Date(b.toMillis()).toDateString();
 }
 
+const MESSAGE_PAGE_SIZE = 100;
+
 export default function ChatDetailScreen() {
   const { chatId } = useLocalSearchParams<{ chatId: string }>();
   const router = useRouter();
@@ -77,7 +81,7 @@ export default function ChatDetailScreen() {
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [showInfo, setShowInfo] = useState(false);
   const [input, setInput] = useState('');
-  const [sending, setSending] = useState(false);
+  const [messageLimit, setMessageLimit] = useState(MESSAGE_PAGE_SIZE);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -85,17 +89,26 @@ export default function ChatDetailScreen() {
   }, []);
 
   useEffect(() => {
-    if (!chatId) return;
-    return onChatSummary(chatId, (c) => {
+    if (!chatId || !userId) return;
+    return onChatSummary(chatId, userId, (c) => {
       setChat(c);
       setLoaded(true);
     });
-  }, [chatId]);
+  }, [chatId, userId]);
 
   useEffect(() => {
-    if (!chatId) return;
-    return onMessages(chatId, setMessages);
-  }, [chatId]);
+    if (!chatId || !userId) return;
+    return onMessages(chatId, userId, setMessages, messageLimit);
+  }, [chatId, userId, messageLimit]);
+
+  const chatKeys = useChatKeys(chat?.memberIds, userId);
+
+  // Server time on both sides of the unread check, so a wrong phone clock can't
+  // leave a chat looking unread forever.
+  const lastMessageMillis = chat?.lastMessageAt?.toMillis();
+  useEffect(() => {
+    if (chatId && userId && lastMessageMillis) markChatRead(userId, chatId, lastMessageMillis);
+  }, [chatId, userId, lastMessageMillis]);
 
   // Subscribe to each member's profile for name + avatar resolution.
   useEffect(() => {
@@ -296,20 +309,32 @@ export default function ChatDetailScreen() {
     if (!chatId || !userId) return;
     const content = input.trim();
     if (!content) return;
-    setSending(true);
+    // Clear first: the send only resolves once the server confirms, which on a
+    // slow network would wipe whatever was typed meanwhile (and never happen
+    // offline). Firestore queues the write and shows the message immediately.
+    setInput('');
     try {
-      await sendMessage(chatId, userId, content);
-      setInput('');
+      await sendMessage(chatId, userId, content, chatKeys.recipients);
     } catch (e: unknown) {
       console.error('sendMessage failed', e);
+      setInput((current) => current || content);
       Alert.alert(
         'Could not send',
-        e instanceof Error ? e.message : 'Check emulator connection.'
+        e instanceof Error ? e.message : 'Check your connection and try again.'
       );
-    } finally {
-      setSending(false);
     }
-  }, [chatId, userId, input]);
+  }, [chatId, userId, input, chatKeys.recipients]);
+
+  const memberName = useCallback(
+    (id: string) => members[id]?.displayName ?? 'Someone',
+    [members]
+  );
+
+  // Nothing goes out until a changed key is acknowledged: it could be a new
+  // phone, or someone swapping keys to read along. A DM also needs the peer's
+  // key; a group can go ahead without members who haven't got one yet.
+  const hasRecipient = Object.keys(chatKeys.recipients).length > 0;
+  const canSend = chatKeys.changed.length === 0 && hasRecipient;
 
   const renderMessage = useCallback(
     ({ item, index }: { item: Message; index: number }) => {
@@ -393,8 +418,15 @@ export default function ChatDetailScreen() {
               }}
             >
               <Text style={{ color: COLORS.fog, fontSize: 14, lineHeight: 19 }}>
-                {item.content}
+                {item.security === 'locked'
+                  ? "🔒 Can't be read on this device"
+                  : item.content}
               </Text>
+              {item.security === 'unverified' && (
+                <Text style={{ color: COLORS.orange, fontSize: 10, marginTop: 3 }}>
+                  ⚠️ Sender's key not verified
+                </Text>
+              )}
               {clock ? (
                 <Text
                   style={{
@@ -554,6 +586,7 @@ export default function ChatDetailScreen() {
                     (peerId && members[peerId]?.displayName) || 'them'
                   }.`
                 : 'No messages yet. Say hi to the crew.'}
+              {'\n\n'}🔒 Messages are end-to-end encrypted.
             </Text>
           </View>
         ) : (
@@ -564,7 +597,60 @@ export default function ChatDetailScreen() {
             renderItem={renderMessage}
             contentContainerStyle={{ paddingVertical: 12 }}
             keyboardDismissMode="on-drag"
+            // A full page means there may be more further back.
+            onEndReached={() => {
+              if (messages.length === messageLimit) {
+                setMessageLimit(messageLimit + MESSAGE_PAGE_SIZE);
+              }
+            }}
+            onEndReachedThreshold={0.3}
           />
+        )}
+
+        {/* Encryption notices */}
+        {chatKeys.changed.map(({ uid, key }) => (
+          <View
+            key={uid}
+            style={{
+              margin: 12,
+              marginBottom: 0,
+              padding: 12,
+              borderRadius: 14,
+              borderWidth: 1,
+              borderColor: 'rgba(249,115,22,0.4)',
+              backgroundColor: 'rgba(249,115,22,0.1)',
+            }}
+          >
+            <Text style={{ color: COLORS.fog, fontSize: 13, lineHeight: 18 }}>
+              🔐 {memberName(uid)}'s security key changed. Usually that's a new phone
+              or a reinstall, but it could also mean someone is trying to read along.
+              Check with them if you're unsure.
+            </Text>
+            <TouchableOpacity
+              onPress={() => chatKeys.acceptKey(uid, key)}
+              activeOpacity={0.8}
+              style={{ alignSelf: 'flex-end', marginTop: 8, padding: 4 }}
+            >
+              <Text style={{ color: COLORS.orange, fontWeight: '700', fontSize: 13 }}>
+                OK, continue
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+        {chatKeys.missing.length > 0 && chat && (
+          <Text
+            style={{
+              color: 'rgba(242,244,246,0.5)',
+              fontSize: 12,
+              textAlign: 'center',
+              paddingHorizontal: 24,
+              paddingTop: 10,
+            }}
+          >
+            {chat.type === 'DM'
+              ? `🔒 ${memberName(chatKeys.missing[0])} needs to open the app once before you can send encrypted messages.`
+              : `🔒 ${chatKeys.missing.map(memberName).join(', ')} can't read new messages until they open the app.`}
+          </Text>
         )}
 
         {/* Input */}
@@ -585,6 +671,7 @@ export default function ChatDetailScreen() {
             placeholder="Message…"
             placeholderTextColor="rgba(242,244,246,0.35)"
             multiline
+            maxLength={4000}
             style={{
               flex: 1,
               color: COLORS.fog,
@@ -602,16 +689,15 @@ export default function ChatDetailScreen() {
           />
           <TouchableOpacity
             onPress={handleSend}
-            disabled={sending || !input.trim()}
+            disabled={!input.trim() || !canSend}
             activeOpacity={0.8}
             style={{
               height: 40,
               paddingHorizontal: 16,
               borderRadius: 20,
-              backgroundColor:
-                sending || !input.trim()
-                  ? 'rgba(46,92,255,0.35)'
-                  : COLORS.signal,
+              backgroundColor: !input.trim() || !canSend
+                ? 'rgba(46,92,255,0.35)'
+                : COLORS.signal,
               alignItems: 'center',
               justifyContent: 'center',
             }}
@@ -632,6 +718,7 @@ export default function ChatDetailScreen() {
           members={members}
           friendIds={friendIds}
           presence={friendPresence}
+          safetyCodeFor={chatKeys.safetyCodeFor}
         />
       )}
     </View>

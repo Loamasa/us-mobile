@@ -27,7 +27,7 @@ Two terminals.
 | Step | Command | Does |
 |---|---|---|
 | 1 | `npm run emulators` | Firebase emulators (Auth 9099, Firestore 8088, UI http://localhost:4000). Leave open, Ctrl+C stops |
-| 2 | `npm run seed` | Fill emulators with 5 test people, chats, gatherings |
+| 2 | `npm run seed` | Fill emulators with 5 test people, encrypted chats, gatherings |
 | 3 | `npm run web` | App in browser → http://localhost:8081, auto sign-in as `dev-user` |
 | opt | `npm run freshen` | Keep seeded people "fresh" on map (else they go stale after 5 min) |
 
@@ -48,52 +48,45 @@ Old Expo Go can NOT run this app (SDK 58 + Maps 1.29).
 | Command | Does | Needs emulators? |
 |---|---|---|
 | `npm run typecheck` | TypeScript. Must pass before commit | no |
-| `npm test` | Map projection, group pins, Metro proxy tests | no |
+| `npm test` | Encryption, map projection, group pins, Metro proxy tests | no |
 | `npm run check:emulators` | Starts own emulators, seeds, runs everything below, stops | no (stop other emulators first) |
 | `npm run verify` | Projection + group pins + rules checks on live data | yes, seeded |
 | `npm run verify:sdk` | Real Firebase SDK sign-in + read + listener | yes, seeded |
-| `npm run test:rules` | Authorization tests: fake friendship, creator rewrite, real accept | yes |
+| `npm run test:rules` | Authorization tests: fake friendship, plain text refused, DM hijack, real accept | yes |
 | `npx expo install --check` | Deps match Expo SDK | no |
 | `npx --yes expo-doctor@latest` | Expo project health | no |
 | `npm audit` | Dep advisories ([known ones](docs/dependency-audit.md)) | no |
 
 ### Real backend (test project)
 
-Test project = `us-felix-test-20261030`. `.firebaserc` default still old `us-v1-ff6b3` → **always pass `--project`**.
+Test project = `us-felix-test-20261030` (the only project in the app, and the `.firebaserc` default).
 
 | Command | Does |
 |---|---|
-| `npx firebase deploy --only firestore --project us-felix-test-20261030` | Push `firestore.rules` + `firestore.indexes.json` |
-| `node src/dev/provisionTesters.js --count 20` | Make tester accounts → `testers-credentials-us-felix-test-20261030.csv` (gitignored, private). Needs env below |
-| `node src/dev/provisionTesters.js --emulator --count 3` | Same on emulators → `testers-credentials-emulator.csv`. No env needed |
-
-Env for remote accounts (values in `eas.json` → `tester`). PowerShell:
-
-```powershell
-$env:EXPO_PUBLIC_FIREBASE_PROJECT_ID = "us-felix-test-20261030"
-$env:EXPO_PUBLIC_FIREBASE_API_KEY = "<apiKey from eas.json>"
-```
+| `npx firebase deploy --only auth,firestore` | Push sign-in setting, `firestore.rules`, `firestore.indexes.json` |
+| `node src/dev/provisionTesters.js --count 20` | Make tester accounts → `testers-credentials-us-felix-test-20261030.csv` (gitignored, private). Safe to re-run |
+| `node src/dev/provisionTesters.js --emulator --count 3` | Same on emulators → `testers-credentials-emulator.csv` |
 
 ### Ship to testers
 
 | Command | Does |
 |---|---|
-| `npm run apk` | Build tester APK (test project) in EAS cloud → install link |
-| `npx eas-cli@25.3.0 update --channel tester --message "fix ..."` | Send JS-only fix to installed APKs (no reinstall) |
+| `npm run apk` | Build tester APK in EAS cloud → install link |
+| `npx eas-cli@25.3.0 update --channel tester --environment preview --message "fix ..."` | Send JS-only fix to installed APKs (no reinstall) |
 
 Native change (new package, app.json plugin, permissions) → new `npm run apk`.
 Full runbook: [tester distribution](docs/tester-distribution.md).
 
 ### Good to know
 
-- Emulators MUST run with `--project demo-us-app` (script does it). Auth lives there, Firestore data under `us-v1-ff6b3`.
+- Emulators MUST run with `--project demo-us-app` (script does it). Auth lives there, Firestore data under `us-felix-test-20261030`.
 - Firebase CLI needs Java 21.
 - After editing `firestore.rules`: restart emulators + reseed (hot reload lies).
 - Dev build uses emulators. Set `EXPO_PUBLIC_USE_EMULATORS=false` to hit real backend from dev.
 
 ## Current limitations
 
-- APK on SDK 58 not built or phone-tested yet (Milestone 1 step 2–3).
+- APK not tested on a phone yet (Milestone 1 step 6).
 - CI workflow (`.github/workflows/checks.yml`) not yet seen green on GitHub.
-- New privacy rules pass on emulator only: not deployed, not independently audited. Other privacy risks remain.
+- Encryption has limits: new phone = old messages unreadable, no forward secrecy, no outside audit. See [encryption](docs/encryption.md).
 - Some dep advisories remain: [dependency audit](docs/dependency-audit.md), `npm audit` for live list.

@@ -22,11 +22,5 @@ npm 10 can keep stale nested versions on incremental installs → check `npm ls 
 
 ## App privacy
 
-Separate from deps. `firestore.rules` now block, tested in `tests/security.rules.test.cjs` on emulator:
-
-1. Stranger self-grant friendship → read location.
-2. Chat member rewrite chat creator.
-3. Gathering invitee rewrite gathering creator.
-
-Not deployed yet. Not a full audit: passing emulator tests don't prove whole ruleset safe.
-Review other location + privacy risks before real users.
+Separate from deps. See [encryption](encryption.md) for what is protected and its limits.
+Rules checked on emulator (`tests/security.rules.test.cjs`) and on the real backend once.

@@ -31,10 +31,11 @@ Full list: `README.md` → Commands. Most used:
 - Font: Inter
 
 ## Architecture
-- Locations: top-level `locations/{userId}` with geohash for spatial queries
+- Locations: top-level `locations/{userId}`, sealed to friends. No spatial queries: clustering is client-side
 - Friends: `users/{uid}/friends/{friendId}` subcollection
 - Handles: `handles/{handle}` lookup for uniqueness
 - Spots: `users/{uid}/spots/{spotId}` subcollection
 - Clustering: client-side Haversine, 100m threshold
 - Ghost mode: delete location doc + stop watcher + set globalLocationSharing=false
-- Signals: `users/{uid}.currentSignal` with TTL, client-side expiry check
+- Signals: `users/{uid}.currentSignal`, sealed to friends, client-side expiry check
+- Encryption: user content is end-to-end encrypted at the `src/lib/firestore.ts` boundary, rules refuse plain text. See `docs/encryption.md` before storing anything new

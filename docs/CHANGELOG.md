@@ -4,6 +4,14 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-10-31 — End-to-end encryption, backend live, audit fixes
+- **E2EE** (tweetnacl, keys in SecureStore): messages, previews, group names, locations, spots, signals, gatherings. Pinned keys + key-change warning + safety code. Rules refuse plain text. Design + limits: `docs/encryption.md`.
+- **Audit fixes:** DM id hijack blocked in rules; send no longer wipes typed text or locks offline; provisioning saves each password immediately; `.firebaserc` → test project; one hardcoded backend (no OTA wrong-backend risk); users/handles not listable; handles immutable; `allowFriendRequests` enforced in rules; message fields + server time enforced; older messages load on scroll; unread dot; location double-start race; sign-out no longer hangs offline; Sentry upload off for tester builds.
+- **Privacy:** no background-location, camera, mic, external storage permissions; Android backup off; expired locations hidden client-side; creators delete expired gatherings.
+- **Removed:** phone/OTP/profile screens, `seedDevData.ts`, `testProjection.js`, `featureFlags.ts`, geohash, `preview` EAS profile; expo-camera, expo-image-picker, expo-image, expo-task-manager, react-native-qrcode-svg, geofire-common. Chats tab reuses `useFriendLocations`.
+- **Backend:** `us-felix-test-20261030`: Email/Password on, rules + indexes live, 20 accounts. Firestore database landed in `nam5` because `firebase deploy --dry-run` creates it; delete + recreate in EU blocked by permissions, left to Felix.
+- **Verified:** tsc; `npm test` 33/33; `check:emulators` green; Android Metro export; browser app on emulators (two accounts: friend, DM both ways, same safety code, server holds no text; seeded map/chats/settings decode, no errors); real-backend script 20/20. **Not verified:** real phone, SecureStore on device, key-change banner UI.
+
 ## 2026-10-31 — Docs reset for Milestone 1
 - New `PLAN.md`: Milestone 1 = friends install APK from link + chat. Later milestones rough on purpose.
 - README now holds every command in one place. New `npm run apk` (`tester` profile).

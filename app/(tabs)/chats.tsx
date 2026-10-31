@@ -28,7 +28,6 @@ import {
   acceptFriendRequest,
   rejectFriendRequest,
   onUserProfile,
-  onLocation,
   onChats,
   getOrCreateDmChat,
   getOrCreateGroupChat,
@@ -45,6 +44,8 @@ import {
   deriveGroupPresence,
   isLocationFresh,
 } from '@/features/presence/presence';
+import { useReadMarks } from '@/features/chat/readMarks';
+import { useFriendLocations } from '@/features/map/useFriendLocations';
 import GlassCard from '@/components/ui/GlassCard';
 import UserAvatar from '@/components/UserAvatar';
 import {
@@ -64,6 +65,7 @@ type ChatRow = {
   timestampLabel: string;
   peerId?: string;
   peerVisible?: boolean;
+  unread: boolean;
   // Spot/cluster presence pill (prototype hierarchy: cluster > spot).
   presence?: { kind: 'cluster' | 'spot'; label: string; emoji?: string };
 };
@@ -87,6 +89,15 @@ function formatTimestamp(t: Timestamp | null | undefined): string {
   });
 }
 
+function isUnread(
+  chat: ChatSummary,
+  viewerId: string,
+  readMarks: Record<string, number>
+): boolean {
+  if (!chat.lastMessageAt || chat.lastSenderId === viewerId) return false;
+  return chat.lastMessageAt.toMillis() > (readMarks[chat.id] ?? 0);
+}
+
 export default function ChatsScreen() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | undefined>(
@@ -94,15 +105,10 @@ export default function ChatsScreen() {
   );
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
+  const readMarks = useReadMarks(userId);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [profiles, setProfiles] = useState<Record<string, UserProfile>>({});
-  // Full location docs (not just visibility) — rows derive spot/cluster
-  // presence from the payload. Keyed by userId; absent = not on the map.
-  const [presenceMap, setPresenceMap] = useState<
-    Record<string, LocationPresence>
-  >({});
-
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modals
@@ -193,67 +199,9 @@ export default function ChatsScreen() {
     return () => unsubs.forEach((u) => u());
   }, [profileIdKey]);
 
-  // Same stable-key trick for presence (friends + DM peers).
-  const presenceIdKey = useMemo(() => {
-    const set = new Set<string>();
-    friends.forEach((f) => set.add(f.userId));
-    chats
-      .filter((c) => c.type === 'DM')
-      .forEach((c) => {
-        c.memberIds.forEach((id) => {
-          if (id !== userId) set.add(id);
-        });
-      });
-    return Array.from(set).sort().join('|');
-  }, [friends, chats, userId]);
-
-  useEffect(() => {
-    if (!presenceIdKey) {
-      setPresenceMap({});
-      return;
-    }
-    const ids = presenceIdKey.split('|');
-    // Prune ids that left the subscription set — no null callback fires
-    // after unsubscribe, so an unfriended user's entry would linger.
-    const keep = new Set(ids);
-    setPresenceMap((prev) => {
-      const stale = Object.keys(prev).filter((id) => !keep.has(id));
-      if (stale.length === 0) return prev;
-      const next = { ...prev };
-      stale.forEach((id) => delete next[id]);
-      return next;
-    });
-    const unsubs = ids.map((id) =>
-      onLocation(id, (loc) => {
-        setPresenceMap((prev) => {
-          if (loc) {
-            // Dedup only TRUE no-op snapshots. updatedAt MUST be part of the
-            // comparison: the heartbeat rewrite is what keeps a stationary
-            // friend fresh — retaining the old object would let its
-            // updatedAt age past the staleness cutoff and read a live
-            // friend as offline once the freshness tick re-filters.
-            const cur = prev[id];
-            if (
-              cur &&
-              cur.lat === loc.lat &&
-              cur.lng === loc.lng &&
-              cur.spot?.name === loc.spot?.name &&
-              cur.spot?.emoji === loc.spot?.emoji &&
-              cur.updatedAt?.toMillis?.() === loc.updatedAt?.toMillis?.()
-            ) {
-              return prev;
-            }
-            return { ...prev, [id]: loc };
-          }
-          if (!(id in prev)) return prev;
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      })
-    );
-    return () => unsubs.forEach((u) => u());
-  }, [presenceIdKey]);
+  // Same locations as the map, so the two can never disagree. Only friends'
+  // locations are readable, so a non-friend DM peer simply has no presence.
+  const { friendLocations } = useFriendLocations();
 
   // Freshness is a function of TIME, not just data: a lone frozen doc never
   // sends another snapshot, so without a clock the memo below would keep a
@@ -268,11 +216,11 @@ export default function ChatsScreen() {
   // as "At Home" — only fresh docs feed the pills, dots, and clusters.
   const freshPresence = useMemo(() => {
     const next: Record<string, LocationPresence> = {};
-    for (const [id, loc] of Object.entries(presenceMap)) {
-      if (isLocationFresh(loc, freshnessTick)) next[id] = loc;
+    for (const [id, { location }] of Object.entries(friendLocations)) {
+      if (isLocationFresh(location, freshnessTick)) next[id] = location;
     }
     return next;
-  }, [presenceMap, freshnessTick]);
+  }, [friendLocations, freshnessTick]);
 
   const visibleIds = useMemo(
     () => new Set(Object.keys(freshPresence)),
@@ -320,6 +268,7 @@ export default function ChatsScreen() {
           peerId,
           peerVisible: peerId ? visibleIds.has(peerId) : false,
           presence,
+          unread: isUnread(chat, userId, readMarks),
         };
       }
 
@@ -346,9 +295,10 @@ export default function ChatsScreen() {
           `${memberCount} member${memberCount === 1 ? '' : 's'}`,
         timestampLabel: formatTimestamp(chat.lastMessageAt ?? chat.createdAt),
         presence,
+        unread: isUnread(chat, userId, readMarks),
       };
     });
-  }, [chats, profiles, visibleIds, freshPresence, clusterPeers, userId]);
+  }, [chats, profiles, visibleIds, freshPresence, clusterPeers, userId, readMarks]);
 
   const filteredChats: ChatRow[] = searchQuery.trim()
     ? chatRows.filter((row) => {
@@ -670,7 +620,7 @@ export default function ChatsScreen() {
                 <View className="flex-1 ml-3">
                   <View className="flex-row items-center justify-between">
                     <Text
-                      className="text-fog font-semibold flex-1"
+                      className={`text-fog flex-1 ${item.unread ? 'font-extrabold' : 'font-semibold'}`}
                       numberOfLines={1}
                     >
                       {item.title}
@@ -680,6 +630,18 @@ export default function ChatsScreen() {
                         {item.timestampLabel}
                       </Text>
                     ) : null}
+                    {item.unread && (
+                      <View
+                        accessibilityLabel="Unread messages"
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          marginLeft: 8,
+                          backgroundColor: COLORS.signal,
+                        }}
+                      />
+                    )}
                   </View>
                   <View className="flex-row items-center mt-0.5">
                     {item.chat.type === 'GROUP' && (

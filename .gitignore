@@ -55,3 +55,6 @@ expo_qr.png
 
 # tester account credentials (distribute out-of-band — never commit)
 testers-credentials*.csv
+
+# browser test output
+.playwright-mcp/

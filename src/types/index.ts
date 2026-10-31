@@ -1,4 +1,4 @@
-import { GeoPoint, Timestamp } from 'firebase/firestore';
+import type { GeoPoint, Timestamp } from 'firebase/firestore';
 
 // ─── User ────────────────────────────────────────────
 
@@ -24,11 +24,6 @@ export interface UserSignal {
   emoji: string;
   text: string;
   expiresAt: Timestamp;
-  // ALWAYS null by design (kept for doc-shape compat): users/{uid} is
-  // readable by any authenticated user, so a GPS fix here would route the
-  // most sensitive data around the friends-only locations gate. Nothing
-  // renders it. Never populate it — and never gate broadcasting on it.
-  location: GeoPoint | null;
 }
 
 // ─── Friends ─────────────────────────────────────────
@@ -52,15 +47,11 @@ export interface FriendRequest {
 
 export interface LocationPresence {
   userId: string;
-  geohash: string;
-  geopoint: GeoPoint;
   lat: number;
   lng: number;
   updatedAt: Timestamp;
-  // Firestore TTL target (updatedAt + LOCATION_TTL_MS) — docs left behind by
-  // a killed-forever app self-delete via the console TTL policy.
+  // updatedAt + LOCATION_TTL_MS. Readers ignore the doc after this.
   expireAt?: Timestamp;
-  precision: 'EXACT' | 'APPROXIMATE';
   // Snapshot of the active spot containing the user at the time of this write.
   // Friends render this circle on the map. Only leaks the current spot, not
   // all spots, and only while the user is visible anyway.
@@ -68,7 +59,7 @@ export interface LocationPresence {
     id: string;
     name: string;
     emoji: string;
-    center: GeoPoint;
+    center: { latitude: number; longitude: number };
     radius: number;
   };
 }
@@ -137,14 +128,18 @@ export type MapVisibility = 'ALWAYS' | 'ASK' | 'NEVER';
 export interface ChatSummary {
   id: string;
   // DMs store null and derive the title per-viewer from the peer's profile.
+  // Groups: decrypted by src/lib/firestore.ts, null when this viewer can't read it.
   name: string | null;
   avatarUrl: string | null;
   type: ChatType;
   memberIds: string[];
   createdBy: string;
   createdAt: Timestamp;
+  // Decrypted preview text (or a lock notice). Never stored in plain text.
   lastMessage: string | null;
   lastMessageAt: Timestamp | null;
+  // Who wrote the preview, once decrypted. Absent when it can't be read.
+  lastSenderId?: string;
   // Named groups that pin to the map even without proximity clustering.
   mapVisibility?: MapVisibility;
   fixedLocation?: GeoPoint;
@@ -154,8 +149,13 @@ export interface Message {
   id: string;
   chatId: string;
   senderId: string;
+  // Decrypted text; empty when `security` is 'locked'.
   content: string;
   createdAt: Timestamp;
+  // locked: this device can't decrypt it (sent before a reinstall, or never
+  // granted to it). unverified: it decrypts, but the sender's key isn't the one
+  // we've pinned for them.
+  security: 'verified' | 'unverified' | 'locked';
 }
 
 // ─── Gatherings (data name: broadcasts) ──────────────

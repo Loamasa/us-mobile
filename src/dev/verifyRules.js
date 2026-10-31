@@ -25,7 +25,7 @@
  *   9. Unfriending deletes BOTH friend edges in one batch as either party.
  */
 
-const FIRESTORE_PROJECT = 'us-v1-ff6b3';
+const FIRESTORE_PROJECT = 'us-felix-test-20261030';
 const AUTH_URL = 'http://127.0.0.1:9099';
 const FIRESTORE_URL = 'http://127.0.0.1:8088';
 const DOCS = `${FIRESTORE_URL}/v1/projects/${FIRESTORE_PROJECT}/databases/(default)/documents`;

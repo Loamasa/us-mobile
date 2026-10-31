@@ -30,7 +30,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ## Emulators
 
-- Auth = project `demo-us-app`, Firestore data = `us-v1-ff6b3`. Keep `--project demo-us-app`.
+- Auth = project `demo-us-app`, Firestore data = `us-felix-test-20261030`. Keep `--project demo-us-app`.
 - Ports: Auth 9099, Firestore 8088, UI 4000.
 - Seed + verify write local fixtures. Restart → stop only that terminal, never kill all Node/Java.
 - Emulator export: use same `TEMP`/`TMP` as the terminal that started it.
@@ -46,11 +46,11 @@ same-origin. Does NOT test native markers or location permissions.
 |---|---|---|---|
 | `development` | `npm run android:cloud` | your emulators | daily dev with `npm run start:dev` |
 | `tester` | `npm run apk` | test project `us-felix-test-20261030` | testers (Milestone 1) |
-| `preview` | — | old `us-v1-ff6b3` | not used for M1 |
 | `production` | — | real Firebase | Play Store AAB, later |
 
 - Dev client finds emulators via Metro host. Phone + PC same network; open firewall ports if needed.
 - Dev profile sets `EXPO_PUBLIC_USE_EMULATORS=true`. `false` → real backend. Public vars are not secrets.
+- Dev personas (`dev-user`, `alice`…) use fixed encryption keys so the seed can encrypt their chats. Dev builds only. Tester accounts use real keys, also on emulators.
 - `npm run android` = local compile. Needs Android SDK platforms, build tools, NDK (not on this machine — only adb).
 - iOS: not built. Windows can't anyway.
 

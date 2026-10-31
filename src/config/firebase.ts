@@ -16,16 +16,16 @@ import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
-// Firebase config — real project values from google-services.json.
-// Note: The web SDK needs an authDomain and appId. If you registered a Web app
-// in Firebase Console, replace appId with the web-specific one.
+// Client identifiers, not secrets: access is controlled by firestore.rules.
+// Plain constants on purpose. Env-driven values aren't available to `eas update`,
+// so an over-the-air fix could silently point testers at another project.
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? 'AIzaSyCQE2t2nLYTxKMA7SeM-FPx1y2th9wEHFM',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? 'us-v1-ff6b3.firebaseapp.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? 'us-v1-ff6b3',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? 'us-v1-ff6b3.firebasestorage.app',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '1087842612078',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '1:1087842612078:android:28042aad4b5a7a45b9c77f',
+  apiKey: 'AIzaSyBzqReaQtKNzcZ0UeKFVcHUiWcbzQLkaNQ',
+  authDomain: 'us-felix-test-20261030.firebaseapp.com',
+  projectId: 'us-felix-test-20261030',
+  storageBucket: 'us-felix-test-20261030.firebasestorage.app',
+  messagingSenderId: '1051180260252',
+  appId: '1:1051180260252:web:a14c373f529b7397104659',
 };
 
 const app = initializeApp(firebaseConfig);
@@ -55,9 +55,9 @@ export const db = getFirestore(app);
 
 // ─── Emulator Connection ─────────────────────────────
 // Connect to Firebase emulators in development.
-// Expo Go on a phone needs the computer's LAN IP, not "localhost".
-// Set EXPO_PUBLIC_USE_EMULATORS=false to dry-run the PRODUCTION backend from a
-// dev build (Phase 3 Step 2) — emulators stay the dev default otherwise.
+// A phone needs the computer's LAN IP, not "localhost".
+// Set EXPO_PUBLIC_USE_EMULATORS=false to dry-run the real backend from a dev
+// build; emulators stay the dev default otherwise.
 const USE_EMULATORS = __DEV__ && process.env.EXPO_PUBLIC_USE_EMULATORS !== 'false';
 
 export function getEmulatorHost() {

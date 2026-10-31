@@ -5,7 +5,7 @@
 > (e.g. Firebase Hosting) before the Play listing; the same page can carry the
 > account-deletion request flow Play requires.
 
-_Last updated: 3 July 2026_
+_Last updated: 31 October 2026_
 
 ## Who is responsible
 
@@ -29,10 +29,19 @@ Contact for anything in this notice: **pal.schakonat@gmail.com**.
   hidden.
 - **Ghost mode** turns all location sharing off instantly.
 - Friends who can see you also see the **name of the spot** you are at.
-- Every location record carries a **24-hour expiry**.
-  <!-- Before distributing builds: enable the Firestore TTL policy on
-       locations.expireAt (console/gcloud) so the expiry is enforced
-       server-side, then this can say "removed automatically". -->
+- The app ignores a location record after **24 hours**, and deletes it the next time you open the app outside your spots, or sign out.
+
+## Encryption
+
+Messages, group names, your location, your spots, signals and gathering details
+are **end-to-end encrypted**: they leave your phone encrypted and only the people
+they are meant for can read them. We cannot read them, and neither can Google.
+The encryption key stays on your phone, so if you uninstall the app or change
+phone, old messages and spots **cannot be recovered**.
+
+We can still see what the service needs to work: your display name, handle and
+bio, who is friends and in which chat, and when things happen (not what was said).
+The encryption has not been independently audited yet.
 
 ## Where it lives
 

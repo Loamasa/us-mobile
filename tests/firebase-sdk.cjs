@@ -3,7 +3,7 @@ const { initializeApp, deleteApp } = require('firebase/app');
 const { getAuth, connectAuthEmulator, signInWithEmailAndPassword } = require('firebase/auth');
 const { getFirestore, connectFirestoreEmulator, doc, getDoc, onSnapshot, terminate } = require('firebase/firestore');
 
-const app = initializeApp({ projectId: 'us-v1-ff6b3', apiKey: 'emulator-only' }, 'firebase-sdk-verification');
+const app = initializeApp({ projectId: 'us-felix-test-20261030', apiKey: 'emulator-only' }, 'firebase-sdk-verification');
 const auth = getAuth(app);
 const db = getFirestore(app);
 connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });

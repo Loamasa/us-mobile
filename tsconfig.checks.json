@@ -16,6 +16,8 @@
   },
   "include": [
     "src/features/map/mapProjection.ts",
-    "src/features/map/groupPins.ts"
+    "src/features/map/groupPins.ts",
+    "src/features/e2ee/envelope.ts",
+    "src/features/e2ee/trust.ts"
   ]
 }

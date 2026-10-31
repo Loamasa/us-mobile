@@ -14,13 +14,7 @@ export default function PermissionsScreen() {
   const handleAllow = async () => {
     setLoading(true);
     try {
-      const { status: foreground } = await Location.requestForegroundPermissionsAsync();
-
-      if (foreground === 'granted') {
-        // Also request background (optional, may not be granted immediately)
-        await Location.requestBackgroundPermissionsAsync();
-      }
-
+      await Location.requestForegroundPermissionsAsync();
       router.replace('/(auth)/spots');
     } catch {
       // Permission denied or error — still continue

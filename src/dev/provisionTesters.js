@@ -2,7 +2,7 @@
  * Provision fixed tester accounts (Phase 3 Step 3 — re-scoped: no self-registration).
  *
  *   node src/dev/provisionTesters.js --emulator --count 3     # against emulators
- *   node src/dev/provisionTesters.js --count 20               # against an explicitly configured project
+ *   node src/dev/provisionTesters.js --count 20               # against the real test project
  *
  * Creates N email/password accounts (tester01..testerNN @ us.test) with a ready
  * profile (users/{uid}) and reserved handle (handles/testerNN). Testers sign in
@@ -19,9 +19,7 @@
  *   - account missing → created fresh, appended to the CSV
  *   - existing profiles are NEVER overwritten (a tester's edited name survives)
  *
- * PRODUCTION prerequisites (one-time, in the Firebase console / CLI):
- *   1. Authentication → Sign-in method → enable Email/Password
- *   2. firebase deploy --only firestore   (rules must be live)
+ * Prerequisite (one time): firebase deploy --only auth,firestore
  *
  * Note: tester emails use the reserved .test TLD — no mail is ever delivered,
  * so password RESET emails won't work. Reset passwords via the Firebase console.
@@ -38,13 +36,10 @@ const COUNT = (() => {
   return i === -1 ? 20 : Math.max(1, parseInt(process.argv[i + 1], 10) || 20);
 })();
 
-const FIRESTORE_PROJECT = EMULATOR ? 'us-v1-ff6b3' : process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
+const FIRESTORE_PROJECT = 'us-felix-test-20261030';
 // Public client key from src/config/firebase.ts (API keys are identifiers, not
 // secrets). The emulator accepts any key.
-const API_KEY = EMULATOR ? 'fake-api-key' : process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
-if (!FIRESTORE_PROJECT || !API_KEY) {
-  throw new Error('Set EXPO_PUBLIC_FIREBASE_PROJECT_ID and EXPO_PUBLIC_FIREBASE_API_KEY before provisioning remote accounts.');
-}
+const API_KEY = EMULATOR ? 'fake-api-key' : 'AIzaSyBzqReaQtKNzcZ0UeKFVcHUiWcbzQLkaNQ';
 
 const AUTH_BASE = EMULATOR
   ? 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1'
@@ -135,7 +130,7 @@ function profileFields(displayName, handle) {
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(
-    `Provisioning ${COUNT} tester accounts against ${EMULATOR ? 'EMULATORS' : '🔴 PRODUCTION'} (${FIRESTORE_PROJECT})\n`
+    `Provisioning ${COUNT} tester accounts against ${EMULATOR ? 'EMULATORS' : '🔴 REMOTE'} (${FIRESTORE_PROJECT})\n`
   );
 
   const csv = loadCsv();
@@ -181,10 +176,14 @@ async function main() {
       if (r.ok) {
         ({ idToken, localId: uid } = r.data);
         state = 'created';
+        // Save now: the account exists, so losing this password would lock it
+        // out if a later step fails or the script crashes.
+        csv.set(accountId, { accountId, email, password, uid, handle, displayName });
+        saveCsv(csv);
       } else if (r.data?.error?.message?.includes('EMAIL_EXISTS')) {
         results.push({
           accountId,
-          state: '❌ exists but password unknown (restore testers-credentials.csv or delete the auth user)',
+          state: `❌ exists but password unknown (restore ${path.basename(CSV_PATH)} or delete the auth user)`,
         });
         continue;
       } else {

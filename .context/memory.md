@@ -7,16 +7,17 @@
 - Felix (`FSopelsa`) — lead developer. His branches win conflicts (`felix/dev-setup` merged 2026-10-29).
 
 ## Firebase
-- Test project (M1) `us-felix-test-20261030`, env in `eas.json` → `tester`. Old prod `us-v1-ff6b3`. Package `com.us.mobile`.
-- `.firebaserc` default = old project → always `--project` on deploy.
+- Only backend: `us-felix-test-20261030`, hardcoded in `src/config/firebase.ts`. Env-driven config broke OTA (`eas update` doesn't read build profile env). Package `com.us.mobile`. Spark (free) plan: TTL policies need billing.
 - Friends rule needs `requestId` on friend docs + pending request. Chat update = `lastMessage*` or self-leave only. New chat/gathering field write → update rules too.
-- Auth in prod: Email/Password (testers). Phone auth = dev only (web SDK needs reCAPTCHA → mock verifier on emulator; public release → `@react-native-firebase/auth`).
+- Auth: Email/Password (testers). Phone/OTP screens removed (git history); public release → `@react-native-firebase/auth`.
+- **`firebase deploy --dry-run` is not dry**: it enabled the Firestore API and created the database in `nam5`. `firebase.json` `firestore.location` now says `eur3`.
 - Emulators: Auth 9099, Firestore 8088, UI 4000.
 
 ## Collections
 - `users/{uid}` — profile, settings, `currentSignal`
 - `users/{uid}/friends/{friendId}` · `users/{uid}/friendRequests/{id}` · `users/{uid}/spots/{spotId}` (owner-only read)
-- `locations/{uid}` — GPS + geohash, friends-only read, `expireAt` +24h
+- `locations/{uid}` — `envelope` (sealed position + spot), friends-only read, `expireAt` +24h
+- `publicKeys/{uid}` — encryption public key, get-only, owner writes
 - `handles/{handle}` — unique handle lookup
 - `chats/{chatId}` (+ `/messages/{id}`) · `broadcasts/{id}` (gatherings)
 
@@ -32,7 +33,7 @@
 - Expo Go can NOT run the app (SDK 58 + Maps 1.29). Use dev client (`npm run android:cloud`) or browser.
 
 ## EAS / release
-- `eas.json`: development (dev client APK, emulators) · tester (APK, test project — M1) · preview (APK, old project) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
+- `eas.json`: development (dev client APK, emulators) · tester (APK — M1) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
 - app.json `runtimeVersion: { policy: "fingerprint" }` → any native change = new runtime, OTA won't reach old APKs → rebuild.
 - `google-services.json` gitignored, NOT needed (JS SDK, no `googleServicesFile`).
 - Google Maps key in app.json unrestricted → restrict to package + EAS SHA-1 later.
@@ -46,8 +47,14 @@
 - Two phones on dev build: both auto-sign-in as `dev-user` → phone B: Settings → Developer → Switch Account.
 - Seed timestamps go stale after 5 min → `npm run freshen`.
 
+## Encryption
+- User content only exists as envelopes in Firestore; `src/lib/firestore.ts` decodes, screens see plain values. Rules refuse plain text, so new stored text must go through `sealValue`/`openValue`.
+- Seeded personas use fixed keys (`devKeyPair`) so `npm run seed` can encrypt fixtures. `seed` runs `build:checks` first. Verify scripts decode via `src/dev/devDecode.js`.
+- Rules tests: `createdAt`/`lastMessageAt`/`updatedAt` must equal `request.time`, so REST writes need `updateTransforms` (see `commit` in `tests/security.rules.test.cjs`).
+- `friendRequests` create does a `get()` on the recipient's profile: a recipient with no user doc is denied.
+
 ## Firebase gotchas
-- **Auth emulator uses its DEFAULT project** for key-based calls → auth users live in `demo-us-app`, Firestore data under `us-v1-ff6b3`. Emulators MUST start with `--project demo-us-app`. Mix-up = `auth/user-not-found`.
+- **Auth emulator uses its DEFAULT project** for key-based calls → auth users live in `demo-us-app`, Firestore data under `us-felix-test-20261030`. Emulators MUST start with `--project demo-us-app`. Mix-up = `auth/user-not-found`.
 - **Emulator enforces rules on client SDK.** Cross-user seed/admin writes → REST `:commit` with `Authorization: Bearer owner`. Rule tests must use real user tokens (`Bearer owner` bypasses rules).
 - **Multi-user batches**: rules must allow EVERY write as caller. Friends rule = `auth.uid == userId || auth.uid == friendId`.
 - **Emulator rules hot-reload lies (Windows)**: says "Rules updated" but keeps old compile. Restart emulator + reseed after editing rules. Tell: error line numbers don't match file.
@@ -59,7 +66,7 @@
 
 ## Accounts
 - Dev personas (`dev-user`, alice, bob, charlie, dana, eve @ `@test.dev`) = `__DEV__` + emulator only.
-- Prod testers (`testerNN` @ `@us.test`) = only via `provisionTesters.js`. Creds in gitignored `testers-credentials-<project>.csv`. Remote run needs `EXPO_PUBLIC_FIREBASE_PROJECT_ID` + `EXPO_PUBLIC_FIREBASE_API_KEY`. `.test` mail can't receive reset mail → reset in console.
+- Prod testers (`testerNN` @ `@us.test`) = only via `provisionTesters.js`. Creds in gitignored `testers-credentials-<project>.csv`. `.test` mail can't receive reset mail → reset in console.
 - Keep them apart: NEVER put tester ids/emails in `src/dev/fixtures.json` or `DEV_ACCOUNTS`. Never point dev tooling at prod.
 
 ## React / UI gotchas
@@ -68,7 +75,6 @@
 - `MapView` in `.native.tsx`: `import type MapView`.
 - **Fan-out subscriptions need a stable string key**: `Array.from(set).sort().join('|')` as dep, not a fresh array (else N listeners rebuilt every snapshot). See `profileIdKey` in `app/(tabs)/chats.tsx`.
 - DMs: `ChatSummary.name` is `null`, client resolves peer name. Map group names need `c.name !== null` predicate.
-- Phone auth session passed via route params (`sessionInfo`).
 - Tabs: no NativeWind `className` for tab bar → inline styles with COLORS ok. `tabBarInactiveTintColor` takes rgba string.
 - **expo-router 58: `href: null` makes route UNREACHABLE** (rewritten to `hidden: true`). Hide tab with `tabBarButton: () => null` + `tabBarItemStyle: { display: 'none' }`.
 - Floating glass tab bar (~80px, absolute): scroll screens `pb-24`, bottom controls `bottom ≥ 96`. Don't import `useBottomTabBarHeight`.

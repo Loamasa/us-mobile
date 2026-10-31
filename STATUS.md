@@ -4,42 +4,37 @@
 > History: [docs/CHANGELOG.md](docs/CHANGELOG.md). Gotchas: [.context/memory.md](.context/memory.md).
 
 ## Last Updated
-2026-10-31 — Docs reset. New [PLAN.md](PLAN.md): Milestone 1 = friends chat via APK link.
-New `npm run apk` (`tester` profile, test project `us-felix-test-20261030`). Felix's local work merged in: privacy rules, tester project, stronger tester passwords. Old phase plans → [docs/archive/](docs/archive/README.md).
+2026-10-31 — End-to-end encryption shipped in code: messages, group names, locations, spots, signals, gatherings ([details](docs/encryption.md)). Backend set up on `us-felix-test-20261030`, 20 accounts made. One backend only: old project gone from code. Unused packages + phone sign-in removed.
 
 ## Now
-Working on **Milestone 1 — Friends chat**. Next step: set up test backend (PLAN steps 1–4), then `npm run apk`.
+**Milestone 1 — Friends chat.** Next: choose database region, close sign-up, test APK on a phone.
 
 ## Stack
 Expo SDK 58 · React Native 0.88 · React 19.3 · TypeScript 6 · Maps 1.29.11 ·
 NativeWind 4.2.7 + Tailwind 3 · Firebase JS SDK 12. Android only.
 
 ## What is done
-- Old project `us-v1-ff6b3` live since 2026-06-14, 20 accounts. Not used for M1.
-- Test project `us-felix-test-20261030` + EAS `tester` profile added. Auth, rules, accounts NOT set up there yet.
-- EAS project: owner `fsopelsa` (`d74d2bb5-…`). `eas.json` profiles: development / tester / preview / production. OTA channels set.
-- Every flow worked on device in June (Expo Go + emulators): map, chats, composer, friend accept, gatherings.
-- Chat: DM, group, info sheet, leave group, remove friend. Signal setter. Stale markers dimmed.
-- Sentry wired (needs DSN). GDPR notice in app.
+- Test project `us-felix-test-20261030`: Email/Password on, rules + indexes live, `tester01`…`tester20` exist (creds in gitignored CSV).
+- Chat flow checked two ways: two accounts in the browser app on emulators; friend → DM → group → leave → remove on the real backend. All encrypted, server holds no text.
+- EAS project: owner `fsopelsa` (`d74d2bb5-…`). Profiles: development / tester / production.
+- Every flow worked on device in June (Expo Go + emulators). Encryption is newer and not phone-tested.
+- Chat: DM, group, info sheet, safety code, leave group, remove friend, unread dot. Signal setter. Stale markers dimmed.
 
-## Open — user actions
-1. Set up test project: Email/Password, deploy rules, make accounts, close sign-up. **(M1)** See [PLAN](PLAN.md).
-2. `npm run apk` → test → share link. **(M1)**
-3. Enable Firestore TTL policy on `locations.expireAt` (console). Later.
-4. Sentry project → set `EXPO_PUBLIC_SENTRY_DSN` (+ `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN`) as EAS env vars. Later.
-5. Review `docs/privacy-notice.md` + confirm `SUPPORT_EMAIL` in `src/config/constants.ts`.
+## Open — needs you
+1. **Database region.** A deploy created it in US (`nam5`). EU = `npx firebase firestore:databases:delete "(default)"`, wait a few minutes, `npx firebase deploy --only auth,firestore`, re-run `node src/dev/provisionTesters.js --count 20` (safe, keeps passwords). Only fake test data there now. `firebase.json` already says `eur3` for the new one.
+2. **Close sign-up:** Firebase console → Authentication → Settings → User actions → untick sign-up. Needed once accounts are final. To add accounts later, tick it again first.
+3. Restrict Google Maps key in `app.json` to `com.us.mobile` + EAS SHA-1 (Google Cloud console).
+4. Review `docs/privacy-notice.md` + confirm who is named as responsible and `SUPPORT_EMAIL`.
+5. Later: Sentry project → `EXPO_PUBLIC_SENTRY_DSN` as EAS env var. Paid plan → server-side expiry (TTL) on `locations.expireAt`, `broadcasts.expiresAt`.
 
 ## Open — code items (not M1)
 1. Native map on SDK 58 not phone-tested. Old marker clipping bug maybe fixed by Maps 1.29 — check in M2.
-2. Google Maps Android key in `app.json` unrestricted → restrict to `com.us.mobile` + SHA-1.
-3. Privacy rules fixed on emulator only (fake friendship, creator rewrite): not deployed, not audited.
-4. `allowFriendRequests` only checked client-side. Rules need `get()`.
-5. Background location not built (`FEATURE_FLAGS.BACKGROUND_LOCATION` false).
-6. expo-camera / image-picker / qrcode-svg installed but no QR UI → CAMERA permission declared for nothing.
-7. Minor: `profile.tsx` writes `avatarUrl: ''` (type `string | null`); dev fixture passwords in JS bundle; inline styles in `app/(tabs)/chats.tsx`.
-8. Onboarding slides 2–3 pitch Cultures + Events, but Communities tab is "Coming soon".
-9. Tutorial overlays — backlog.
-10. Dep advisories: 3 high, 3 moderate, 5 low (dev/CLI tooling) — [audit](docs/dependency-audit.md).
+2. Background location not built.
+3. Push notifications not built: unread dot only shows with app open.
+4. Minor: `provisionTesters.js` writes `avatarUrl: ''` (type `string | null`); dev fixture passwords in JS bundle; inline styles in chat screens.
+5. Onboarding slides 2–3 pitch Cultures + Events, but Communities tab is "Coming soon".
+6. Tutorial overlays — backlog.
+7. Dep advisories (dev/CLI tooling) — [audit](docs/dependency-audit.md).
 
 ## Key files
 | File | What |
@@ -50,7 +45,8 @@ NativeWind 4.2.7 + Tailwind 3 · Firebase JS SDK 12. Android only.
 | `app/(auth)/signin.tsx` | Tester sign-in (Account ID + password) |
 | `app/(tabs)/map.native.tsx` | Map screen |
 | `src/features/map/mapProjection.ts` | Clustering (shared with tests) |
-| `src/lib/firestore.ts` | All Firestore helpers |
+| `src/lib/firestore.ts` | All Firestore helpers, encrypt/decrypt at the boundary |
+| `src/features/e2ee/` | Encryption core, key storage, key trust |
 | `src/config/firebase.ts` | Firebase config + emulator switch |
 | `src/dev/provisionTesters.js` | Make tester accounts |
 | `firestore.rules` / `firestore.indexes.json` | Rules + indexes |

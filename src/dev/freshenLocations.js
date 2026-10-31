@@ -13,7 +13,7 @@
  * the scripted harness is self-contained.
  */
 
-const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
+const EMULATOR_PROJECT_ID = 'us-felix-test-20261030';
 const FIRESTORE_EMULATOR_PORT = 8088;
 const BASE = `http://127.0.0.1:${FIRESTORE_EMULATOR_PORT}/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents`;
 const HEADERS = { Authorization: 'Bearer owner', 'Content-Type': 'application/json' };

@@ -2,7 +2,6 @@
   "expo": {
     "name": "us",
     "slug": "us-mobile",
-    "owner": "lomasas-team",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "fingerprint"
@@ -19,8 +18,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.us.mobile",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "us needs your location to show you on the map and help friends find each other.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "us uses background location to keep your position updated on the map for your friends."
+        "NSLocationWhenInUseUsageDescription": "us needs your location to show you on the map and help friends find each other."
       }
     },
     "android": {
@@ -31,12 +29,16 @@
       "package": "com.us.mobile",
       "permissions": [
         "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.CAMERA"
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
@@ -50,21 +52,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "us uses your location to show you on the map for your friends."
-        }
-      ],
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "us needs camera access to scan QR codes for adding friends.",
-          "microphonePermission": false,
-          "recordAudioAndroid": false
-        }
-      ],
-      [
-        "expo-image-picker",
-        {
-          "microphonePermission": false
+          "locationWhenInUsePermission": "us uses your location to show you on the map for your friends, only while you are inside a place you chose.",
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       [
@@ -81,7 +70,7 @@
           "androidGoogleMapsApiKey": "AIzaSyDbe2K0Ttie5U24QvxUdRXi_2hFwfTDLEg"
         }
       ],
-      "expo-image"
+      "expo-secure-store"
     ],
     "extra": {
       "router": {

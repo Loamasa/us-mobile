@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import {
+  deleteBroadcast,
   onFriends,
   onMyBroadcasts,
   onBroadcastInvites,
@@ -73,6 +74,15 @@ export function useBroadcasts() {
     const timer = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(timer);
   }, []);
+
+  // No server-side expiry on the free plan, so creators tidy up their own.
+  useEffect(() => {
+    for (const b of mineRaw) {
+      if (b.createdBy === userId && !isLive(b, now)) {
+        deleteBroadcast(b.id).catch(() => {});
+      }
+    }
+  }, [mineRaw, now, userId]);
 
   const mine = useMemo(
     () => mineRaw.filter((b) => isLive(b, now)),

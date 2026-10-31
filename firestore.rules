@@ -2,11 +2,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users: any authenticated user can read profiles, only owner can write
+    // End-to-end encrypted text, see docs/encryption.md. Plain strings are
+    // rejected, so a client can't store message text unencrypted by mistake.
+    function isEnvelope(e) {
+      return e is map
+        && e.keys().hasAll(['v', 'from', 'n', 'body', 'grants'])
+        && e.keys().hasOnly(['v', 'from', 'n', 'body', 'grants'])
+        && e.v == 1
+        && e.from is bytes && e.from.size() == 32
+        && e.n is bytes && e.n.size() == 24
+        && e.body is bytes && e.body.size() <= 16384
+        && e.grants is map && e.grants.size() > 0 && e.grants.size() <= 256;
+    }
+
+    // Public keys: anyone signed in can look one up, only the owner can set it.
+    match /publicKeys/{userId} {
+      allow get: if request.auth != null;
+      allow create, update: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.keys().hasOnly(['key'])
+                    && request.resource.data.key is bytes
+                    && request.resource.data.key.size() == 32;
+    }
+
+    // Users: a profile can be fetched by id but the collection can't be listed,
+    // so nobody can download the whole user base. Handles never change: they
+    // are how people find each other, so changing one would impersonate someone.
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth.uid == userId;
-      allow update: if request.auth.uid == userId;
+      allow get: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.handle == resource.data.handle
+                    && (request.resource.data.get('currentSignal', null) == null
+                        || isEnvelope(request.resource.data.currentSignal));
 
       // Both friend records must be created while the recipient accepts a pending request.
       match /friends/{friendId} {
@@ -32,16 +61,21 @@ service cloud.firestore {
                       && request.resource.data.fromUserId == request.auth.uid
                       && request.resource.data.toUserId == userId
                       && request.auth.uid != userId
-                      && request.resource.data.status == 'PENDING';
+                      && request.resource.data.status == 'PENDING'
+                      && get(/databases/$(database)/documents/users/$(userId)).data.settings.allowFriendRequests != false;
         allow update: if request.auth.uid == userId
                       && resource.data.status == 'PENDING'
                       && request.resource.data.status in ['ACCEPTED', 'REJECTED']
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
       }
 
-      // User spots: only owner can read/write
+      // User spots: only the owner, and sealed to their own key.
       match /spots/{spotId} {
-        allow read, write: if request.auth.uid == userId;
+        allow read, delete: if request.auth != null && request.auth.uid == userId;
+        allow create, update: if request.auth != null
+                      && request.auth.uid == userId
+                      && request.resource.data.keys().hasOnly(['envelope'])
+                      && isEnvelope(request.resource.data.envelope);
       }
     }
 
@@ -52,14 +86,22 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (request.auth.uid == userId
                       || exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid)));
-      allow write: if request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+      allow create, update: if request.auth != null
+                    && request.auth.uid == userId
+                    && request.resource.data.keys().hasOnly(['envelope', 'updatedAt', 'expireAt'])
+                    && request.resource.data.updatedAt == request.time
+                    && request.resource.data.expireAt is timestamp
+                    && isEnvelope(request.resource.data.envelope);
     }
 
     // Handle reservation: authenticated users can read (uniqueness check +
     // add-friend lookup happen post-sign-in), creator can create.
     match /handles/{handle} {
-      allow read: if request.auth != null;
+      allow get: if request.auth != null;
       allow create: if request.auth != null
+                    && handle.matches('^[a-z0-9_]{2,30}$')
+                    && request.resource.data.keys().hasOnly(['userId'])
                     && request.resource.data.userId == request.auth.uid;
     }
 
@@ -71,13 +113,28 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (resource == null
                       || request.auth.uid in resource.data.memberIds);
+      // DM ids are predictable, so only the two people named in the id may
+      // create one. Otherwise anyone could pre-create dm_A_B with themselves
+      // inside and read A and B's conversation.
       allow create: if request.auth != null
                     && request.resource.data.createdBy == request.auth.uid
-                    && request.auth.uid in request.resource.data.memberIds;
+                    && request.auth.uid in request.resource.data.memberIds
+                    && request.resource.data.memberIds.size() <= 64
+                    && request.resource.data.keys().hasOnly(['name', 'avatarUrl', 'type', 'memberIds', 'createdBy', 'createdAt', 'lastMessage', 'lastMessageAt'])
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.lastMessage == null
+                    && request.resource.data.lastMessageAt == null
+                    && (request.resource.data.name == null || isEnvelope(request.resource.data.name))
+                    && (!chatId.matches('dm_.*')
+                        || (request.resource.data.type == 'DM'
+                            && request.resource.data.memberIds.size() == 2
+                            && chatId == 'dm_' + request.resource.data.memberIds[0] + '_' + request.resource.data.memberIds[1]));
       // Members may only update the last-message preview, or remove themselves.
       allow update: if request.auth != null
                     && request.auth.uid in resource.data.memberIds
-                    && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt'])
+                    && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt'])
+                         && isEnvelope(request.resource.data.lastMessage)
+                         && request.resource.data.lastMessageAt == request.time)
                         // Leave branch: nothing else changed, exactly one entry
                         // fewer, nobody added, and the removed member is the caller.
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
@@ -88,9 +145,14 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if request.auth != null
                     && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.memberIds;
+        // Immutable once sent: no update or delete. The server clock sets the
+        // time, so nobody can pin a message to the bottom of the chat.
         allow create: if request.auth != null
                       && request.resource.data.senderId == request.auth.uid
-                      && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.memberIds;
+                      && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.memberIds
+                      && request.resource.data.keys().hasOnly(['senderId', 'envelope', 'createdAt'])
+                      && request.resource.data.createdAt == request.time
+                      && isEnvelope(request.resource.data.envelope);
       }
     }
 
@@ -109,7 +171,12 @@ service cloud.firestore {
                           && exists(/databases/$(database)/documents/users/$(resource.data.createdBy)/friends/$(request.auth.uid))));
       allow create: if request.auth != null
                     && request.resource.data.createdBy == request.auth.uid
-                    && request.auth.uid in request.resource.data.memberIds;
+                    && request.auth.uid in request.resource.data.memberIds
+                    && request.resource.data.keys().hasOnly(['createdBy', 'envelope', 'createdAt', 'expiresAt', 'visibility', 'memberIds', 'invitedIds', 'chatId'])
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.expiresAt is timestamp
+                    && request.resource.data.invitedIds.size() <= 64
+                    && isEnvelope(request.resource.data.envelope);
       allow update: if request.auth != null && (
         (request.auth.uid in resource.data.memberIds
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatId']))

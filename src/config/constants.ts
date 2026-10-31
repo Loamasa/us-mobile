@@ -59,9 +59,8 @@ export const SIGNAL_DURATIONS = [
 // Group broadcast "here now" containment radius in meters
 export const BROADCAST_RADIUS = 150;
 
-// Location docs carry expireAt = now + this, the target of a Firestore TTL
-// policy (console: TTL on locations.expireAt) — GDPR storage limitation +
-// cleanup for apps killed while inside a spot.
+// Location docs carry expireAt = now + this, and readers ignore them afterwards:
+// GDPR storage limitation, for apps killed while inside a spot.
 export const LOCATION_TTL_MS = 24 * 60 * 60 * 1000;
 
 // A location doc older than this renders as stale ("last seen") instead of
