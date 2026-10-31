@@ -6,8 +6,9 @@
 
 ## 2026-10-31 — Docs reset for Milestone 1
 - New `PLAN.md`: Milestone 1 = friends install APK from link + chat. Later milestones rough on purpose.
-- README now holds every command in one place. New `npm run apk` (preview APK, real backend).
+- README now holds every command in one place. New `npm run apk` (`tester` profile).
 - Slimmed STATUS, development-setup, tester-distribution, dependency-audit, FEATURES, memory, CLAUDE.md.
+- Merged Felix's local work: privacy rules + tests, test project `us-felix-test-20261030`, EAS `tester` profile + project `d74d2bb5`, env-driven Firebase config, random tester passwords. Kept main's Leave Group + added friend delete to the new rules. Dropped `RECORD_AUDIO` permission (no mic use).
 - Moved finished plans `docs/plans/*` → `docs/archive/plans/` (index: `docs/archive/README.md`).
 
 ## 2026-10-29 — Merged `felix/dev-setup` into main (Felix's side preferred)

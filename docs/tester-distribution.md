@@ -4,22 +4,28 @@
 
 ## Short version
 
-1. Build preview APK in EAS cloud → get install link.
-2. Send each tester the link + their own row from `testers-credentials.csv` (Account ID + password).
+1. Build tester APK in EAS cloud → get install link.
+2. Send each tester the link + their own row from `testers-credentials-us-felix-test-20261030.csv` (Account ID + password).
 3. They install, sign in, set display name, add each other by `@handle`.
 
 Why not Expo Go? Expo Go need your PC running + your emulators. APK talk to real Firebase from anywhere.
 
 ## Before first build (one time)
 
+Test project = `us-felix-test-20261030`. Not the old `us-v1-ff6b3`.
+
+1. Firebase console → test project → Authentication → enable Email/Password.
+2. Log in + push rules:
+
 ```bash
 npx firebase login
-npx firebase deploy --only firestore
+npx firebase deploy --only firestore --project us-felix-test-20261030
 npx eas-cli@25.3.0 login
 ```
 
-Tester accounts already exist in prod (`tester01`…`tester20`). Need more:
-`node src/dev/provisionTesters.js --count 30` (only adds missing ones).
+3. Make accounts (env: [README](../README.md#real-backend-test-project)): `node src/dev/provisionTesters.js --count 20`.
+   More later: bump `--count`, only adds missing ones.
+4. Stop strangers: Email/Password alone lets anyone register through Firebase API. Close sign-up or accept risk.
 
 ## Build + share
 
@@ -32,7 +38,7 @@ npm run apk
 - JS-only fix → no rebuild:
 
 ```bash
-npx eas-cli@25.3.0 update --channel preview --message "fix chat send"
+npx eas-cli@25.3.0 update --channel tester --message "fix chat send"
 ```
 
 - Native change (new native package, app.json plugin, permission) → `npm run apk` again, testers reinstall.
@@ -51,7 +57,7 @@ Copy + paste:
 
 ## Accounts
 
-- `testers-credentials.csv` (repo root, gitignored). Give one row per person. Never post whole file.
+- `testers-credentials-us-felix-test-20261030.csv` (repo root, gitignored). Give one row per person. Never post whole file.
 - Password reset: fake `@us.test` mail can't get mail. Reset in Firebase console
   (Authentication → Users → ⋮ → Reset password), or delete the user and re-run the provision script.
 - Re-run is safe: existing accounts + chosen names untouched.

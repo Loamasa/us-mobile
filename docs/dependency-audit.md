@@ -20,13 +20,13 @@ Keep until upstream ships the fix, then remove:
 (Tailwind 3 — CSS output checked byte-identical), UUID 11.1.1 (`@expo/ngrok`, `gaxios`).
 npm 10 can keep stale nested versions on incremental installs → check `npm ls --all` + lockfile.
 
-## App privacy holes
+## App privacy
 
-Separate from deps. `tests/security.rules.test.cjs` has 3 failing TODO tests:
+Separate from deps. `firestore.rules` now block, tested in `tests/security.rules.test.cjs` on emulator:
 
-1. Stranger can self-grant friendship → read your location.
-2. Chat member can rewrite chat creator.
-3. Gathering invitee can rewrite gathering creator.
+1. Stranger self-grant friendship → read location.
+2. Chat member rewrite chat creator.
+3. Gathering invitee rewrite gathering creator.
 
-Accepted for Milestone 1 (trusted friends only). Fix before sharing wider (M4 in [PLAN.md](../PLAN.md)).
-When fixed, turn the TODOs into normal passing tests.
+Not deployed yet. Not a full audit: passing emulator tests don't prove whole ruleset safe.
+Review other location + privacy risks before real users.

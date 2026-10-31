@@ -28,6 +28,22 @@
       "android": {
         "buildType": "app-bundle"
       }
+    },
+    "tester": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1051180260252:web:a14c373f529b7397104659",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBzqReaQtKNzcZ0UeKFVcHUiWcbzQLkaNQ",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "us-felix-test-20261030.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "us-felix-test-20261030",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1051180260252",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "us-felix-test-20261030.firebasestorage.app",
+        "EXPO_PUBLIC_USE_EMULATORS": "false"
+      },
+      "distribution": "internal",
+      "channel": "tester"
     }
   },
   "submit": {

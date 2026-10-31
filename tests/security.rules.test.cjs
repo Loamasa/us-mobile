@@ -1,5 +1,4 @@
-// Emulator-only negative authorization tests. Known rule defects are TODOs:
-// Node executes them and reports failures without pretending they are passes.
+// Emulator-only authorization regression tests with disposable accounts.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
@@ -50,20 +49,44 @@ test('unauthenticated callers cannot read a location', async () => {
 test('a stranger cannot read a location directly', async () => {
   assert.equal(await read(`locations/${alice.localId}`, bob.idToken), 403);
 });
-test('a stranger cannot grant themselves friendship to read a location', { todo: 'Open privacy finding: friendship writes need verified consent (point 1)' }, async () => {
+test('a stranger cannot grant themselves friendship to read a location', async () => {
   const path = `users/${alice.localId}/friends/${bob.localId}`; paths.push(path);
   const status = await write(path, { status: 'ACTIVE' }, bob.idToken);
   assert.deepEqual({ grant: status, read: await read(`locations/${alice.localId}`, bob.idToken) }, { grant: 403, read: 403 }, 'stranger self-grant and location read must both be denied');
 });
-test('chat members cannot rewrite the creator', { todo: 'Open privacy finding: chat update fields are unrestricted (point 1)' }, async () => {
+test('a recipient can accept a real request and create both friend records', async () => {
+  const requestPath = `users/${alice.localId}/friendRequests/${prefix}`;
+  const mine = `users/${alice.localId}/friends/${bob.localId}`;
+  const theirs = `users/${bob.localId}/friends/${alice.localId}`;
+  paths.push(requestPath, mine, theirs);
+  assert.equal(await write(requestPath, { fromUserId: bob.localId, toUserId: alice.localId, status: 'PENDING' }, bob.idToken), 200);
+  assert.equal(await write(requestPath, { fromUserId: alice.localId, toUserId: alice.localId, status: 'ACCEPTED' }, alice.idToken), 403);
+  const name = (path) => `projects/us-v1-ff6b3/databases/(default)/documents/${path}`;
+  const friend = fields({ status: 'ACTIVE', requestId: prefix });
+  const response = await fetch(`${docs}:commit`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${alice.idToken}` },
+    body: JSON.stringify({ writes: [
+      { update: { name: name(requestPath), fields: fields({ status: 'ACCEPTED' }) }, updateMask: { fieldPaths: ['status'] } },
+      { update: { name: name(mine), fields: friend } },
+      { update: { name: name(theirs), fields: friend } },
+    ] }),
+  });
+  assert.equal(response.status, 200, await response.text());
+  assert.equal(await read(`locations/${alice.localId}`, bob.idToken), 200);
+});
+test('chat members cannot rewrite the creator', async () => {
   const path = await fixture(`chats/${prefix}`, { createdBy: alice.localId, memberIds: [alice.localId, bob.localId] });
   assert.equal(await write(path, { createdBy: bob.localId, memberIds: [alice.localId, bob.localId] }, bob.idToken), 403);
+  assert.equal(await write(path, { createdBy: alice.localId, memberIds: [alice.localId, bob.localId], lastMessage: 'Hello' }, bob.idToken), 200);
 });
-test('gathering invitees cannot rewrite its creator', { todo: 'Open privacy finding: gathering update fields are unrestricted (point 1)' }, async () => {
+test('gathering invitees cannot rewrite its creator', async () => {
   const path = await fixture(`broadcasts/${prefix}`, {
     createdBy: alice.localId, memberIds: [alice.localId], invitedIds: [bob.localId], visibility: 'MEMBERS',
   });
   assert.equal(await write(path, {
     createdBy: bob.localId, memberIds: [alice.localId], invitedIds: [bob.localId], visibility: 'MEMBERS',
   }, bob.idToken), 403);
+  assert.equal(await write(path, {
+    createdBy: alice.localId, memberIds: [alice.localId, bob.localId], invitedIds: [], visibility: 'MEMBERS',
+  }, bob.idToken), 200);
 });

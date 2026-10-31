@@ -184,6 +184,7 @@ export async function acceptFriendRequest(
     status: 'ACTIVE',
     since: serverTimestamp(),
     nickname: null,
+    requestId,
   });
 
   const theirFriendRef = doc(db, 'users', theirUserId, 'friends', myUserId);
@@ -191,6 +192,7 @@ export async function acceptFriendRequest(
     status: 'ACTIVE',
     since: serverTimestamp(),
     nickname: null,
+    requestId,
   });
 
   await batch.commit();

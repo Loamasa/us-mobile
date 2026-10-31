@@ -54,4 +54,4 @@ GoogleService-Info.plist
 expo_qr.png
 
 # tester account credentials (distribute out-of-band — never commit)
-testers-credentials.csv
+testers-credentials*.csv

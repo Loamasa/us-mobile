@@ -8,7 +8,7 @@
       "policy": "fingerprint"
     },
     "updates": {
-      "url": "https://u.expo.dev/b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d",
+      "url": "https://u.expo.dev/d74d2bb5-3894-4d93-9907-ca5b3fcdbcc4",
       "fallbackToCacheTimeout": 0
     },
     "orientation": "portrait",
@@ -33,7 +33,10 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA"
+        "CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -81,10 +84,15 @@
       "expo-image"
     ],
     "extra": {
-      "router": {},
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
       "eas": {
-        "projectId": "b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d"
+        "projectId": "d74d2bb5-3894-4d93-9907-ca5b3fcdbcc4"
       }
-    }
+    },
+    "owner": "fsopelsa"
   }
 }

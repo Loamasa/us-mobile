@@ -2,7 +2,7 @@
  * Provision fixed tester accounts (Phase 3 Step 3 — re-scoped: no self-registration).
  *
  *   node src/dev/provisionTesters.js --emulator --count 3     # against emulators
- *   node src/dev/provisionTesters.js --count 20               # against PRODUCTION
+ *   node src/dev/provisionTesters.js --count 20               # against an explicitly configured project
  *
  * Creates N email/password accounts (tester01..testerNN @ us.test) with a ready
  * profile (users/{uid}) and reserved handle (handles/testerNN). Testers sign in
@@ -14,7 +14,7 @@
  * rules allow exactly that), so a successful emulator run doubles as proof the
  * production rules permit the flow.
  *
- * Idempotent: testers-credentials.csv (gitignored) is both output and state.
+ * Idempotent: a project-specific, gitignored credentials CSV is both output and state.
  *   - account in CSV  → signs in with the stored password, verifies docs exist
  *   - account missing → created fresh, appended to the CSV
  *   - existing profiles are NEVER overwritten (a tester's edited name survives)
@@ -29,6 +29,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { randomBytes } = require('crypto');
 
 // ── Targets ──────────────────────────────────────────────────────────────────
 const EMULATOR = process.argv.includes('--emulator');
@@ -37,10 +38,13 @@ const COUNT = (() => {
   return i === -1 ? 20 : Math.max(1, parseInt(process.argv[i + 1], 10) || 20);
 })();
 
-const FIRESTORE_PROJECT = 'us-v1-ff6b3';
+const FIRESTORE_PROJECT = EMULATOR ? 'us-v1-ff6b3' : process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
 // Public client key from src/config/firebase.ts (API keys are identifiers, not
 // secrets). The emulator accepts any key.
-const API_KEY = EMULATOR ? 'fake-api-key' : 'AIzaSyCQE2t2nLYTxKMA7SeM-FPx1y2th9wEHFM';
+const API_KEY = EMULATOR ? 'fake-api-key' : process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+if (!FIRESTORE_PROJECT || !API_KEY) {
+  throw new Error('Set EXPO_PUBLIC_FIREBASE_PROJECT_ID and EXPO_PUBLIC_FIREBASE_API_KEY before provisioning remote accounts.');
+}
 
 const AUTH_BASE = EMULATOR
   ? 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1'
@@ -52,22 +56,12 @@ const DOCS = EMULATOR
 // Keep in sync with TESTER_EMAIL_DOMAIN in src/config/constants.ts (the sign-in
 // screen appends this to bare account IDs). .test is RFC-reserved — never real.
 const EMAIL_DOMAIN = 'us.test';
-const CSV_PATH = path.join(__dirname, '..', '..', 'testers-credentials.csv');
+const CSV_PATH = path.join(__dirname, '..', '..', EMULATOR ? 'testers-credentials-emulator.csv' : `testers-credentials-${FIRESTORE_PROJECT}.csv`);
 const CSV_HEADER = 'accountId,email,password,uid,handle,displayName';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const WORDS = [
-  'void', 'echo', 'mint', 'rose', 'fog', 'signal', 'orbit', 'pulse', 'radar',
-  'spark', 'drift', 'glow', 'nova', 'flux', 'wave', 'stone', 'pine', 'cedar',
-  'amber', 'coral', 'slate', 'frost', 'ember', 'cloud', 'river', 'delta',
-];
 function generatePassword() {
-  const pick = () => WORDS[Math.floor(Math.random() * WORDS.length)];
-  const num = String(Math.floor(Math.random() * 90) + 10);
-  let a = pick();
-  let b = pick();
-  while (b === a) b = pick();
-  return `${a}-${b}-${num}`;
+  return randomBytes(18).toString('base64url');
 }
 
 function loadCsv() {
@@ -217,14 +211,14 @@ async function main() {
     }
 
     csv.set(accountId, { accountId, email, password, uid, handle, displayName });
-    results.push({ accountId, password, state: `✅ ${state}` });
+    results.push({ accountId, state: `✅ ${state}` });
   }
 
   saveCsv(csv);
 
-  console.log(`${'ID'.padEnd(10)} ${'PASSWORD'.padEnd(18)} STATE`);
+  console.log(`${'ID'.padEnd(10)} STATE`);
   for (const r of results) {
-    console.log(`${r.accountId.padEnd(10)} ${(r.password ?? '—').padEnd(18)} ${r.state}`);
+    console.log(`${r.accountId.padEnd(10)} ${r.state}`);
   }
   console.log(`\nCredentials written to ${path.basename(CSV_PATH)} (gitignored — distribute out-of-band).`);
 

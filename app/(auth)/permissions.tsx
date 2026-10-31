@@ -86,7 +86,7 @@ export default function PermissionsScreen() {
         <View className="flex-row items-center gap-2 bg-glass border border-glass-border px-4 py-2 rounded-full">
           <ShieldIcon size={14} color={COLORS.mint} />
           <Text className="text-fog/50 text-[10px] font-bold">
-            ONLY YOUR FRIENDS · ONLY AT SPOTS YOU CHOOSE
+            CONTROL LOCATION SHARING IN SETTINGS
           </Text>
         </View>
       </View>

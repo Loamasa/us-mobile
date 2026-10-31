@@ -7,7 +7,9 @@
 - Felix (`FSopelsa`) — lead developer. His branches win conflicts (`felix/dev-setup` merged 2026-10-29).
 
 ## Firebase
-- Prod project `us-v1-ff6b3`, package `com.us.mobile`. Spark (free) plan.
+- Test project (M1) `us-felix-test-20261030`, env in `eas.json` → `tester`. Old prod `us-v1-ff6b3`. Package `com.us.mobile`.
+- `.firebaserc` default = old project → always `--project` on deploy.
+- Friends rule needs `requestId` on friend docs + pending request. Chat update = `lastMessage*` or self-leave only. New chat/gathering field write → update rules too.
 - Auth in prod: Email/Password (testers). Phone auth = dev only (web SDK needs reCAPTCHA → mock verifier on emulator; public release → `@react-native-firebase/auth`).
 - Emulators: Auth 9099, Firestore 8088, UI 4000.
 
@@ -30,7 +32,7 @@
 - Expo Go can NOT run the app (SDK 58 + Maps 1.29). Use dev client (`npm run android:cloud`) or browser.
 
 ## EAS / release
-- `eas.json`: development (dev client APK, emulators) · preview (APK, real backend — testers) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
+- `eas.json`: development (dev client APK, emulators) · tester (APK, test project — M1) · preview (APK, old project) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
 - app.json `runtimeVersion: { policy: "fingerprint" }` → any native change = new runtime, OTA won't reach old APKs → rebuild.
 - `google-services.json` gitignored, NOT needed (JS SDK, no `googleServicesFile`).
 - Google Maps key in app.json unrestricted → restrict to package + EAS SHA-1 later.
@@ -40,7 +42,7 @@
 - **Browser runs whole app incl. map**: `metro.config.js` swaps `react-native-maps` → `src/dev/fakeMaps.tsx` on web and proxies emulator traffic same-origin (`/identitytoolkit*`→9099, `/google.firestore.v1.Firestore` + `/v1/projects`→8088). Not a test of native markers.
 - **Metro proxy**: after upstream headers sent, a later error must close the response, not write a 2nd 502 header (`tests/metro-proxy.test.cjs`).
 - **Map bugs checkable without device**: emulators → `npm run seed` → `npm run verify`. Reads live data through app's real path.
-- **Privacy holes open**: self-granted friendship reads location; chat/gathering creator rewritable. 3 TODO tests fail on purpose. Old 17 rule checks don't prove consent.
+- **Privacy rules**: fake friendship + creator rewrite blocked, tested on emulator only, not deployed, no full audit.
 - Two phones on dev build: both auto-sign-in as `dev-user` → phone B: Settings → Developer → Switch Account.
 - Seed timestamps go stale after 5 min → `npm run freshen`.
 
@@ -57,7 +59,7 @@
 
 ## Accounts
 - Dev personas (`dev-user`, alice, bob, charlie, dana, eve @ `@test.dev`) = `__DEV__` + emulator only.
-- Prod testers (`testerNN` @ `@us.test`) = only via `provisionTesters.js`. Creds in gitignored `testers-credentials.csv`. `.test` mail can't receive reset mail → reset in console.
+- Prod testers (`testerNN` @ `@us.test`) = only via `provisionTesters.js`. Creds in gitignored `testers-credentials-<project>.csv`. Remote run needs `EXPO_PUBLIC_FIREBASE_PROJECT_ID` + `EXPO_PUBLIC_FIREBASE_API_KEY`. `.test` mail can't receive reset mail → reset in console.
 - Keep them apart: NEVER put tester ids/emails in `src/dev/fixtures.json` or `DEV_ACCOUNTS`. Never point dev tooling at prod.
 
 ## React / UI gotchas

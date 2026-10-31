@@ -20,12 +20,12 @@ import { Platform } from 'react-native';
 // Note: The web SDK needs an authDomain and appId. If you registered a Web app
 // in Firebase Console, replace appId with the web-specific one.
 const firebaseConfig = {
-  apiKey: 'AIzaSyCQE2t2nLYTxKMA7SeM-FPx1y2th9wEHFM',
-  authDomain: 'us-v1-ff6b3.firebaseapp.com',
-  projectId: 'us-v1-ff6b3',
-  storageBucket: 'us-v1-ff6b3.firebasestorage.app',
-  messagingSenderId: '1087842612078',
-  appId: '1:1087842612078:android:28042aad4b5a7a45b9c77f',
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ?? 'AIzaSyCQE2t2nLYTxKMA7SeM-FPx1y2th9wEHFM',
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN ?? 'us-v1-ff6b3.firebaseapp.com',
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID ?? 'us-v1-ff6b3',
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET ?? 'us-v1-ff6b3.firebasestorage.app',
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '1087842612078',
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID ?? '1:1087842612078:android:28042aad4b5a7a45b9c77f',
 };
 
 const app = initializeApp(firebaseConfig);

@@ -104,6 +104,7 @@ async function main() {
 
   // ── Friend-request accept: the 3-write batch as the ACCEPTER ──
   // Seed a pending request from alice → dev-user (as owner, bypasses rules).
+  const requestCreatedAt = new Date().toISOString();
   await fetch(`${DOCS.replace('/documents', '')}/documents:commit`, {
     method: 'POST',
     headers: ADMIN_HEADERS,
@@ -116,7 +117,7 @@ async function main() {
               fromUserId: { stringValue: 'alice' },
               toUserId: { stringValue: 'dev-user' },
               status: { stringValue: 'PENDING' },
-              createdAt: { timestampValue: new Date().toISOString() },
+              createdAt: { timestampValue: requestCreatedAt },
             },
           },
         },
@@ -128,6 +129,7 @@ async function main() {
     status: { stringValue: 'ACTIVE' },
     since: { timestampValue: new Date().toISOString() },
     nickname: { nullValue: null },
+    requestId: { stringValue: 'test_req_alice' },
   };
   const acceptBatch = [
     {
@@ -137,7 +139,7 @@ async function main() {
           fromUserId: { stringValue: 'alice' },
           toUserId: { stringValue: 'dev-user' },
           status: { stringValue: 'ACCEPTED' },
-          createdAt: { timestampValue: new Date().toISOString() },
+          createdAt: { timestampValue: requestCreatedAt },
         },
       },
     },

@@ -45,7 +45,8 @@ same-origin. Does NOT test native markers or location permissions.
 | Profile | Command | Backend | Use |
 |---|---|---|---|
 | `development` | `npm run android:cloud` | your emulators | daily dev with `npm run start:dev` |
-| `preview` | `npm run apk` | real Firebase | testers (Milestone 1) |
+| `tester` | `npm run apk` | test project `us-felix-test-20261030` | testers (Milestone 1) |
+| `preview` | — | old `us-v1-ff6b3` | not used for M1 |
 | `production` | — | real Firebase | Play Store AAB, later |
 
 - Dev client finds emulators via Metro host. Phone + PC same network; open firewall ports if needed.
@@ -56,7 +57,7 @@ same-origin. Does NOT test native markers or location permissions.
 ## CI
 
 `.github/workflows/checks.yml`: install, typecheck, tests, Expo checks, Android/web Metro export,
-emulator checks on push + PR. Warns about advisories + the 3 privacy TODOs. No APK, no deploy.
+emulator checks on push + PR. Reports advisories. No APK, no deploy.
 
 ## Security
 

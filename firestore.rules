@@ -8,15 +8,20 @@ service cloud.firestore {
       allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId;
 
-      // Friends subcollection: readable by both parties. Writable by both
-      // parties too — accepting a friend request batches a write into BOTH
-      // users' friend lists (acceptFriendRequest), so the accepter must be
-      // able to create users/{them}/friends/{me}. The friendId == auth.uid
-      // constraint means you can only ever write YOUR OWN entry into someone
-      // else's list, never third-party entries.
+      // Both friend records must be created while the recipient accepts a pending request.
       match /friends/{friendId} {
         allow read: if request.auth.uid == userId || request.auth.uid == friendId;
-        allow write: if request.auth.uid == userId || request.auth.uid == friendId;
+        allow create, update: if request.auth != null
+          && (request.auth.uid == userId || request.auth.uid == friendId)
+          && userId != friendId
+          && request.resource.data.status == 'ACTIVE'
+          && request.resource.data.requestId is string
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)/friendRequests/$(request.resource.data.requestId)).data.status == 'PENDING'
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)/friendRequests/$(request.resource.data.requestId)).data.fromUserId == (request.auth.uid == userId ? friendId : userId)
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)/friendRequests/$(request.resource.data.requestId)).data.toUserId == request.auth.uid
+          && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)/friendRequests/$(request.resource.data.requestId)).data.status == 'ACCEPTED';
+        // Either side can end the friendship (removeFriend deletes both records).
+        allow delete: if request.auth.uid == userId || request.auth.uid == friendId;
       }
 
       // Friend requests: creator can create, recipient can read/update
@@ -24,8 +29,14 @@ service cloud.firestore {
         allow read: if request.auth.uid == userId
                     || request.auth.uid == resource.data.fromUserId;
         allow create: if request.auth != null
-                      && request.resource.data.fromUserId == request.auth.uid;
-        allow update: if request.auth.uid == userId;
+                      && request.resource.data.fromUserId == request.auth.uid
+                      && request.resource.data.toUserId == userId
+                      && request.auth.uid != userId
+                      && request.resource.data.status == 'PENDING';
+        allow update: if request.auth.uid == userId
+                      && resource.data.status == 'PENDING'
+                      && request.resource.data.status in ['ACCEPTED', 'REJECTED']
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
       }
 
       // User spots: only owner can read/write
@@ -63,17 +74,12 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.createdBy == request.auth.uid
                     && request.auth.uid in request.resource.data.memberIds;
-      // Members may update; you can't write yourself out of memberIds EXCEPT
-      // via the leave branch: the ONLY affected field is memberIds and the
-      // only removed member is yourself (no vandalizing the name on the way
-      // out, no kicking others).
+      // Members may only update the last-message preview, or remove themselves.
       allow update: if request.auth != null
                     && request.auth.uid in resource.data.memberIds
-                    && (request.auth.uid in request.resource.data.memberIds
-                        // Leave branch (caller absent from the new list):
-                        // nothing else changed, exactly one entry fewer (kills
-                        // reorder-only and duplicate-padding writes), nobody
-                        // added, and the removed member is the caller.
+                    && (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt'])
+                        // Leave branch: nothing else changed, exactly one entry
+                        // fewer, nobody added, and the removed member is the caller.
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
                             && request.resource.data.memberIds.size() == resource.data.memberIds.size() - 1
                             && request.resource.data.memberIds.toSet().difference(resource.data.memberIds.toSet()).size() == 0
@@ -92,10 +98,9 @@ service cloud.firestore {
     // members and invitees can see the pin/roster. FRIENDS visibility (solo
     // gathering) = additionally readable by the creator's friends, so they
     // can see the spot and whether the creator is there. Creation requires
-    // the caller to be the creator and a member. Members and invitees may
-    // update (invitees accept by moving themselves invitedIds → memberIds;
-    // members attach the spawned chatId). Trusted-tester posture: a stricter
-    // field-level update rule is in the Phase 3 deferred ledger.
+    // the caller to be the creator and a member. Invitees may only move
+    // themselves out of invitedIds (into memberIds or not); members may only
+    // attach the spawned chatId.
     match /broadcasts/{broadcastId} {
       allow read: if request.auth != null
                   && (request.auth.uid in resource.data.memberIds
@@ -105,9 +110,16 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.createdBy == request.auth.uid
                     && request.auth.uid in request.resource.data.memberIds;
-      allow update: if request.auth != null
-                    && (request.auth.uid in resource.data.memberIds
-                        || request.auth.uid in resource.data.invitedIds);
+      allow update: if request.auth != null && (
+        (request.auth.uid in resource.data.memberIds
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatId']))
+        || (request.auth.uid in resource.data.invitedIds
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'invitedIds'])
+          && request.resource.data.memberIds.toSet().difference(resource.data.memberIds.toSet()).hasOnly([request.auth.uid])
+          && resource.data.memberIds.toSet().difference(request.resource.data.memberIds.toSet()).size() == 0
+          && resource.data.invitedIds.toSet().difference(request.resource.data.invitedIds.toSet()).hasOnly([request.auth.uid])
+          && request.resource.data.invitedIds.toSet().difference(resource.data.invitedIds.toSet()).size() == 0)
+      );
       allow delete: if request.auth != null
                     && request.auth.uid == resource.data.createdBy;
     }
