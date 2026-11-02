@@ -1,0 +1,156 @@
+From b131ce350ee5cf39e46e8019836287facd7f530f Mon Sep 17 00:00:00 2001
+From: Loamasa <noreply@anthropic.com>
+Date: Mon, 2 Nov 2026 14:28:41 +0000
+Subject: [PATCH] docs: point M1 backend at us-felix-test-20261030
+
+- PLAN, STATUS, README, tester-distribution: backend steps now deploy
+  auth+firestore and provision 20 testers on us-felix-test-20261030.
+- development-setup, memory: emulator notes read projectId from
+  src/config/firebase.ts instead of a hard-coded project.
+- memory: gotchas for deleted (default) DB ID lock and provision
+  script losing passwords on mid-run errors.
+
+Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_011yeZjQbLbGEVntCdZaRzrz
+---
+ .context/memory.md          | 6 ++++--
+ PLAN.md                     | 2 +-
+ README.md                   | 4 ++--
+ STATUS.md                   | 9 +++++----
+ docs/development-setup.md   | 2 +-
+ docs/tester-distribution.md | 5 +++--
+ 6 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/.context/memory.md b/.context/memory.md
+index 689fe6e..262cdd4 100644
+--- a/.context/memory.md
++++ b/.context/memory.md
+@@ -7,7 +7,7 @@
+ - Felix (`FSopelsa`) — lead developer. His branches win conflicts (`felix/dev-setup` merged 2026-10-29).
+ 
+ ## Firebase
+-- Prod project `us-v1-ff6b3`, package `com.us.mobile`. Spark (free) plan.
++- Backend for M1 testers: `us-felix-test-20261030` (chosen 2026-10-31). Old prod `us-v1-ff6b3` retired. Package `com.us.mobile`.
+ - Auth in prod: Email/Password (testers). Phone auth = dev only (web SDK needs reCAPTCHA → mock verifier on emulator; public release → `@react-native-firebase/auth`).
+ - Emulators: Auth 9099, Firestore 8088, UI 4000.
+ 
+@@ -45,7 +45,7 @@
+ - Seed timestamps go stale after 5 min → `npm run freshen`.
+ 
+ ## Firebase gotchas
+-- **Auth emulator uses its DEFAULT project** for key-based calls → auth users live in `demo-us-app`, Firestore data under `us-v1-ff6b3`. Emulators MUST start with `--project demo-us-app`. Mix-up = `auth/user-not-found`.
++- **Auth emulator uses its DEFAULT project** for key-based calls → auth users live in `demo-us-app`, Firestore data under the app's `projectId`. Emulators MUST start with `--project demo-us-app`. Mix-up = `auth/user-not-found`.
+ - **Emulator enforces rules on client SDK.** Cross-user seed/admin writes → REST `:commit` with `Authorization: Bearer owner`. Rule tests must use real user tokens (`Bearer owner` bypasses rules).
+ - **Multi-user batches**: rules must allow EVERY write as caller. Friends rule = `auth.uid == userId || auth.uid == friendId`.
+ - **Emulator rules hot-reload lies (Windows)**: says "Rules updated" but keeps old compile. Restart emulator + reseed after editing rules. Tell: error line numbers don't match file.
+@@ -53,6 +53,8 @@
+ - **Prod sign-in errors**: prod returns `INVALID_LOGIN_CREDENTIALS` for missing user AND wrong password (emulator says `USER_NOT_FOUND`). `provisionTesters.js` handles all three.
+ - **Auth persistence restores ASYNC**: never read `auth.currentUser` sync at boot. `ensureDevUser` waits for first `onAuthStateChanged`.
+ - **RN auth persistence import**: `getReactNativePersistence` only in `@firebase/auth` react-native entry → `@ts-expect-error` in `src/config/firebase.ts`. Not from `firebase/auth`. `initializeAuth` throws on 2nd call (Fast Refresh) → try/catch fallback to `getAuth`.
++- **Deleted Firestore DB = ID locked ~5 min.** `firestore:databases:delete "(default)"` then deploy → 400 "Database ID '(default)' is not available… retry in N seconds". Wait, then deploy again.
++- **`provisionTesters.js` saves CSV only at the end.** A write error mid-run crashes it → accounts created that run lose their password → next run says "exists but password unknown". Delete those auth users in console, re-run.
+ - `getDoc()` ok for button actions / post-login checks. "Always onSnapshot" = reactive UI reads.
+ 
+ ## Accounts
+diff --git a/PLAN.md b/PLAN.md
+index a2e4b73..6da1cca 100644
+--- a/PLAN.md
++++ b/PLAN.md
+@@ -18,7 +18,7 @@
+ - [ ] One week normal use, no crash that stop chat
+ 
+ **Steps**
+-1. [ ] Push rules + indexes to prod: `npx firebase deploy --only firestore` (group-leave rule not live yet)
++1. [ ] Backend `us-felix-test-20261030`: `npx firebase deploy --only auth,firestore`, then `node src/dev/provisionTesters.js --count 20`
+ 2. [ ] Build APK: `npm run apk` → EAS gives link ([how](docs/tester-distribution.md))
+ 3. [ ] Smoke test: own phone + one friend. Sign in, add, DM, group, leave group, reopen app
+ 4. [ ] Send each friend: link + one row from `testers-credentials.csv` ([message to copy](docs/tester-distribution.md#message-for-testers))
+diff --git a/README.md b/README.md
+index 4830379..8f2e106 100644
+--- a/README.md
++++ b/README.md
+@@ -57,7 +57,7 @@ Old Expo Go can NOT run this app (SDK 58 + Maps 1.29).
+ | `npx --yes expo-doctor@latest` | Expo project health | no |
+ | `npm audit` | Dep advisories ([known ones](docs/dependency-audit.md)) | no |
+ 
+-### Real backend (prod `us-v1-ff6b3`)
++### Real backend (`us-felix-test-20261030`)
+ 
+ | Command | Does |
+ |---|---|
+@@ -78,7 +78,7 @@ Full runbook: [tester distribution](docs/tester-distribution.md).
+ 
+ ### Good to know
+ 
+-- Emulators MUST run with `--project demo-us-app` (script does it). Auth lives there, Firestore data under `us-v1-ff6b3`.
++- Emulators MUST run with `--project demo-us-app` (script does it). Auth lives there, Firestore data under the app's `projectId` (`src/config/firebase.ts`).
+ - Firebase CLI needs Java 21.
+ - After editing `firestore.rules`: restart emulators + reseed (hot reload lies).
+ - Dev build uses emulators. Set `EXPO_PUBLIC_USE_EMULATORS=false` to hit real backend from dev.
+diff --git a/STATUS.md b/STATUS.md
+index 1a3d50c..6ea9e05 100644
+--- a/STATUS.md
++++ b/STATUS.md
+@@ -8,22 +8,23 @@
+ New `npm run apk` (preview APK, real backend). Old phase plans → [docs/archive/](docs/archive/README.md).
+ 
+ ## Now
+-Working on **Milestone 1 — Friends chat**. Next step: deploy rules, then `npm run apk`.
++Working on **Milestone 1 — Friends chat**. Next step: deploy to `us-felix-test-20261030`, provision testers, then `npm run apk`.
+ 
+ ## Stack
+ Expo SDK 58 · React Native 0.88 · React 19.3 · TypeScript 6 · Maps 1.29.11 ·
+ NativeWind 4.2.7 + Tailwind 3 · Firebase JS SDK 12. Android only.
+ 
+ ## What is done
+-- Prod live since 2026-06-14: rules + indexes, Email/Password auth, 20 tester accounts
+-  (`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`).
++- Backend = `us-felix-test-20261030` (old `us-v1-ff6b3` retired 2026-10-31). Fresh Firestore DB
++  being set up: deploy rules + indexes, then 20 tester accounts (`tester01`…`tester20`,
++  logins in gitignored CSV).
+ - EAS linked: `@lomasas-team/us-mobile`. `eas.json` profiles: development / preview / production. OTA channels set.
+ - Every flow worked on device in June (Expo Go + emulators): map, chats, composer, friend accept, gatherings.
+ - Chat: DM, group, info sheet, leave group, remove friend. Signal setter. Stale markers dimmed.
+ - Sentry wired (needs DSN). GDPR notice in app.
+ 
+ ## Open — user actions
+-1. `npx firebase deploy --only firestore` — group-leave rule only on emulator. Leave Group FAILS in prod without it. **(M1)**
++1. `npx firebase deploy --only auth,firestore` → `node src/dev/provisionTesters.js --count 20` on `us-felix-test-20261030`. **(M1)**
+ 2. `npm run apk` → test → share link. **(M1)**
+ 3. Enable Firestore TTL policy on `locations.expireAt` (console). Later.
+ 4. Sentry project → set `EXPO_PUBLIC_SENTRY_DSN` (+ `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN`) as EAS env vars. Later.
+diff --git a/docs/development-setup.md b/docs/development-setup.md
+index de2ea4a..e2d1dab 100644
+--- a/docs/development-setup.md
++++ b/docs/development-setup.md
+@@ -30,7 +30,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+ 
+ ## Emulators
+ 
+-- Auth = project `demo-us-app`, Firestore data = `us-v1-ff6b3`. Keep `--project demo-us-app`.
++- Auth = project `demo-us-app`, Firestore data = app's `projectId` (`src/config/firebase.ts`). Keep `--project demo-us-app`.
+ - Ports: Auth 9099, Firestore 8088, UI 4000.
+ - Seed + verify write local fixtures. Restart → stop only that terminal, never kill all Node/Java.
+ - Emulator export: use same `TEMP`/`TMP` as the terminal that started it.
+diff --git a/docs/tester-distribution.md b/docs/tester-distribution.md
+index 2bc46d3..a9c6e43 100644
+--- a/docs/tester-distribution.md
++++ b/docs/tester-distribution.md
+@@ -14,11 +14,12 @@ Why not Expo Go? Expo Go need your PC running + your emulators. APK talk to real
+ 
+ ```bash
+ npx firebase login
+-npx firebase deploy --only firestore
++npx firebase deploy --only auth,firestore
++node src/dev/provisionTesters.js --count 20
+ npx eas-cli@25.3.0 login
+ ```
+ 
+-Tester accounts already exist in prod (`tester01`…`tester20`). Need more:
++Backend = `us-felix-test-20261030`. Need more testers later:
+ `node src/dev/provisionTesters.js --count 30` (only adds missing ones).
+ 
+ ## Build + share
+-- 
+2.43.0
+

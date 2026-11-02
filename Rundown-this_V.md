@@ -1,11 +1,5 @@
 # -What changed, -What's tested, -Mistakes and limits, -What's left for you
 
-// Commit message? - 
-                    Fixes 1, 4, 5 and 6 are done, and chats and other private data are now end-to-end encrypted, but there is no APK yet.
-                   -
-
-
-
 ## What changed
 
 - Encryption: messages, chat previews, group names, locations, spots, signals and gatherings are stored only as ciphertext, and the rules refuse plain text. Chats also have safety codes and a warning when someone's key changes. Details and limits are in `docs/encryption.md`.
