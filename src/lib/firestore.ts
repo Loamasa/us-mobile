@@ -178,12 +178,15 @@ export async function acceptFriendRequest(
   const reqRef = doc(db, 'users', myUserId, 'friendRequests', requestId);
   batch.update(reqRef, { status: 'ACCEPTED' });
 
-  // Add to both friend lists
+  // Add to both friend lists. The entry in THEIR list cites the request it
+  // answers — the rules only let us write into someone else's list when that
+  // request goes PENDING → ACCEPTED in this same batch.
   const myFriendRef = doc(db, 'users', myUserId, 'friends', theirUserId);
   batch.set(myFriendRef, {
     status: 'ACTIVE',
     since: serverTimestamp(),
     nickname: null,
+    requestId,
   });
 
   const theirFriendRef = doc(db, 'users', theirUserId, 'friends', myUserId);
@@ -191,6 +194,7 @@ export async function acceptFriendRequest(
     status: 'ACTIVE',
     since: serverTimestamp(),
     nickname: null,
+    requestId,
   });
 
   await batch.commit();
@@ -607,19 +611,27 @@ export async function getOrCreateDmChat(params: {
   const snap = await getDoc(ref);
   if (snap.exists()) return chatId;
 
-  await setDoc(
-    ref,
-    {
-      name: null,
-      avatarUrl: null,
-      type: 'DM',
-      memberIds: sorted,
-      createdBy: viewerId,
-      createdAt: serverTimestamp(),
-      lastMessage: null,
-      lastMessageAt: null,
-    },
-    { merge: true }
-  );
+  try {
+    await setDoc(
+      ref,
+      {
+        name: null,
+        avatarUrl: null,
+        type: 'DM',
+        memberIds: sorted,
+        createdBy: viewerId,
+        createdAt: serverTimestamp(),
+        lastMessage: null,
+        lastMessageAt: null,
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    // Lost a create race: the peer's write landed first, so ours became an
+    // update the rules deny (members may only touch the last-message
+    // preview). The DM exists — use it.
+    if ((await getDoc(ref)).exists()) return chatId;
+    throw e;
+  }
   return chatId;
 }

@@ -12,7 +12,7 @@ Read `STATUS.md` and `.context/memory.md` (project gotchas) at session start. Ke
 ## Commands
 - Windows: open `Dev-Terminal.cmd` to select the project-local Node 22 and Java 21 toolchain. See `docs/development-setup.md`.
 - `npx expo start` / `npx expo start --clear` — dev server
-- `npm test` — production map function regressions; `npm run check:emulators` — seeded integration/rules/SDK checks (three known privacy TODOs)
+- `npm test` — production map function regressions; `npm run check:emulators` — seeded integration/rules/SDK checks (needs dev dependencies: `npm ci --include=dev` when `NODE_ENV=production`)
 - `npx tsc --noEmit` — type check (must pass before committing)
 - `npm ci` — reproducible install with normal peer dependency validation; security overrides are documented in `docs/development-setup.md`
 - `firebase emulators:start --project demo-us-app` — local Firebase

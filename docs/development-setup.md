@@ -121,19 +121,21 @@ npm.cmd audit
 `npm test` runs 17 regression tests: 14 against the production projection/group-pin
 functions and three against the Metro proxy using Node's built-in runner and TypeScript. Generated files remain
 ignored under `.expo/test-build`. `npm run verify` also imports those functions
-against existing, freshly seeded emulators and exercises the original 17 rule checks. `npm run verify:sdk` validates real Firebase
+against existing, freshly seeded emulators and exercises 22 rule checks against the seeded data. `npm run verify:sdk` validates real Firebase
 SDK sign-in, a seeded profile read and a server-backed listener.
 
 `check:emulators` starts temporary emulators, seeds fixtures, runs verification and
-the new negative rules tests, then stops its own instance. First stop any other
-instance occupying those ports. The new rules tests create disposable fixtures.
-Two denial tests pass; **three privacy regressions currently fail as explicit TODOs**.
-Those TODOs run and are printed as failures, but do not fail the development CI job.
-They must become normal passing tests when the privacy fixes are implemented.
+the 22 authorization tests in `tests/security.rules.test.cjs`, then stops its own
+instance. First stop any other instance occupying those ports. The rules tests
+create disposable users and documents. They cover friendship consent (no
+self-granted friendship, no reused or misattributed requests), friend-request
+validation (including the recipient's Allow Friend Requests setting) and the
+field limits on chat and gathering updates, plus the legitimate flows those
+limits must keep working.
 
 `.github/workflows/checks.yml` runs install/typecheck/tests, Expo validation,
 Android/web Metro exports and emulator checks on pushes and pull requests.
-It reports dependency advisories and open privacy regressions. It does not build
+It reports dependency advisories. It does not build
 native APKs or deploy. Its commands were exercised locally; a hosted Actions run
 requires committing/pushing the workflow, which has not been done.
 
@@ -142,6 +144,9 @@ requires committing/pushing the workflow, which has not been done.
 The latest audit reported **11 affected package entries: 3 high, 3 moderate, 5 low**.
 See [the audit and override assessment](dependency-audit.md) for exact paths,
 advisories, compatibility evidence and upstream limitations. The remaining
-advisories are in development/signing/CLI dependencies. The separate application
-privacy findings are still open; this project is ready for continued development,
-not cleared for a public release.
+advisories are in development/signing/CLI dependencies. The three application
+privacy findings from the 2026-10-24 review are fixed in `firestore.rules` and
+covered by the emulator tests, but not yet deployed to production. The rest of
+the pre-public hardening ledger (App Check, native phone auth, location TTL
+policy) remains; this project is ready for continued development, not cleared
+for a public release.

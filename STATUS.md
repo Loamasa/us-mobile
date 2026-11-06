@@ -2,11 +2,21 @@
 
 > Current state only. Dated session history lives in `docs/CHANGELOG.md`; project gotchas in
 > `.context/memory.md`; the Phase 3 plan in `docs/plans/2026-06-11-phase3-readiness-plan.md`.
-> **Active finish plan (Steps 4–6 → multi-user test): `docs/plans/2026-06-18-phase3-finish-plan.md`.**
+> **Remaining Steps 4–6 are planned in the Phase 3 plan above** (a separate finish-plan file
+> was referenced here but never committed).
 
 ## Last Updated
-2026-10-29 — **Merged `felix/dev-setup` into main (Felix = lead developer; his side
-preferred on conflicts).** Main is now Expo SDK 58, React Native 0.88, React 19.3,
+2026-11-06 — **Privacy findings closed in `firestore.rules` (emulator-verified, NOT deployed).**
+Friendship now needs the owner's consent (the accepter's entry cites the accepted `requestId`;
+no self-grants, no replayed or misattributed requests), friend requests are validated and honor
+Allow Friend Requests server-side, chat members may only update the last-message preview (or
+leave), gathering invitees may only answer for themselves. `acceptFriendRequest` sends the proof;
+`getOrCreateDmChat` survives the now-denied create race. Verified: typecheck, `npm test` 17/17,
+`npm run verify` 22 rules checks, `verify:sdk`, `test:rules` 22/22, two mutation checks, and a
+browser accept flow against the emulators. Deploy the rules WITH the next app build (USER ACTION 1).
+
+**Stack** (since the 2026-10-29 `felix/dev-setup` merge — Felix is lead developer, his side
+preferred on conflicts; merge details in `docs/CHANGELOG.md`): Expo SDK 58, React Native 0.88, React 19.3,
 TypeScript 6, Maps 1.29.11 (Expo SDK matrix; the old 1.27.2 pin + `expo.install.exclude` and
 `.npmrc` `legacy-peer-deps` are gone — plain `npm ci`), dev-client build profile and CI
 workflow. Main-side work carried across: Wave 1 (auth persistence, chat info sheet, Sentry,
@@ -19,8 +29,10 @@ Setup: `docs/development-setup.md`; audit: `docs/dependency-audit.md` (11 entrie
 3 moderate, 5 low). Native marker/location behavior on SDK 58 is NOT yet device-verified.
 
 **Still-open USER ACTIONS (from Wave 1):**
-1. `firebase deploy --only firestore:rules` — the group-leave rule is emulator-only until
-   deployed; Leave Group FAILS in prod without it.
+1. `firebase deploy --only firestore:rules` — the group-leave rule AND the 2026-11-06 privacy
+   rules are emulator-only until deployed; Leave Group FAILS in prod without it. **Deploy
+   together with the next app build**: builds without the `requestId` change can no longer
+   accept friend requests under the new rules (no APK has been distributed yet).
 2. Enable the Firestore TTL policy on `locations.expireAt` (console/gcloud).
 3. Create a Sentry project → set `EXPO_PUBLIC_SENTRY_DSN` (+ `SENTRY_ORG`/`SENTRY_PROJECT`/
    `SENTRY_AUTH_TOKEN` for sourcemaps) as EAS env vars.
@@ -76,9 +88,8 @@ distribution**, **background location IN scope** (it's the product — needs the
 2. **Google Maps Android key in `app.json` is unrestricted** — restrict to package + SHA-1 in
    Step 4 (needs the EAS keystore).
 3. ~~`currentSignal` has no setter UI~~ — **resolved 2026-07-07** (⚡ SignalModal on the map, Wave 2).
-4. **`allowFriendRequests` enforced client-side ONLY (since 2026-07-04)** — the add-friend
-   flow now checks the recipient's toggle, but rules still accept request docs regardless.
-   Rules `get()` before public release.
+4. ~~`allowFriendRequests` enforced client-side ONLY~~ — **resolved 2026-11-06**: the
+   friend-request create rule reads the recipient's `settings.allowFriendRequests` (pending deploy).
 5. **Location TTL half-done (2026-07-04)** — `locations.expireAt` (+24h) is written by app
    + seeds, and chat surfaces treat >5-min-old docs as offline (`isLocationFresh`), but the
    Firestore **console TTL policy is NOT enabled yet** (user action). Map markers handle
@@ -95,8 +106,9 @@ distribution**, **background location IN scope** (it's the product — needs the
    to keep the slides for now; set expectations via the runbook's copy-paste message.
 10. **Dependency audit remains open** — 11 affected entries (3 high, 3 moderate, 5 low) after
     the merge; scoped security overrides and limitations in `docs/dependency-audit.md`.
-11. **Privacy regressions reproduced** — unauthorized self-granted friendship/location access,
-    chat creator rewriting and gathering creator rewriting are known failing test TODOs.
+11. ~~Privacy regressions reproduced~~ — **resolved 2026-11-06** in `firestore.rules`
+    (self-granted friendship, chat creator rewrite, gathering creator rewrite; plus forged/replayed
+    requests and members adding strangers). The former TODO tests now pass; pending deploy.
 12. **expo-camera / expo-image-picker / qrcode-svg are back** (Felix's branch) though no QR UI
     exists (`QR_CODE_ADD_FRIEND: false`) — CAMERA permission is declared again; drop them or
     ship the scan-to-add flow before wider distribution.
@@ -109,11 +121,12 @@ distribution**, **background location IN scope** (it's the product — needs the
 - **Development client on the Pixel 7** for native UX — APK and device validation pending.
 - `npm test` — 14 tests against the production map functions.
 - `npm run check:emulators` — disposable seeded emulator run, actual projection/group pins,
-  17 existing rule checks, Firebase SDK sign-in/read/listener and new negative rules checks.
-  Three known privacy TODO failures are visible and do not block development CI.
+  22 seeded rule checks, Firebase SDK sign-in/read/listener and the 22 authorization tests in
+  `tests/security.rules.test.cjs` (a failing rules test fails CI). In a cloud session with
+  `NODE_ENV=production`, install with `npm ci --include=dev` first (firebase-tools is a devDependency).
 - **Device-free verification harness** (run after seeding): `npm run verify` —
   `verifyProjection.js` (clustering read path) + `verifyGroupPins.js` (proximity-wins + resting
-  pin) + `verifyRules.js` (17 security-rules guarantees as real users).
+  pin) + `verifyRules.js` (22 security-rules checks as real users).
 
 ## How to Run
 
@@ -154,7 +167,8 @@ distribution**, **background location IN scope** (it's the product — needs the
 | `src/dev/fixtures.json` | Seed fixtures (5 personas, chats, broadcasts, schedules) |
 | `src/dev/runSeed.js` | Node-only emulator seed (admin REST `:commit`) |
 | `src/dev/verify{Projection,GroupPins,Rules}.js` | Device-free verification harness |
-| `firestore.rules` / `firestore.indexes.json` | Security rules (17 verified guarantees) + indexes |
+| `firestore.rules` / `firestore.indexes.json` | Security rules (friendship consent proof, field-limited chat/gathering updates) + indexes |
+| `tests/security.rules.test.cjs` | 22 emulator authorization tests (disposable users; part of `check:emulators`) |
 | `firebase.json` | Emulators: auth 9099, firestore **8088**, UI 4000 |
 | `eas.json` | EAS Build profiles: development (dev-client APK), preview (internal APK), production (AAB) |
 | `src/features/map/mapProjection.ts` | Map projection (fresh-only clustering, stale flags) — shared by `useMapProjection` and `npm test`/verify |

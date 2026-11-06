@@ -61,13 +61,20 @@ an appropriate remediation strategy.
 
 ## Application privacy remains separate
 
-The authorization regressions in `tests/security.rules.test.cjs` execute two
+**Update — 2026-11-06:** the three findings below are fixed in `firestore.rules`
+and the former TODO tests are ordinary passing assertions. Joining someone's
+friend list now requires accepting a request they sent, in the same batch (the
+friend entry cites `requestId`). Friend requests are validated, including the
+recipient's Allow Friend Requests setting. Chat members may only update the
+last-message preview or leave, and gathering invitees may only answer for
+themselves. `tests/security.rules.test.cjs` has 22 tests, including mutation-checked
+cases for misattributed requests and invitees adding others. The rules are
+emulator-verified but **not yet deployed to production**. The original finding
+is retained below as history.
+
+The authorization regressions in `tests/security.rules.test.cjs` executed two
 passing denial checks and **three known failing TODO tests**: a stranger can
 self-grant friendship and read location, a chat member can rewrite its creator,
 and a gathering invitee can rewrite its creator. The existing 17 positive/negative
-rules checks also pass, demonstrating why those earlier checks alone were insufficient.
-
-The selected maintenance scope did not change application security rules or
-location-tracking behavior. Fix these privacy findings before distributing to
-real users; also review the location/privacy findings in the workspace README.
-CI emits an explicit warning and does not count the TODOs as passing guarantees.
+rules checks also passed, demonstrating why those earlier checks alone were insufficient.
+The 2026-10-24 maintenance scope did not change application security rules.

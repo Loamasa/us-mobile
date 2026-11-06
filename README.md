@@ -21,5 +21,5 @@ The browser map uses a substitute, so browser checks do not verify native map re
 
 - The upgraded native Android app has not yet been built as an APK or tested on a phone.
 - The GitHub Actions workflow has not yet been verified in a hosted run.
-- Three authorization tests document known privacy defects as failing TODOs. A completed development check does not mean those defects are fixed.
+- The privacy fixes in `firestore.rules` (friendship consent, friend-request validation, field-limited chat and gathering updates) pass the emulator suites but are not yet deployed to production. Deploy them together with the next app build: older builds cannot accept friend requests under the new rules.
 - Dependency advisories remain; see the dated [dependency audit](docs/dependency-audit.md) and run `npm audit` for the current report.

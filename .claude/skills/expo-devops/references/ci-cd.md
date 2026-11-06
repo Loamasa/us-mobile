@@ -6,9 +6,8 @@ against production map functions, Expo alignment/Doctor, Android and web Metro
 exports, and a temporary Firebase emulator run.
 
 Dependency audit findings are reported without blocking development CI because
-upstream tooling still has open advisories. Three negative authorization tests
-execute as known failing TODOs and produce an explicit workflow warning. They
-must become ordinary passing assertions when the privacy fixes land.
+upstream tooling still has open advisories. The emulator step runs the
+authorization tests as ordinary assertions; a failing rules test fails the job.
 
 This workflow does not build a native APK or publish anything. EAS builds need
 an authenticated, linked Expo project; use the committed development profile.
