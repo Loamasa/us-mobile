@@ -13,6 +13,9 @@
  *   2. Accepting a friend request works: the accepter writes their own entry
  *      into BOTH friend lists in one batch (the bug fixed 2026-06-11 — the
  *      old rules denied writing users/{them}/friends/{me}).
+ *      The entry in the sender's list must cite the request (requestId) and
+ *      the request must go PENDING → ACCEPTED in that same batch — joining
+ *      someone's list without that proof is a self-grant and is denied.
  *   3. You cannot inject a THIRD PARTY into someone else's friend list.
  *   4. Handles require auth to read.
  *   5. Chat summaries are member-only.
@@ -131,6 +134,18 @@ async function main() {
     nickname: { nullValue: null },
     requestId: { stringValue: 'test_req_alice' },
   };
+  // The accepter's entry in the SENDER's list must cite the request it
+  // answers (requestId); the rules check that request goes PENDING → ACCEPTED
+  // in the same batch. Without that proof the write is a self-grant.
+  const acceptedFriendFields = {
+    ...friendFields,
+    requestId: { stringValue: 'test_req_alice' },
+  };
+  check(
+    'joining a friend list without an accepted request blocked (dev-user writes users/alice/friends/dev-user)',
+    await commitWrites([{ update: { name: docName('users/alice/friends/dev-user'), fields: friendFields } }], devToken),
+    [403]
+  );
   const acceptBatch = [
     {
       update: {
@@ -142,9 +157,10 @@ async function main() {
           createdAt: { timestampValue: requestCreatedAt },
         },
       },
+      updateMask: { fieldPaths: ['status'] },
     },
-    { update: { name: docName('users/dev-user/friends/alice'), fields: friendFields } },
-    { update: { name: docName('users/alice/friends/dev-user'), fields: friendFields } },
+    { update: { name: docName('users/dev-user/friends/alice'), fields: acceptedFriendFields } },
+    { update: { name: docName('users/alice/friends/dev-user'), fields: acceptedFriendFields } },
   ];
   check('accept friend request batch (as accepter dev-user)', await commitWrites(acceptBatch, devToken), [200]);
 

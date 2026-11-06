@@ -51,7 +51,8 @@
 - User content only exists as envelopes in Firestore; `src/lib/firestore.ts` decodes, screens see plain values. Rules refuse plain text, so new stored text must go through `sealValue`/`openValue`.
 - Seeded personas use fixed keys (`devKeyPair`) so `npm run seed` can encrypt fixtures. `seed` runs `build:checks` first. Verify scripts decode via `src/dev/devDecode.js`.
 - Rules tests: `createdAt`/`lastMessageAt`/`updatedAt` must equal `request.time`, so REST writes need `updateTransforms` (see `commit` in `tests/security.rules.test.cjs`).
-- `friendRequests` create does a `get()` on the recipient's profile: a recipient with no user doc is denied.
+- `friendRequests` create checks the recipient's `settings.allowFriendRequests` via `acceptsFriendRequests()`: a missing profile or setting counts as allowed (default).
+- **Cloud env sets `NODE_ENV=production`**: plain `npm ci` skips devDependencies (`firebase-tools`, so no emulators). Use `npm ci --include=dev`. For the web app run `NODE_ENV=development npx expo start --web`: under production `__DEV__` is false and the app would use the PRODUCTION backend.
 
 ## Firebase gotchas
 - **Auth emulator uses its DEFAULT project** for key-based calls → auth users live in `demo-us-app`, Firestore data under `us-felix-test-20261030`. Emulators MUST start with `--project demo-us-app`. Mix-up = `auth/user-not-found`.

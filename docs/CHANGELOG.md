@@ -4,6 +4,12 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-11-06 — Merged main's rules hardening into fel/phase1 (not deployed)
+- `main` had closed three privacy findings in `firestore.rules`; `fel/phase1` had already fixed the same holes inside its E2EE rules. Kept phase1's rules and added what only main had: `acceptsFriendRequests()` (missing profile/setting = allowed), and invitee size checks on gatherings (exactly one invite removed, at most one member added; blocks padding).
+- Tests: `tests/security.rules.test.cjs` now holds phase1's encrypted-envelope cases plus main's cases (answered/misattributed/forged/reopened requests, Allow Friend Requests, members adding strangers, invitee edits, accept/decline/link chat), plus a padding case.
+- Also from main: productivity `TASKS.md` + `dashboard.html`, CI and expo-devops skill doc tweaks.
+- Rules are emulator-tested only. Deploy together with the next app build.
+
 ## 2026-10-31 — End-to-end encryption, backend live, audit fixes
 - **E2EE** (tweetnacl, keys in SecureStore): messages, previews, group names, locations, spots, signals, gatherings. Pinned keys + key-change warning + safety code. Rules refuse plain text. Design + limits: `docs/encryption.md`.
 - **Audit fixes:** DM id hijack blocked in rules; send no longer wipes typed text or locks offline; provisioning saves each password immediately; `.firebaserc` → test project; one hardcoded backend (no OTA wrong-backend risk); users/handles not listable; handles immutable; `allowFriendRequests` enforced in rules; message fields + server time enforced; older messages load on scroll; unread dot; location double-start race; sign-out no longer hangs offline; Sentry upload off for tester builds.
