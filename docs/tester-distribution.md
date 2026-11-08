@@ -1,8 +1,8 @@
 # Distributing the App to Testers
 
 > How to get **us** onto other people's phones with the fixed tester accounts.
-> Android only (Phase 3 decision D2). Written 2026-06-11 — the checklist below
-> tracks what's already done vs. still pending.
+> Android only (Phase 3 decision D2). Written 2026-06-11, checklist updated 2026-11-08.
+> Options beyond this manual flow: `docs/plans/2026-11-08-invites-and-distribution.md`.
 
 ## The short version
 
@@ -20,45 +20,32 @@ broken-marker bug; the APK ships the fixed maps library.)
 
 ## Prerequisites checklist
 
-Status as of 2026-06-11:
+Status as of 2026-11-08 (this `main` line, backend `us-v1-ff6b3`):
 
 - [x] Fixed tester accounts system (`src/dev/provisionTesters.js` + sign-in screen)
-- [x] Production Firestore config ready (`.firebaserc`, rules, indexes — committed)
-- [ ] **`firebase login`** in a terminal (one-time), then **`firebase deploy --only firestore`**
-- [ ] **Enable Email/Password sign-in**: [Firebase console](https://console.firebase.google.com)
-      → project `us-v1-ff6b3` → Authentication → Sign-in method → Email/Password → Enable
-- [ ] **Provision the real accounts**: `node src/dev/provisionTesters.js --count 20`
-      (writes `testers-credentials.csv` — gitignored, keep it private)
-- [ ] **EAS pipeline** (Phase 3 Step 4 — includes the react-native-maps 1.27.x upgrade that
-      fixes the clipped markers; build AFTER that lands): see below
+- [x] Production Firestore config (`.firebaserc`, rules, indexes) — first deploy 2026-06-14
+- [x] Email/Password sign-in enabled in the Firebase console (2026-06-14)
+- [x] 20 accounts provisioned (`tester01`…`tester20`, `testers-credentials.csv`, gitignored)
+- [x] EAS project linked (`@lomasas-team/us-mobile`, 2026-06-14) — **don't run `eas init` again**;
+      `eas.json` has development / preview / production profiles
+- [x] react-native-maps 1.29.11 (the clipped-marker fix) is installed
+- [ ] **Deploy the current rules with the build**: `firebase deploy --only firestore:rules` —
+      the group-leave and 2026-11-06 privacy rules are emulator-only so far
+- [ ] **Google Maps billing** on the Maps key's Cloud project (STATUS, USER ACTION 5) —
+      without it every tester sees a grey map
+- [ ] Build the preview APK (below) and smoke-test it on your own phone first
 
-## One-time EAS setup (Phase 3 Step 4)
-
-```powershell
-npm install -g eas-cli          # or: npx eas-cli ...
-eas login                       # free Expo account (expo.dev) — create one if needed
-eas init                        # links the project, writes the project ID into app.json
-```
-
-`eas.json` gets two profiles (Step 4 creates this):
-
-```json
-{
-  "build": {
-    "development": { "developmentClient": true, "distribution": "internal" },
-    "preview":     { "distribution": "internal", "autoIncrement": true }
-  }
-}
-```
-
-`distribution: "internal"` is the key — it produces an installable APK with a shareable
-URL instead of a store submission.
+`distribution: "internal"` in the `preview` profile is the key — it produces an installable
+APK with a shareable URL instead of a store submission. Log in once with the Expo account
+that owns the project: `npx eas-cli@25.3.0 login`.
 
 ## Building and sharing
 
 ```powershell
-eas build --platform android --profile preview
+npx eas-cli@25.3.0 build --platform android --profile preview
 ```
+
+(`npm run android:cloud` is the *development client* for you, not the tester APK.)
 
 - Takes ~10–25 min in Expo's cloud (free tier queue). When it finishes, the terminal and
   https://expo.dev print a **build page link** ending in an APK download.

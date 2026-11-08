@@ -6,14 +6,23 @@
 > was referenced here but never committed).
 
 ## Last Updated
-2026-11-06 — **Privacy findings closed in `firestore.rules` (emulator-verified, NOT deployed).**
-Friendship now needs the owner's consent (the accepter's entry cites the accepted `requestId`;
-no self-grants, no replayed or misattributed requests), friend requests are validated and honor
-Allow Friend Requests server-side, chat members may only update the last-message preview (or
-leave), gathering invitees may only answer for themselves. `acceptFriendRequest` sends the proof;
-`getOrCreateDmChat` survives the now-denied create race. Verified: typecheck, `npm test` 17/17,
-`npm run verify` 22 rules checks, `verify:sdk`, `test:rules` 22/22, two mutation checks, and a
-browser accept flow against the emulators. Deploy the rules WITH the next app build (USER ACTION 1).
+2026-11-08 (overnight, branch `prel/great-faraday-hscinl`) — **Google Maps is blocked on the
+Google side, not in code**: the Maps key's Cloud project has no billing (USER ACTION 5). Native
+config verified via `expo prebuild` (key lands in `AndroidManifest.xml`). **CI green again**:
+Expo SDK 58 patch bumps (`expo install --fix`) + drift checks moved last so they can't hide the
+real checks (they had blocked every run since 2026-11-02). **Browser map shows real streets**
+(Web Mercator over OSM tiles; taps now land where you tap). **Tester invites**: one-tap
+SMS/email/WhatsApp messages from the CSV (`src/dev/testerInvites.js`); status + options in
+`docs/plans/2026-11-08-invites-and-distribution.md`. Previous entry (2026-11-06 privacy rules,
+still NOT deployed — USER ACTION 1) is in `docs/CHANGELOG.md`.
+
+**⚠ Two lines of work.** `fel/phase1` = all of `main` + Felix's Milestone 1 "Friends chat"
+(end-to-end encryption, phone screens removed, background location blocked, its own
+`PLAN.md`). It points at a **different Firebase project** (`us-felix-test-20261030`) and **Expo
+project** (owner `fsopelsa`). Both lines pass typecheck, unit tests and the emulator suite
+(checked 2026-11-08); `fel/phase1` additionally needs the same `npx expo install --fix`. `main`
+can fast-forward to `fel/phase1` — choosing the line that ships is the open decision
+(see the invites doc).
 
 **Stack** (since the 2026-10-29 `felix/dev-setup` merge — Felix is lead developer, his side
 preferred on conflicts; merge details in `docs/CHANGELOG.md`): Expo SDK 58, React Native 0.88, React 19.3,
@@ -135,7 +144,8 @@ distribution**, **background location IN scope** (it's the product — needs the
   over real OpenStreetMap streets (since 2026-11-08; `EXPO_PUBLIC_DEV_MAP_TILES=off` = grid).
   Covers data/logic/UI — NOT react-native-maps native rendering.
 - **Development client on the Pixel 7** for native UX — APK and device validation pending.
-- `npm test` — 14 tests against the production map functions.
+- `npm test` — 36 tests: production map functions (14), Metro proxy (3), web-map Mercator
+  math (11), tester invite generator (8).
 - `npm run check:emulators` — disposable seeded emulator run, actual projection/group pins,
   22 seeded rule checks, Firebase SDK sign-in/read/listener and the 22 authorization tests in
   `tests/security.rules.test.cjs` (a failing rules test fails CI). In a cloud session with

@@ -72,18 +72,18 @@ The upgraded Maps module requires a newly built client. The old SDK 54 Expo Go
 binary cannot run this project. `expo-dev-client`, the Maps config plugin and an
 internal Android APK profile are configured in `eas.json`.
 
-When ready to use your Expo account:
+The EAS project is already linked (`@lomasas-team/us-mobile`, `extra.eas.projectId` in
+`app.json`, done 2026-06-14) — **do not run `eas init` again**. Log in with the Expo
+account that owns it, then build:
 
 ```powershell
 npx.cmd eas-cli@25.3.0 login
-npx.cmd eas-cli@25.3.0 init
 npm.cmd run android:cloud
 ```
 
-`eas init` links or creates the account's EAS project and writes its real project
-ID; choose the intended account/project interactively. No project ID has been
-invented or provisioned. Cloud building was deferred at the user's request;
-no APK has been produced or tested on a phone in this maintenance pass.
+No development APK has been produced or tested on a phone yet. Before the map can show
+streets on the phone, Google Maps itself needs billing on the key's Cloud project (see
+STATUS, USER ACTION 5) — otherwise the native map is a grey grid.
 
 Install the resulting APK on the phone, then run:
 
@@ -122,8 +122,9 @@ npm.cmd run check:emulators
 npm.cmd audit
 ```
 
-`npm test` runs 17 regression tests: 14 against the production projection/group-pin
-functions and three against the Metro proxy using Node's built-in runner and TypeScript. Generated files remain
+`npm test` runs 36 regression tests with Node's built-in runner: 14 against the production
+projection/group-pin functions, three against the Metro proxy, 11 against the web map
+shim's Web Mercator math and 8 against the tester invite generator. Generated files remain
 ignored under `.expo/test-build`. `npm run verify` also imports those functions
 against existing, freshly seeded emulators and exercises 22 rule checks against the seeded data. `npm run verify:sdk` validates real Firebase
 SDK sign-in, a seeded profile read and a server-backed listener.
