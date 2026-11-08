@@ -47,18 +47,28 @@ Setup: `docs/development-setup.md`; audit: `docs/dependency-audit.md` (11 entrie
    `SENTRY_AUTH_TOKEN` for sourcemaps) as EAS env vars.
 4. Review `docs/privacy-notice.md` (legal draft) + confirm `SUPPORT_EMAIL` in
    `src/config/constants.ts`.
-5. **Make Google Maps work (2026-11-08)** — Google Cloud console: (a) Credentials → find which
-   project owns the Maps key `AIzaSyDbe2K0…`; (b) link a billing account to that project (Maps
-   SDK for Android usage is unlimited at no charge, but Google requires a billing account on
-   every Maps Platform project — without one, requests are capped at ~1/day; see
-   developers.google.com/maps/documentation/android-sdk/usage-and-billing; Google for
-   Nonprofits offers Maps credits); (c) enable **Maps SDK for
-   Android**; (d) **before** billing is on, set API restrictions → Maps SDK for Android only (the
-   key is committed and unrestricted, so with billing it could be abused for paid APIs);
-   application restriction `com.us.mobile` + EAS SHA-1 once known; (e) optional budget alert.
-   Re-check from any shell: `curl "https://maps.googleapis.com/maps/api/staticmap?center=0,0&zoom=1&size=2x2&key=<KEY>"`
-   — billing missing says "You must enable Billing"; after (d) it should say the API is not
-   authorized for this key (expected: Static Maps is restricted away).
+5. **Make Google Maps work (2026-11-08)** — Google Cloud console (console.cloud.google.com).
+   Do (b)–(d) **in one sitting**: today the key can't cost anything (no billing); from the
+   moment billing is linked until (d), the committed, unrestricted key could be used for paid APIs.
+   (a) **Find the key's project.** Quick check: if `api_key[0].current_key` in your local
+   `google-services.json` equals `AIzaSyDbe2K0…`, it is Firebase's auto-created Android key in
+   `us-v1-ff6b3`. Otherwise: project picker → each project → APIs & Services → Credentials, or
+   `gcloud services api-keys lookup <KEY>` (returns the project number). Not in any project you
+   can open → create a new key in a project you own and swap it into `app.json` (both lines).
+   (b) **Link a billing account** (Billing → Link). Maps SDK for Android usage is unlimited at no
+   charge, but Maps Platform needs billing (without it ~1 request/day). If the project is the
+   Firebase project, this is the same as upgrading Firebase to Blaze (same free quotas, then
+   pay-as-you-go; it also unlocks the Firestore TTL policy, USER ACTION 2). Add a budget alert
+   (Billing → Budgets & alerts). Google for Nonprofits offers Maps credits.
+   (c) **Enable "Maps SDK for Android"** (APIs & Services → Library).
+   (d) **Restrict the key** (Credentials → the key): API restrictions → Restrict key → only
+   "Maps SDK for Android". Application restrictions → Android apps → `com.us.mobile` + SHA-1 once
+   known: one entry per signing key — EAS keystore (`npx eas-cli@25.3.0 credentials` → Android;
+   `main`'s `lomasas-team` and `fel/phase1`'s `fsopelsa` are different keystores) and, if Play is
+   used, Play Console → App integrity → app signing key SHA-1. Changes take ~5 min.
+   Check (PowerShell: `curl.exe`): `curl "https://maps.googleapis.com/maps/api/staticmap?center=0,0&zoom=1&size=2x2&key=<KEY>"`
+   — "enable Billing" = (b) not done; "not authorized" = billing OK and Static Maps blocked
+   (expected); "invalid" = wrong key. Final proof: streets on the phone build.
 
 **Production is live** (since 2026-06-14): rules + indexes deployed, Email/Password enabled,
 20 tester accounts (`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`).
