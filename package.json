@@ -13,7 +13,7 @@
     "verify": "npm run build:checks && node src/dev/verifyProjection.js && node src/dev/verifyGroupPins.js && node src/dev/verifyRules.js",
     "emulators": "firebase emulators:start --project demo-us-app",
     "build:checks": "tsc -p tsconfig.checks.json",
-    "test": "npm run build:checks && node --test tests/map.test.cjs tests/metro-proxy.test.cjs",
+    "test": "npm run build:checks && node --test tests/map.test.cjs tests/metro-proxy.test.cjs tests/web-mercator.test.cjs",
     "test:rules": "node --test --test-concurrency=1 tests/security.rules.test.cjs",
     "check:emulators": "firebase emulators:exec --only auth,firestore --project demo-us-app \"npm run seed && npm run verify && npm run verify:sdk && npm run test:rules\"",
     "android:cloud": "npx eas-cli@25.3.0 build --platform android --profile development",

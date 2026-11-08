@@ -131,7 +131,8 @@ distribution**, **background location IN scope** (it's the product — needs the
 ## Testing Methods
 
 - **Browser (Expo web) is first-class for everything INCLUDING the map**: emulators + seed +
-  `npx expo start` → `http://localhost:8081`. Real map screens run via `src/dev/fakeMaps.tsx`.
+  `npx expo start` → `http://localhost:8081`. Real map screens run via `src/dev/fakeMaps.tsx`
+  over real OpenStreetMap streets (since 2026-11-08; `EXPO_PUBLIC_DEV_MAP_TILES=off` = grid).
   Covers data/logic/UI — NOT react-native-maps native rendering.
 - **Development client on the Pixel 7** for native UX — APK and device validation pending.
 - `npm test` — 14 tests against the production map functions.
@@ -178,7 +179,7 @@ distribution**, **background location IN scope** (it's the product — needs the
 | `src/features/spots/spotSchedule.ts` | Spot schedule logic (single source of truth; mirrored in `runSeed.js`) |
 | `src/features/spots/searchPlace.ts` | Forward geocoding (native: expo-location; web: Nominatim) for the spots editor |
 | `docs/tester-distribution.md` | Runbook: build + share the APK, hand out tester accounts |
-| `src/dev/fakeMaps.tsx` | Web map shim — real map screens run in the browser |
+| `src/dev/fakeMaps.tsx` | Web map shim — real map screens run in the browser on OSM tiles (math: `src/dev/webMercator.ts`) |
 | `src/dev/fixtures.json` | Seed fixtures (5 personas, chats, broadcasts, schedules) |
 | `src/dev/runSeed.js` | Node-only emulator seed (admin REST `:commit`) |
 | `src/dev/verify{Projection,GroupPins,Rules}.js` | Device-free verification harness |

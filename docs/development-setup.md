@@ -52,8 +52,12 @@ npm.cmd run web
 ```
 
 Open the displayed Metro URL, normally `http://localhost:8081`.
-The browser renders the real map screen through `src/dev/fakeMaps.tsx`; this does
-not validate native marker rendering or location permissions.
+The browser renders the real map screen through `src/dev/fakeMaps.tsx`: Web Mercator
+over darkened OpenStreetMap tiles (drag to pan, wheel or +/− to zoom, taps place things
+where you tap). Set `EXPO_PUBLIC_DEV_MAP_TILES=off` for the plain dark grid (offline), or
+to a `{z}/{x}/{y}` URL template for another tile source; OSM's tile policy allows light dev
+use with the attribution shown. This does not validate native marker rendering, Google
+Maps itself or location permissions.
 
 Auth uses emulator project `demo-us-app`; Firestore uses `us-v1-ff6b3`.
 Keep `--project demo-us-app` on the emulator command. Ports: Auth 9099,

@@ -16,6 +16,7 @@
   },
   "include": [
     "src/features/map/mapProjection.ts",
-    "src/features/map/groupPins.ts"
+    "src/features/map/groupPins.ts",
+    "src/dev/webMercator.ts"
   ]
 }
