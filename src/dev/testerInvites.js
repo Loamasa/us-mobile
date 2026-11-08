@@ -35,9 +35,10 @@ const DEFAULT_TEMPLATE = `Hi! You're invited to test "us" — a small app for se
 Account ID: {accountId}
 Password: {password}
 
-3. Settings → My Account: set your display name.
+3. Settings → My Account: set your display name and change your password (there's no email reset, so remember it).
 4. Chats → Add Friend → {inviterHandle}
 
+Messages are end-to-end encrypted: never uninstall the app, or your old messages are gone for good. New versions install over the old one.
 Tell me what breaks — screenshots help!`;
 
 /** Parse the provisioning CSV (no quoting; displayName may contain commas). */

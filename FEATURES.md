@@ -1,46 +1,16 @@
 # Feature Wishlist
 
-> Features WE want that are **not in the prototype**. This list is the product backlog beyond prototype parity — ideas land here first, get confirmed, then graduate into a phase checklist in `STATUS.md`.
+> Ideas WE want that are **not in the prototype**. Land here first, get confirmed, then go into [PLAN.md](PLAN.md).
 >
-> Status legend: **DRAFT** (wording not confirmed yet) · **CONFIRMED** (agreed, not scheduled) · **SCHEDULED** (has a phase) · **SHIPPED**
+> Status: **DRAFT** (wording open) · **CONFIRMED** (agreed, not planned) · **SCHEDULED** (in a milestone) · **SHIPPED**
 
 ---
 
-## 1. Group Broadcast — SHIPPED v1 (2026-06-11)
+## 1. Group Broadcast — SHIPPED (2026-06-11, now called "Gathering")
 
-> v1 landed 2026-06-11 per the spec below: `broadcasts/{id}` collection (members+invitees-only
-> rules, 5 new verifyRules checks), map long-press → composer (presets/TTL/invite picker, solo
-> allowed), rose pins (solid member / dashed INVITE), card with roster + "here now" + countdown,
-> accept/decline, deterministic group chat spawn (`chatId` stored). Seeded fixtures:
-> `broadcast_tonight` (member) + `broadcast_invite` (invite). Deferred from v1: stricter
-> field-level update rule (tracked in the Phase 3 ledger); community broadcasts (below).
->
-> v1.1 (same day, device-pass feedback): the map's rose button now opens THIS composer —
-> SignalModal deleted. One mental model shipped literally: 0 invitees → writes `currentSignal`
-> (the personal signal, status on your pin); 1+ invitees → the pinned group broadcast.
->
-> v1.3 (same day, device round 4) — **renamed "Broadcast" / "Broadcast a spot" / "Group Spot"
-> toggle; placement moved AFTER the menu**: the rose button opens the composer first; its
-> "📍 Place on map" CTA stashes the finished draft and the next map tap creates the broadcast
-> there (banner + cancel). Long-press stays as the location-first shortcut (CTA "📡 Broadcast"
-> directly). Markers: `collapsable={false}` fixed-size roots with generous margins (Fabric
-> view-flattening defense — device confirm pending).
->
-> v1.2 (same day, device round 3) — **renamed "Gathering", placement is map-chosen**: the rose
-> button arms a tap-to-place mode (pin goes where you tap, never implicitly at your GPS);
-> long-press still shortcuts. Composer: "Group Gathering" toggle (off = solo) revealing a
-> SEARCHABLE invite picker (chat-composer pattern). Solo gatherings got NEW semantics: a
-> `visibility: 'FRIENDS'` pin all your friends can see — incl. whether you're physically there
-> (like a temporary spot) — instead of writing `currentSignal`. Group = `visibility: 'MEMBERS'`
-> (invite-only, unchanged). Friends' solo pins arrive via a per-friend
-> `createdBy+visibility` query fan-out (`onFriendSoloBroadcasts`); the card has a read-only
-> PEEK mode ("Charlie is/isn't here right now"). verifyRules: 17 checks. The personal signal
-> (`currentSignal`) no longer has a setter UI — display paths still work; fold into a later pass.
->
-> v2.1 (2026-07-07, Wave 2): **that later pass shipped — the dedicated signal setter is back**:
-> ⚡ map button + `src/features/signals/SignalModal.tsx` (presets / custom text / duration,
-> keep-current-expiry editing via a tap on the HUD, all-friends audience, allowed in ghost
-> mode, `location` always null by privacy design). Gatherings unchanged; the two coexist.
+> Shipped as `broadcasts/{id}` + map composer, invite picker, rose pins, roster card, group chat spawn.
+> Solo gathering = pin all friends see. Personal signal (`currentSignal`) has its own ⚡ setter again (2026-07-07).
+> Not done: stricter field-level update rule, community broadcasts. Spec below = original design.
 
 **One-liner:** Upgrade the personal signal broadcast into a placeable, invite-based map event: pin a broadcast anywhere on the map, invite friends, invitees accept to join, the group sees who's in — and it can spawn a group chat, exactly like clusters do.
 

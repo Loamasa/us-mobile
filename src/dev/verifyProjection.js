@@ -15,7 +15,7 @@
  *
  * Expected output: CLUSTER(alice+bob) + FRIEND(charlie); dana/eve absent.
  */
-const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
+const EMULATOR_PROJECT_ID = 'us-felix-test-20261030';
 const FIRESTORE_EMULATOR_PORT = 8088;
 const BASE = `http://127.0.0.1:${FIRESTORE_EMULATOR_PORT}/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents`;
 const HEADERS = { Authorization: 'Bearer owner' };
@@ -28,6 +28,7 @@ function fromValue(v) {
   if (v == null) return undefined;
   if ('nullValue' in v) return null;
   if ('stringValue' in v) return v.stringValue;
+  if ('bytesValue' in v) return fromBytes(v.bytesValue);
   if ('booleanValue' in v) return v.booleanValue;
   if ('integerValue' in v) return Number(v.integerValue);
   if ('doubleValue' in v) return v.doubleValue;
@@ -58,6 +59,8 @@ async function listIds(path) {
   return (j.documents || []).map((d) => d.name.split('/').pop());
 }
 
+const { decodeLocation, decodeProfile, fromBytes } = require('./devDecode');
+
 // Execute the production functions compiled by npm run build:checks.
 const { projectMapEntities: project } = require('../../.expo/test-build/features/map/mapProjection.js');
 
@@ -86,10 +89,12 @@ async function main() {
   const friendLocations = {};
   for (const id of friendIds) {
     await freshenLocation(id);
-    const [profile, location] = await Promise.all([
+    const [rawProfile, rawLocation] = await Promise.all([
       getDoc(`users/${id}`),
       getDoc(`locations/${id}`),
     ]);
+    const profile = decodeProfile(id, rawProfile, timestamp);
+    const location = decodeLocation(id, rawLocation);
     const hasProfile = !!profile;
     const hasLocation = !!location;
     console.log(

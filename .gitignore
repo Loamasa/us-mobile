@@ -54,6 +54,9 @@ GoogleService-Info.plist
 expo_qr.png
 
 # tester account credentials (distribute out-of-band — never commit)
-testers-credentials.csv
+testers-credentials*.csv
 # generated invite pages (src/dev/testerInvites.js) — they contain the same passwords
 testers-invites*.html
+
+# browser test output
+.playwright-mcp/

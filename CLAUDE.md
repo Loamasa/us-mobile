@@ -3,19 +3,19 @@
 Nonprofit location-based social app. Expo SDK 58 + Firebase + NativeWind v4 + Tailwind v3.
 
 ## Session Protocol
-Read `STATUS.md` and `.context/memory.md` (project gotchas) at session start. Keep them current:
+Read `PLAN.md` (current milestone — build only what it needs), `STATUS.md` and `.context/memory.md` (project gotchas) at session start. Keep them current:
 - Update STATUS.md after milestones, before commits, and on "wrap up". Dated history goes to `docs/CHANGELOG.md`, not STATUS.md.
 - Update `.context/memory.md` when discovering gotchas — it is the single committed gotchas file (mirror collapsed 2026-06-11).
 - Always tell the user when you update these files.
-- Work on `felix/` branches (current setup branch: `felix/dev-setup`). Leave changes uncommitted for review unless the user asks for a commit; never push unless asked.
+- Docs: short, plain words. One fact in one place — link, don't copy. Every command lives in README `## Commands`.
+- Current branch: `fel/phase1`. Never pick branch names yourself. Leave changes uncommitted for review unless asked to commit. Never push unless told to.
 
 ## Commands
-- Windows: open `Dev-Terminal.cmd` to select the project-local Node 22 and Java 21 toolchain. See `docs/development-setup.md`.
-- `npx expo start` / `npx expo start --clear` — dev server
-- `npm test` — production map function regressions; `npm run check:emulators` — seeded integration/rules/SDK checks (needs dev dependencies: `npm ci --include=dev` when `NODE_ENV=production`)
-- `npx tsc --noEmit` — type check (must pass before committing)
-- `npm ci` — reproducible install with normal peer dependency validation; security overrides are documented in `docs/development-setup.md`
-- `firebase emulators:start --project demo-us-app` — local Firebase
+Full list: `README.md` → Commands. Most used:
+- `npm ci` — install · `npm run typecheck` — must pass before commit · `npm test` — map regressions
+- `npm run emulators` → `npm run seed` → `npm run web` — local app in browser
+- `npm run check:emulators` — full emulator checks
+- `npm run apk` — tester APK (test project)
 
 ## Code Style
 - Feature-first folders: `src/features/{name}/`
@@ -31,10 +31,11 @@ Read `STATUS.md` and `.context/memory.md` (project gotchas) at session start. Ke
 - Font: Inter
 
 ## Architecture
-- Locations: top-level `locations/{userId}` with geohash for spatial queries
+- Locations: top-level `locations/{userId}`, sealed to friends. No spatial queries: clustering is client-side
 - Friends: `users/{uid}/friends/{friendId}` subcollection
 - Handles: `handles/{handle}` lookup for uniqueness
 - Spots: `users/{uid}/spots/{spotId}` subcollection
 - Clustering: client-side Haversine, 100m threshold
 - Ghost mode: delete location doc + stop watcher + set globalLocationSharing=false
-- Signals: `users/{uid}.currentSignal` with TTL, client-side expiry check
+- Signals: `users/{uid}.currentSignal`, sealed to friends, client-side expiry check
+- Encryption: user content is end-to-end encrypted at the `src/lib/firestore.ts` boundary, rules refuse plain text. See `docs/encryption.md` before storing anything new

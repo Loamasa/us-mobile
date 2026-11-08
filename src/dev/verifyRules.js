@@ -28,7 +28,7 @@
  *   9. Unfriending deletes BOTH friend edges in one batch as either party.
  */
 
-const FIRESTORE_PROJECT = 'us-v1-ff6b3';
+const FIRESTORE_PROJECT = 'us-felix-test-20261030';
 const AUTH_URL = 'http://127.0.0.1:9099';
 const FIRESTORE_URL = 'http://127.0.0.1:8088';
 const DOCS = `${FIRESTORE_URL}/v1/projects/${FIRESTORE_PROJECT}/databases/(default)/documents`;
@@ -107,6 +107,7 @@ async function main() {
 
   // ── Friend-request accept: the 3-write batch as the ACCEPTER ──
   // Seed a pending request from alice → dev-user (as owner, bypasses rules).
+  const requestCreatedAt = new Date().toISOString();
   await fetch(`${DOCS.replace('/documents', '')}/documents:commit`, {
     method: 'POST',
     headers: ADMIN_HEADERS,
@@ -119,7 +120,7 @@ async function main() {
               fromUserId: { stringValue: 'alice' },
               toUserId: { stringValue: 'dev-user' },
               status: { stringValue: 'PENDING' },
-              createdAt: { timestampValue: new Date().toISOString() },
+              createdAt: { timestampValue: requestCreatedAt },
             },
           },
         },
@@ -131,6 +132,7 @@ async function main() {
     status: { stringValue: 'ACTIVE' },
     since: { timestampValue: new Date().toISOString() },
     nickname: { nullValue: null },
+    requestId: { stringValue: 'test_req_alice' },
   };
   // The accepter's entry in the SENDER's list must cite the request it
   // answers (requestId); the rules check that request goes PENDING → ACCEPTED
@@ -148,7 +150,12 @@ async function main() {
     {
       update: {
         name: docName('users/dev-user/friendRequests/test_req_alice'),
-        fields: { status: { stringValue: 'ACCEPTED' } },
+        fields: {
+          fromUserId: { stringValue: 'alice' },
+          toUserId: { stringValue: 'dev-user' },
+          status: { stringValue: 'ACCEPTED' },
+          createdAt: { timestampValue: requestCreatedAt },
+        },
       },
       updateMask: { fieldPaths: ['status'] },
     },

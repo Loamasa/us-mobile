@@ -84,7 +84,15 @@ export default function SettingsScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          if (userId) await deleteLocation(userId);
+          // Writes only resolve once the server confirms, so offline this would
+          // hang forever. Give it a moment, then sign out regardless: the
+          // record expires on its own.
+          if (userId) {
+            await Promise.race([
+              deleteLocation(userId).catch(() => {}),
+              new Promise((resolve) => setTimeout(resolve, 3000)),
+            ]);
+          }
           await signOut(auth);
           // Back through the auth gate (app/index.tsx) — signed-out users
           // land on onboarding instead of staying on the tabs.
@@ -168,7 +176,7 @@ export default function SettingsScreen() {
         <SettingsGroup title="App">
           <SettingRow
             label="Developer / Debug"
-            subtitle="Seed data, switch accounts, onboarding"
+            subtitle="Switch accounts, onboarding"
             icon={<TerminalIcon size={18} color={COLORS.fog} />}
             onPress={() => router.push('/settings/developer')}
           />

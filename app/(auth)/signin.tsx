@@ -78,8 +78,6 @@ export default function SignInScreen() {
       ctaLabel={loading ? 'Signing in...' : 'Sign In'}
       onCta={handleSignIn}
       ctaDisabled={loading}
-      secondaryLabel={__DEV__ ? 'Dev: phone sign-in' : undefined}
-      onSecondary={__DEV__ ? () => router.push('/(auth)/phone') : undefined}
     >
       <View className="w-full max-w-[320px]">
         <Text className="text-white text-3xl font-black uppercase tracking-tight mb-2">
