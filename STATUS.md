@@ -38,6 +38,18 @@ Setup: `docs/development-setup.md`; audit: `docs/dependency-audit.md` (11 entrie
    `SENTRY_AUTH_TOKEN` for sourcemaps) as EAS env vars.
 4. Review `docs/privacy-notice.md` (legal draft) + confirm `SUPPORT_EMAIL` in
    `src/config/constants.ts`.
+5. **Make Google Maps work (2026-11-08)** — Google Cloud console: (a) Credentials → find which
+   project owns the Maps key `AIzaSyDbe2K0…`; (b) link a billing account to that project (Maps
+   SDK for Android usage is unlimited at no charge, but Google requires a billing account on
+   every Maps Platform project — without one, requests are capped at ~1/day; see
+   developers.google.com/maps/documentation/android-sdk/usage-and-billing; Google for
+   Nonprofits offers Maps credits); (c) enable **Maps SDK for
+   Android**; (d) **before** billing is on, set API restrictions → Maps SDK for Android only (the
+   key is committed and unrestricted, so with billing it could be abused for paid APIs);
+   application restriction `com.us.mobile` + EAS SHA-1 once known; (e) optional budget alert.
+   Re-check from any shell: `curl "https://maps.googleapis.com/maps/api/staticmap?center=0,0&zoom=1&size=2x2&key=<KEY>"`
+   — billing missing says "You must enable Billing"; after (d) it should say the API is not
+   authorized for this key (expected: Static Maps is restricted away).
 
 **Production is live** (since 2026-06-14): rules + indexes deployed, Email/Password enabled,
 20 tester accounts (`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`).
@@ -85,8 +97,11 @@ distribution**, **background location IN scope** (it's the product — needs the
 
 1. **Native Maps migration needs device validation** — 1.29.11 is installed, but a new
    development APK must be built and tested before declaring the old clipping bug resolved.
-2. **Google Maps Android key in `app.json` is unrestricted** — restrict to package + SHA-1 in
-   Step 4 (needs the EAS keystore).
+2. **Google Maps is NOT set up on the Google side (found 2026-11-08)** — the key in `app.json`
+   (`AIzaSyDbe2K0…`, NOT the Firebase key) is valid, but Google answers every Maps request with
+   `403 — You must enable Billing on the Google Cloud Project`. A dev build would show a grey
+   grid with only the Google logo. **USER ACTION 5** below. The key is also unrestricted —
+   restrict to package + SHA-1 in Step 4 (needs the EAS keystore). Same key on `fel/phase1`.
 3. ~~`currentSignal` has no setter UI~~ — **resolved 2026-07-07** (⚡ SignalModal on the map, Wave 2).
 4. ~~`allowFriendRequests` enforced client-side ONLY~~ — **resolved 2026-11-06**: the
    friend-request create rule reads the recipient's `settings.allowFriendRequests` (pending deploy).
