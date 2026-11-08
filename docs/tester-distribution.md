@@ -68,6 +68,17 @@ eas build --platform android --profile preview
 
 ## What each tester does (copy-paste this to them)
 
+Faster: generate one ready-made message per tester (link + their own Account ID and
+password) with one-tap SMS / Email / WhatsApp / Copy buttons — nothing is sent for you:
+
+```powershell
+node src/dev/testerInvites.js --link <APK install link> --handle <your handle>
+```
+
+It writes `testers-invites.html` (gitignored — it holds the passwords; delete it when done).
+`--only` / `--skip` pick accounts, `--print` prints plain text, `--template <file>` uses your
+own wording. Background and options: `docs/plans/2026-11-08-invites-and-distribution.md`.
+
 > 1. Open the link on your Android phone and download the APK.
 > 2. Android will warn about installing unknown apps — allow it for your browser
 >    (Settings prompt appears automatically; it's our app, not store-reviewed yet).
