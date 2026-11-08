@@ -18,7 +18,8 @@
     "check:emulators": "firebase emulators:exec --only auth,firestore --project demo-us-app \"npm run seed && npm run verify && npm run verify:sdk && npm run test:rules\"",
     "android:cloud": "npx eas-cli@25.3.0 build --platform android --profile development",
     "start:dev": "expo start --dev-client",
-    "verify:sdk": "node tests/firebase-sdk.cjs"
+    "verify:sdk": "node tests/firebase-sdk.cjs",
+    "check:maps-key": "node src/dev/checkMapsKey.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~58.0.15",

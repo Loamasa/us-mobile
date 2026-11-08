@@ -4,6 +4,15 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-11-08 — Google Maps key hardening prepared (user action; Cloud unchanged)
+- **Question answered**: the Android map (Maps SDK for Android via `react-native-maps`) has unlimited no-cost map loads; only other Maps Platform APIs are metered (Essentials: 10k free calls/SKU/month, the old $200 credit is gone). Native place search uses the device geocoder (`Location.geocodeAsync`), web uses Nominatim, so the app calls no metered Google API.
+- **Decision**: restrict the key rather than hide it (it ships in every APK and has been in git since 2026-04-17). Budget alert $5/month (user's choice), thresholds 50/90/100%.
+- **Found**: the Maps key is a separate key from the Firebase `apiKey` (restriction is safe for Firebase). Baseline probe: the key's Cloud project has **no billing linked** → nothing chargeable now, but the Maps SDK for Android needs billing, so the restrict → trim APIs → link billing → budget order matters.
+- **Added**: `docs/maps-key-hardening.md` (Console + Cloud Shell gcloud steps: key → project lookup, EAS SHA-1, API + Android-app restriction, disable unused metered Maps APIs, billing link with the Spark→Blaze note, budget, verification, Play/local-build follow-ups); `src/dev/checkMapsKey.js` + `npm run check:maps-key` (one Geocoding probe, key redacted; RESTRICTED 0 / BILLING OFF 2 / UNRESTRICTED or INVALID KEY 1). All eight outcome branches exercised with a stubbed `fetch`; real run → BILLING OFF.
+- **Not done (no credentials in the cloud session)**: the actual key restriction, API disabling, billing link and budget — STATUS USER ACTION 5.
+- **Environment**: cloud setup script fixed again (`npm.cmd--version` typo + Windows-only `npm.cmd` → `npm`).
+- Docs: STATUS (Last Updated, USER ACTION 5, Open Item 2), Phase 3 plan Step 4 line, development-setup pointer, `.context/memory.md` (new gotcha).
+
 ## 2026-11-06 — Privacy findings closed in the security rules (not deployed)
 - **Friendship consent** (`firestore.rules`): `users/{owner}/friends/{other}` is written freely only by the owner. The other party may write their entry only in the batch that accepts the owner's request: the friend doc carries `requestId`, and `acceptsRequestFrom()` requires that request (in the caller's own inbox) to come from the owner and go `PENDING` → `ACCEPTED` in the same write (`get` vs `getAfter`). Closes the self-granted friendship → location read finding, and replay of an old accepted request after an unfriend.
 - **Friend requests**: create only as yourself, never to yourself, `toUserId` matching the inbox, `PENDING`, and only if the recipient's `settings.allowFriendRequests` isn't `false` (STATUS Open Item #4 — previously client-side only). The recipient may only change `status`, PENDING → ACCEPTED/REJECTED. Without this, a recipient could forge `fromUserId` on a request in their own inbox, or reopen one, to manufacture the consent proof.

@@ -99,7 +99,8 @@ path passed here, while native behavior remains to be checked in the new client.
 The development profile uses `EXPO_PUBLIC_USE_EMULATORS=true`. Setting it to
 `false` selects the real backend in development; public Expo variables are not
 secret storage. Restrict the existing Google Maps key to the Android package
-and the chosen signing certificate SHA-1 before distribution.
+and the chosen signing certificate SHA-1 before distribution: see
+`docs/maps-key-hardening.md` and `npm run check:maps-key`.
 
 `npm.cmd run android` uses `expo run:android` for local compilation. Only adb is
 installed on this machine: local compilation additionally needs Android SDK

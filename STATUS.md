@@ -6,6 +6,12 @@
 > was referenced here but never committed).
 
 ## Last Updated
+2026-11-08 — **Maps key hardening prepared (USER ACTION 5; nothing changed in Google Cloud yet).**
+Runbook `docs/maps-key-hardening.md` (restrict to Maps SDK for Android + `com.us.mobile` +
+EAS SHA-1, disable unused metered Maps APIs, link billing, $5 budget alert) and
+`npm run check:maps-key`. Baseline: the key's project has **no billing** → nothing can be
+charged today, but the map won't render in an EAS APK until billing is linked.
+
 2026-11-06 — **Privacy findings closed in `firestore.rules` (emulator-verified, NOT deployed).**
 Friendship now needs the owner's consent (the accepter's entry cites the accepted `requestId`;
 no self-grants, no replayed or misattributed requests), friend requests are validated and honor
@@ -38,6 +44,9 @@ Setup: `docs/development-setup.md`; audit: `docs/dependency-audit.md` (11 entrie
    `SENTRY_AUTH_TOKEN` for sourcemaps) as EAS env vars.
 4. Review `docs/privacy-notice.md` (legal draft) + confirm `SUPPORT_EMAIL` in
    `src/config/constants.ts`.
+5. **Harden the Google Maps key** — follow `docs/maps-key-hardening.md` (needs `eas login`
+   + a Cloud owner in Cloud Shell; this cloud session has neither). Order matters: restrict
+   → disable unused Maps APIs → link billing → $5 budget → `npm run check:maps-key`.
 
 **Production is live** (since 2026-06-14): rules + indexes deployed, Email/Password enabled,
 20 tester accounts (`tester01`…`tester20`, creds in gitignored `testers-credentials.csv`).
@@ -85,8 +94,9 @@ distribution**, **background location IN scope** (it's the product — needs the
 
 1. **Native Maps migration needs device validation** — 1.29.11 is installed, but a new
    development APK must be built and tested before declaring the old clipping bug resolved.
-2. **Google Maps Android key in `app.json` is unrestricted** — restrict to package + SHA-1 in
-   Step 4 (needs the EAS keystore).
+2. **Google Maps Android key in `app.json` is unrestricted** — runbook ready
+   (`docs/maps-key-hardening.md`, USER ACTION 5); `npm run check:maps-key` currently reports
+   BILLING OFF (exit 2). Closes when it reports RESTRICTED and the APK map renders.
 3. ~~`currentSignal` has no setter UI~~ — **resolved 2026-07-07** (⚡ SignalModal on the map, Wave 2).
 4. ~~`allowFriendRequests` enforced client-side ONLY~~ — **resolved 2026-11-06**: the
    friend-request create rule reads the recipient's `settings.allowFriendRequests` (pending deploy).
