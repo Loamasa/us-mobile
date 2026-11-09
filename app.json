@@ -67,7 +67,7 @@
       [
         "react-native-maps",
         {
-          "androidGoogleMapsApiKey": "AIzaSyDbe2K0Ttie5U24QvxUdRXi_2hFwfTDLEg"
+          "androidGoogleMapsApiKey": "AIzaSyBzqReaQtKNzcZ0UeKFVcHUiWcbzQLkaNQ"
         }
       ],
       "expo-secure-store"
