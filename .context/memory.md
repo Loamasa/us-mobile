@@ -7,10 +7,11 @@
 - Felix (`FSopelsa`) — lead developer. His branches win conflicts (`felix/dev-setup` merged 2026-10-29).
 
 ## Firebase
-- Only backend: `us-felix-test-20261030`, hardcoded in `src/config/firebase.ts`. Env-driven config broke OTA (`eas update` doesn't read build profile env). Package `com.us.mobile`. Spark (free) plan: TTL policies need billing.
+- Only backend: `us-v1-ff6b3` (back from Felix's `us-felix-test-20261030` on 2026-11-09), hardcoded in `src/config/firebase.ts` + `.firebaserc` + the dev scripts/tests (`EMULATOR_PROJECT_ID`/`FIRESTORE_PROJECT` — the emulator stores Firestore data under the app's projectId, so all must match). Env-driven config broke OTA (`eas update` doesn't read build profile env). Package `com.us.mobile`. Spark (free) plan: TTL policies need billing. Expo project: `lomasas-team` (`b9ed9b69-…`); `fsopelsa`'s project (`d74d2bb5-…`) is no longer used — OTA updates only reach APKs built by the same Expo project.
+- **Firebase web API keys are not Maps keys**: `AIzaSyCQE2t2…` (us-v1-ff6b3) and `AIzaSyBzq…` (us-felix-test) are Firebase client keys. Never add Android-app restrictions to them — the JS SDK sends no Android package/SHA-1 headers, so sign-in would break. The Maps key is the separate one in `app.json`.
 - Friends rule needs `requestId` on friend docs + pending request. Chat update = `lastMessage*` or self-leave only. New chat/gathering field write → update rules too.
 - Auth: Email/Password (testers). Phone/OTP screens removed (git history); public release → `@react-native-firebase/auth`.
-- **`firebase deploy --dry-run` is not dry**: it enabled the Firestore API and created the database in `nam5`. `firebase.json` `firestore.location` now says `eur3`.
+- **`firebase deploy --dry-run` is not dry**: it enabled the Firestore API and created `us-felix-test`'s database in `nam5`. `firebase.json` `firestore.location: eur3` is only used when deploy has to CREATE a database (firebase-tools `prepare.js`, on 404) — it never moves or checks an existing one.
 - Emulators: Auth 9099, Firestore 8088, UI 4000.
 
 ## Collections
@@ -38,7 +39,7 @@
 - `eas.json`: development (dev client APK, emulators) · tester (APK — M1) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
 - app.json `runtimeVersion: { policy: "fingerprint" }` → any native change = new runtime, OTA won't reach old APKs → rebuild.
 - `google-services.json` gitignored, NOT needed (JS SDK, no `googleServicesFile`).
-- **Google Maps = billing, not code** (2026-11-08; key replaced 2026-11-09 by `AIzaSyBzq…`, API-restricted): the old key (`AIzaSyDbe2K0…`, not the Firebase key) was valid, but its Cloud project had NO billing → every Maps API answers `403 … You must enable Billing` → phone shows grey grid + Google logo (logcat "Authorization failure"). Probe: `curl "https://maps.googleapis.com/maps/api/staticmap?center=0,0&zoom=1&size=2x2&key=<KEY>"` — "invalid" = bad key, "enable Billing" = no billing, "not authorized" = restricted/API off. Maps SDK for Android is free but needs billing linked; link billing + enable API + restrict key (Maps SDK for Android only; `com.us.mobile` + each signing SHA-1) in ONE sitting — key is committed and extractable from any APK anyway. Steps: STATUS "Open — needs you".
+- **Google Maps = billing, not code** (2026-11-08): key in app.json (`AIzaSyDbe2K0…`, not a Firebase key — probably in `us-v1-ff6b3`'s Cloud project) is valid, but its Cloud project has NO billing → every Maps API answers `403 … You must enable Billing` → phone shows grey grid + Google logo (logcat "Authorization failure"). Probe: `curl "https://maps.googleapis.com/maps/api/staticmap?center=0,0&zoom=1&size=2x2&key=<KEY>"` — "invalid" = bad key, "enable Billing" = no billing, "not authorized" = restricted/API off. Maps SDK for Android is free but needs billing linked; link billing + enable API + restrict key (Maps SDK for Android only; `com.us.mobile` + each signing SHA-1) in ONE sitting — key is committed and extractable from any APK anyway. Steps: STATUS "Open — needs you".
 - EAS login/build run under user's Expo account. Can't script from here.
 
 ## Testing
@@ -61,7 +62,7 @@
 - **Cloud env sets `NODE_ENV=production`**: plain `npm ci` skips devDependencies (`firebase-tools`, so no emulators). Use `npm ci --include=dev`. For the web app run `NODE_ENV=development npx expo start --web`: under production `__DEV__` is false and the app would use the PRODUCTION backend.
 
 ## Firebase gotchas
-- **Auth emulator uses its DEFAULT project** for key-based calls → auth users live in `demo-us-app`, Firestore data under `us-felix-test-20261030`. Emulators MUST start with `--project demo-us-app`. Mix-up = `auth/user-not-found`.
+- **Auth emulator uses its DEFAULT project** for key-based calls → auth users live in `demo-us-app`, Firestore data under `us-v1-ff6b3`. Emulators MUST start with `--project demo-us-app`. Mix-up = `auth/user-not-found`.
 - **Emulator enforces rules on client SDK.** Cross-user seed/admin writes → REST `:commit` with `Authorization: Bearer owner`. Rule tests must use real user tokens (`Bearer owner` bypasses rules).
 - **Multi-user batches**: rules must allow EVERY write as caller. Friends rule = `auth.uid == userId || auth.uid == friendId`.
 - **Emulator rules hot-reload lies (Windows)**: says "Rules updated" but keeps old compile. Restart emulator + reseed after editing rules. Tell: error line numbers don't match file.
@@ -73,7 +74,7 @@
 
 ## Accounts
 - Dev personas (`dev-user`, alice, bob, charlie, dana, eve @ `@test.dev`) = `__DEV__` + emulator only.
-- Prod testers (`testerNN` @ `@us.test`) = only via `provisionTesters.js`. Creds in gitignored `testers-credentials-<project>.csv`. `.test` mail can't receive reset mail → reset in console.
+- Prod testers (`testerNN` @ `@us.test`) = only via `provisionTesters.js`. Creds in gitignored `testers-credentials-<project>.csv` (us-v1-ff6b3's June run wrote plain `testers-credentials.csv`; the script falls back to it when the project file is missing). `.test` mail can't receive reset mail → reset in console.
 - Keep them apart: NEVER put tester ids/emails in `src/dev/fixtures.json` or `DEV_ACCOUNTS`. Never point dev tooling at prod.
 
 ## React / UI gotchas

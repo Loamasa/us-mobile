@@ -58,14 +58,14 @@ Old Expo Go can NOT run this app (SDK 58 + Maps 1.29).
 | `npx --yes expo-doctor@latest` | Expo project health | no |
 | `npm audit` | Dep advisories ([known ones](docs/dependency-audit.md)) | no |
 
-### Real backend (test project)
+### Real backend
 
-Test project = `us-felix-test-20261030` (the only project in the app, and the `.firebaserc` default).
+Firebase project = `us-v1-ff6b3` (the only project in the app, and the `.firebaserc` default). Expo account = `lomasas-team`.
 
 | Command | Does |
 |---|---|
 | `npx firebase deploy --only auth,firestore` | Push sign-in setting, `firestore.rules`, `firestore.indexes.json` |
-| `node src/dev/provisionTesters.js --count 20` | Make tester accounts → `testers-credentials-us-felix-test-20261030.csv` (gitignored, private). Safe to re-run |
+| `node src/dev/provisionTesters.js --count 20` | Make/check tester accounts → `testers-credentials-us-v1-ff6b3.csv` (gitignored, private; first run reads the June `testers-credentials.csv`). Safe to re-run |
 | `node src/dev/provisionTesters.js --emulator --count 3` | Same on emulators → `testers-credentials-emulator.csv` |
 
 ### Ship to testers
@@ -83,7 +83,7 @@ Maps on the phone first need billing on the Maps key's Cloud project ([STATUS](S
 
 ### Good to know
 
-- Emulators MUST run with `--project demo-us-app` (script does it). Auth lives there, Firestore data under `us-felix-test-20261030`.
+- Emulators MUST run with `--project demo-us-app` (script does it). Auth lives there, Firestore data under `us-v1-ff6b3`.
 - Firebase CLI needs Java 21.
 - After editing `firestore.rules`: restart emulators + reseed (hot reload lies).
 - Dev build uses emulators. Set `EXPO_PUBLIC_USE_EMULATORS=false` to hit real backend from dev.

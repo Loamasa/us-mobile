@@ -5,7 +5,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const authBase = 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1';
-const docs = 'http://127.0.0.1:8088/v1/projects/us-felix-test-20261030/databases/(default)/documents';
+const docs = 'http://127.0.0.1:8088/v1/projects/us-v1-ff6b3/databases/(default)/documents';
 const owner = { Authorization: 'Bearer owner', 'Content-Type': 'application/json' };
 const prefix = `regression-${randomUUID()}`;
 const paths = [];
@@ -21,7 +21,7 @@ const value = (x) => {
   return { stringValue: x };
 };
 const fields = (x) => Object.fromEntries(Object.entries(x).map(([k, v]) => [k, value(v)]));
-const docName = (path) => `projects/us-felix-test-20261030/databases/(default)/documents/${path}`;
+const docName = (path) => `projects/us-v1-ff6b3/databases/(default)/documents/${path}`;
 // A well-formed envelope: the rules check its shape, they can't read inside it.
 const envelope = () => ({
   v: 1, from: new Uint8Array(32), n: new Uint8Array(24), body: new Uint8Array(64), grants: { a: new Uint8Array(80) },

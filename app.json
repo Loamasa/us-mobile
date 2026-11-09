@@ -7,7 +7,7 @@
       "policy": "fingerprint"
     },
     "updates": {
-      "url": "https://u.expo.dev/d74d2bb5-3894-4d93-9907-ca5b3fcdbcc4",
+      "url": "https://u.expo.dev/b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d",
       "fallbackToCacheTimeout": 0
     },
     "orientation": "portrait",
@@ -67,7 +67,7 @@
       [
         "react-native-maps",
         {
-          "androidGoogleMapsApiKey": "AIzaSyBzqReaQtKNzcZ0UeKFVcHUiWcbzQLkaNQ"
+          "androidGoogleMapsApiKey": "AIzaSyDbe2K0Ttie5U24QvxUdRXi_2hFwfTDLEg"
         }
       ],
       "expo-secure-store"
@@ -79,9 +79,9 @@
         }
       },
       "eas": {
-        "projectId": "d74d2bb5-3894-4d93-9907-ca5b3fcdbcc4"
+        "projectId": "b9ed9b69-64fc-4c03-89b8-e14a3ee44e9d"
       }
     },
-    "owner": "fsopelsa"
+    "owner": "lomasas-team"
   }
 }

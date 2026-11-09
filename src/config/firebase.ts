@@ -20,12 +20,14 @@ import { Platform } from 'react-native';
 // Plain constants on purpose. Env-driven values aren't available to `eas update`,
 // so an over-the-air fix could silently point testers at another project.
 const firebaseConfig = {
-  apiKey: 'AIzaSyBzqReaQtKNzcZ0UeKFVcHUiWcbzQLkaNQ',
-  authDomain: 'us-felix-test-20261030.firebaseapp.com',
-  projectId: 'us-felix-test-20261030',
-  storageBucket: 'us-felix-test-20261030.firebasestorage.app',
-  messagingSenderId: '1051180260252',
-  appId: '1:1051180260252:web:a14c373f529b7397104659',
+  // us-v1-ff6b3 (values from its google-services.json; the appId is the Android
+  // app's — the JS SDK accepts it for Auth + Firestore, as in the June builds).
+  apiKey: 'AIzaSyCQE2t2nLYTxKMA7SeM-FPx1y2th9wEHFM',
+  authDomain: 'us-v1-ff6b3.firebaseapp.com',
+  projectId: 'us-v1-ff6b3',
+  storageBucket: 'us-v1-ff6b3.firebasestorage.app',
+  messagingSenderId: '1087842612078',
+  appId: '1:1087842612078:android:28042aad4b5a7a45b9c77f',
 };
 
 const app = initializeApp(firebaseConfig);

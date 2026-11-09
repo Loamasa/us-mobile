@@ -30,7 +30,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ## Emulators
 
-- Auth = project `demo-us-app`, Firestore data = `us-felix-test-20261030`. Keep `--project demo-us-app`.
+- Auth = project `demo-us-app`, Firestore data = `us-v1-ff6b3`. Keep `--project demo-us-app`.
 - Ports: Auth 9099, Firestore 8088, UI 4000.
 - Seed + verify write local fixtures. Restart → stop only that terminal, never kill all Node/Java.
 - Emulator export: use same `TEMP`/`TMP` as the terminal that started it.
@@ -48,7 +48,7 @@ traffic same-origin. Does NOT test native markers, Google Maps or location permi
 | Profile | Command | Backend | Use |
 |---|---|---|---|
 | `development` | `npm run android:cloud` | your emulators | daily dev with `npm run start:dev` |
-| `tester` | `npm run apk` | test project `us-felix-test-20261030` | testers (Milestone 1) |
+| `tester` | `npm run apk` | Firebase `us-v1-ff6b3` | testers (Milestone 1) |
 | `production` | — | real Firebase | Play Store AAB, later |
 
 - Google Maps needs billing on the Maps key's Cloud project first, or every build shows a grey map ([STATUS](../STATUS.md) "Open — needs you" 3).

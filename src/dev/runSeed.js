@@ -6,7 +6,7 @@ const { devKeyPair, seal } = require('../../.expo/test-build/features/e2ee/envel
 // Firestore data lives under the SDK's projectId; auth users must live in the
 // emulator's default project (started with --project demo-us-app) because
 // key-based SDK requests (signInWithPassword etc.) always resolve there.
-const EMULATOR_PROJECT_ID = 'us-felix-test-20261030';
+const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
 const AUTH_EMULATOR_PROJECT_ID = 'demo-us-app';
 const FIRESTORE_EMULATOR_PORT = 8088;
 const AUTH_EMULATOR_PORT = 9099;

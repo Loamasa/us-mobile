@@ -1,9 +1,8 @@
 # Inviting testers + getting the app onto their phones — status and options
 
-> Written 2026-11-08, for this line (`fel/phase1` merged with the overnight work on
-> `prel/great-faraday-hscinl`): backend `us-felix-test-20261030`, Expo account `fsopelsa`.
-> The older `main` line used `us-v1-ff6b3` + Expo `lomasas-team`; an APK from one line cannot
-> sign in to the other's tester accounts. Nothing here is decided — decisions at the end.
+> Written 2026-11-08, updated 2026-11-09 for the switch back to Firebase `us-v1-ff6b3` +
+> Expo `lomasas-team` (Felix's test project `us-felix-test-20261030` / Expo `fsopelsa` are no
+> longer used). Nothing here is decided — decisions at the end.
 
 ## Where it stands
 
@@ -17,8 +16,9 @@ map event, not invites to the app.
    Expo gives a shareable HTTPS install link. (`npm run android:cloud` is the *development
    client* for us, not for testers.)
 2. Send each tester the link + their own row (Account ID + password) from the gitignored
-   `testers-credentials-us-felix-test-20261030.csv` — SMS, WhatsApp, email, anything.
-   Hand out `tester01`–`tester18` (19 and 20 were used for testing).
+   `testers-credentials-us-v1-ff6b3.csv` (June's `testers-credentials.csv` until the next
+   provisioning run) — SMS, WhatsApp, email, anything. Hand out `tester01`–`tester18`; keep
+   19 and 20 for your own smoke tests.
 3. They install (allow "unknown apps" for the browser), sign in, set a name, change their
    password, add friends by `@handle`.
 
@@ -41,9 +41,9 @@ wording (`{link} {accountId} {password} {inviterHandle}`).
 
 ## What blocks "invite by SMS/email" today
 
-1. **No install link** — the EAS build has to run under the `fsopelsa` Expo account.
-2. **Rules deploy** — the 2026-11-06 rules are emulator-tested only; deploy them with the
-   first build (`npx firebase deploy --only firestore`).
+1. **No install link** — the EAS build has to run under an Expo account in `lomasas-team`.
+2. **Rules deploy** — `us-v1-ff6b3` still runs June's rules; the app needs the current
+   encrypted-data rules + indexes: `npx firebase deploy --only auth,firestore` before the first build.
 3. **Google Maps billing** — without it every tester sees a grey map
    ([STATUS](../STATUS.md) "Open — needs you" 3).
 4. Optional before handing out: database region (STATUS item 1) and closing sign-up (item 2).
@@ -76,7 +76,7 @@ password, so they still get their row (e.g. via `src/dev/testerInvites.js`).
 
 ### 1. EAS internal link — ready now (≈30 min + build queue)
 
-1. `npx eas-cli@25.3.0 login` as `fsopelsa`; check with `npx eas-cli@25.3.0 whoami`.
+1. `npx eas-cli@25.3.0 login` with an Expo account in `lomasas-team`; check with `npx eas-cli@25.3.0 whoami`.
 2. `npm run apk`. First run: let EAS **generate the Android keystore** (it keeps it; every later
    APK must use the same one so updates install over the old app — testers must never
    uninstall first, that loses their encryption key and old messages). The free plan queues
@@ -90,9 +90,9 @@ password, so they still get their row (e.g. via `src/dev/testerInvites.js`).
 
 ### 2. Firebase App Distribution — email invites (≈30 min on top of an EAS build)
 
-1. Firebase console → `us-felix-test-20261030` → Project settings → **Your apps**: add an
-   Android app with package `com.us.mobile` if none exists (no `google-services.json` needed
-   in the repo — the app uses the JS SDK). Copy its **App ID** (`1:…:android:…`).
+1. Firebase console → `us-v1-ff6b3` → Project settings → **Your apps**: the Android app
+   `com.us.mobile` already exists there (App ID `1:1087842612078:android:28042aad4b5a7a45b9c77f`,
+   the same one in `src/config/firebase.ts`).
 2. Firebase console → **App Distribution** → Get started.
 3. Build the APK as in channel 1 and download the `.apk` from the EAS build page.
 4. Upload by dragging it into the console, or:

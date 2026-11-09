@@ -62,8 +62,8 @@ test('finds the one credentials CSV and refuses to guess between several', () =>
   const dir = tmpDir();
   assert.throws(() => inv.findCsv(dir, {}), /No testers-credentials/);
   fs.writeFileSync(path.join(dir, 'testers-credentials-emulator.csv'), CSV);
-  fs.writeFileSync(path.join(dir, 'testers-credentials-us-felix-test-20261030.csv'), CSV);
-  assert.match(inv.findCsv(dir, {}), /us-felix-test/);
+  fs.writeFileSync(path.join(dir, 'testers-credentials-us-v1-ff6b3.csv'), CSV);
+  assert.match(inv.findCsv(dir, {}), /us-v1-ff6b3/);
   assert.match(inv.findCsv(dir, { emulator: true }), /emulator\.csv$/);
   fs.writeFileSync(path.join(dir, 'testers-credentials.csv'), CSV);
   assert.throws(() => inv.findCsv(dir, {}), /Several credential files/);

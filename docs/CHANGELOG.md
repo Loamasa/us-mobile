@@ -4,6 +4,16 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-11-09 — Back to the original backend (`us-v1-ff6b3`) and Expo account (`lomasas-team`)
+- **Why**: user decision — run Milestone 1 on the original project instead of Felix's test project `us-felix-test-20261030` / Expo `fsopelsa`. Encryption and all M1 code unchanged.
+- **Code/config**: `src/config/firebase.ts` (us-v1-ff6b3 client config from its `google-services.json`, Android appId as in June), `.firebaserc`, `EMULATOR_PROJECT_ID`/`FIRESTORE_PROJECT` in `runSeed`, `freshenLocations`, `verify*`, `provisionTesters` (+ its API key), `tests/firebase-sdk.cjs`, `tests/security.rules.test.cjs`, `tests/tester-invites.test.cjs`. `app.json`: owner `lomasas-team`, `extra.eas.projectId` + `updates.url` → `b9ed9b69-…`.
+- **Maps key**: `app.json` back to the original Maps key `AIzaSyDbe2K0…`. The key set on 2026-11-09 (`AIzaSyBzq…`, commit `7b7f9a6`) turned out to be `us-felix-test`'s **Firebase web API key**; its "not authorized" answer only meant it is limited to Firebase APIs.
+- **Tester CSV**: `provisionTesters.js` now falls back to the June `testers-credentials.csv` when `testers-credentials-us-v1-ff6b3.csv` doesn't exist yet (otherwise all 20 accounts would show "password unknown").
+- `firebase.json` unchanged: `firestore.location` is only used when deploy creates a missing database.
+- **Not done (needs logins)**: deploy current rules + indexes to `us-v1-ff6b3` (it still runs June's), first EAS build under `lomasas-team` (new keystore → its SHA-1 for the Maps key), Maps billing on the key's project.
+- Verified on emulators: typecheck, `npm test` 53/53, `check:emulators` (encrypted seed, verify, verify:sdk, rules 24/24), browser sign-in + map + encrypted gathering + decrypted chats, 0 errors.
+- Docs: STATUS, PLAN, README, memory, development-setup, tester-distribution, invites-and-distribution.
+
 ## 2026-11-08 — fel/phase1 merged with the overnight main-side work (`prel/great-faraday-hscinl`)
 - **Merge**: `fel/phase1` merged into `prel/great-faraday-hscinl`, which held 8 commits made on top of `main` overnight. Felix's side is the base everywhere (docs, deps, config); the overnight additions were re-applied to fit this line (backend `us-felix-test-20261030`, Expo `fsopelsa`, `docs/archive/` layout). Code files merged without conflicts; the conflicts were docs, `package.json`/lockfile, `tsconfig.checks.json`, `.gitignore`.
 - **Google Maps diagnosis**: the Android Maps key (`AIzaSyDbe2K0…`, separate from the Firebase key) is valid but Google returns `403 … You must enable Billing on the Google Cloud Project` for every Maps API → a phone build shows a grey grid. Native side verified with `expo prebuild` in a throwaway worktree (key lands in the manifest; dark style valid). Console steps: STATUS "Open — needs you" 3.
