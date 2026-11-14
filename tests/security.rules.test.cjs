@@ -5,23 +5,39 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const authBase = 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1';
-const database = 'projects/us-v1-ff6b3/databases/(default)';
-const docs = `http://127.0.0.1:8088/v1/${database}/documents`;
+const docs = 'http://127.0.0.1:8088/v1/projects/us-v1-ff6b3/databases/(default)/documents';
 const owner = { Authorization: 'Bearer owner', 'Content-Type': 'application/json' };
 const prefix = `regression-${randomUUID()}`;
 const paths = [];
 const accounts = [];
 let alice, bob, carol, dana;
-
-function value(x) {
+const value = (x) => {
   if (x === null) return { nullValue: null };
-  if (typeof x === 'boolean') return { booleanValue: x };
   if (Array.isArray(x)) return { arrayValue: { values: x.map(value) } };
+  if (x instanceof Uint8Array) return { bytesValue: Buffer.from(x).toString('base64') };
+  if (typeof x === 'boolean') return { booleanValue: x };
+  if (typeof x === 'number') return { integerValue: String(x) };
   if (typeof x === 'object') return { mapValue: { fields: fields(x) } };
   return { stringValue: x };
-}
+};
 const fields = (x) => Object.fromEntries(Object.entries(x).map(([k, v]) => [k, value(v)]));
-
+const docName = (path) => `projects/us-v1-ff6b3/databases/(default)/documents/${path}`;
+// A well-formed envelope: the rules check its shape, they can't read inside it.
+const envelope = () => ({
+  v: 1, from: new Uint8Array(32), n: new Uint8Array(24), body: new Uint8Array(64), grants: { a: new Uint8Array(80) },
+});
+// Writes with server-set time fields, the way the app's serverTimestamp() does.
+async function commit(path, data, token, serverTimeFields = [], updateMask) {
+  const res = await fetch(`${docs}:commit`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ writes: [{
+      update: { name: docName(path), fields: fields(data) },
+      ...(updateMask ? { updateMask: { fieldPaths: updateMask } } : {}),
+      updateTransforms: serverTimeFields.map((fieldPath) => ({ fieldPath, setToServerValue: 'REQUEST_TIME' })),
+    }] }),
+  });
+  return res.status;
+}
 async function account(name) {
   const res = await fetch(`${authBase}/accounts:signUp?key=emulator-only`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -41,21 +57,19 @@ async function write(path, data, token = 'owner', mask) {
   });
   return res.status;
 }
-// Atomic multi-document write — the REST shape of a client writeBatch.
-async function commit(writes, token) {
-  const res = await fetch(`${docs}:commit`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      writes: writes.map(({ path, data, mask }) => {
-        paths.push(path);
-        return { update: { name: `${database}/documents/${path}`, fields: fields(data) }, ...(mask ? { updateMask: { fieldPaths: mask } } : {}) };
-      }),
-    }),
-  });
-  return res.status;
-}
 async function read(path, token) {
   return (await fetch(`${docs}/${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })).status;
+}
+// Atomic multi-document write, the REST shape of a client writeBatch.
+async function batch(writes, token) {
+  const res = await fetch(`${docs}:commit`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ writes: writes.map(({ path, data, mask }) => {
+      paths.push(path);
+      return { update: { name: docName(path), fields: fields(data) }, ...(mask ? { updateMask: { fieldPaths: mask } } : {}) };
+    }) }),
+  });
+  return res.status;
 }
 async function fixture(path, data) { assert.equal(await write(path, data), 200, `fixture ${path}`); return path; }
 const request = (from, to, status) => ({ fromUserId: from.localId, toUserId: to.localId, status });
@@ -63,12 +77,11 @@ const chat = (name) => fixture(`chats/${prefix}-${name}`, { createdBy: alice.loc
 const gathering = (name) => fixture(`broadcasts/${prefix}-${name}`, {
   createdBy: alice.localId, memberIds: [alice.localId], invitedIds: [bob.localId], visibility: 'MEMBERS', text: 'Fika', chatId: null,
 });
-
 before(async () => {
   alice = await account('alice'); bob = await account('bob'); carol = await account('carol'); dana = await account('dana');
   await fixture(`locations/${alice.localId}`, { owner: alice.localId });
-  await fixture(`users/${alice.localId}`, { settings: { allowFriendRequests: true } });
-  await fixture(`users/${carol.localId}`, { settings: { allowFriendRequests: false } });
+  await fixture(`users/${alice.localId}`, { handle: 'alice', settings: { allowFriendRequests: true } });
+  await fixture(`users/${carol.localId}`, { handle: 'carol', settings: { allowFriendRequests: false } });
 });
 after(async () => {
   for (const path of [...new Set(paths)].reverse()) await fetch(`${docs}/${path}`, { method: 'DELETE', headers: owner });
@@ -79,19 +92,16 @@ after(async () => {
     assert.equal(res.status, 200, 'clean up test account');
   }
 });
-
-// ── Locations ──
 test('unauthenticated callers cannot read a location', async () => {
   assert.equal(await read(`locations/${alice.localId}`), 403);
 });
 test('a stranger cannot read a location directly', async () => {
   assert.equal(await read(`locations/${alice.localId}`, bob.idToken), 403);
 });
-
 // ── Friendship needs the list owner's consent ──
 test('a stranger cannot grant themselves friendship to read a location', async () => {
   const status = await write(`users/${alice.localId}/friends/${bob.localId}`, { status: 'ACTIVE' }, bob.idToken);
-  assert.deepEqual({ grant: status, read: await read(`locations/${alice.localId}`, bob.idToken) }, { grant: 403, read: 403 });
+  assert.deepEqual({ grant: status, read: await read(`locations/${alice.localId}`, bob.idToken) }, { grant: 403, read: 403 }, 'stranger self-grant and location read must both be denied');
 });
 test('an already-answered request cannot be reused to claim friendship', async () => {
   const id = `${prefix}-answered`;
@@ -102,16 +112,16 @@ test('an already-answered request cannot be reused to claim friendship', async (
 test('accepting someone else\'s request does not grant friendship with a third user', async () => {
   const id = `${prefix}-from-carol-pending`;
   await fixture(`users/${bob.localId}/friendRequests/${id}`, request(carol, bob, 'PENDING'));
-  const status = await commit([
+  const status = await batch([
     { path: `users/${bob.localId}/friendRequests/${id}`, data: { status: 'ACCEPTED' }, mask: ['status'] },
     { path: `users/${alice.localId}/friends/${bob.localId}`, data: { status: 'ACTIVE', requestId: id } },
   ], bob.idToken);
   assert.deepEqual({ grant: status, read: await read(`locations/${alice.localId}`, bob.idToken) }, { grant: 403, read: 403 });
 });
-test('accepting a pending request adds the accepter to the sender\'s friends in one batch', async () => {
+test('a recipient can accept a real request and create both friend records', async () => {
   const id = `${prefix}-pending`;
   await fixture(`users/${dana.localId}/friendRequests/${id}`, request(alice, dana, 'PENDING'));
-  const status = await commit([
+  const status = await batch([
     { path: `users/${dana.localId}/friendRequests/${id}`, data: { status: 'ACCEPTED' }, mask: ['status'] },
     { path: `users/${dana.localId}/friends/${alice.localId}`, data: { status: 'ACTIVE', requestId: id } },
     { path: `users/${alice.localId}/friends/${dana.localId}`, data: { status: 'ACTIVE', requestId: id } },
@@ -143,18 +153,34 @@ test('a friend request to someone accepting requests goes through', async () => 
 
 // ── Chats: members may only touch the last-message preview ──
 test('chat members cannot rewrite the creator', async () => {
-  const path = await chat('creator');
+  const path = await fixture(`chats/${prefix}`, { createdBy: alice.localId, memberIds: [alice.localId, bob.localId] });
   assert.equal(await write(path, { createdBy: bob.localId, memberIds: [alice.localId, bob.localId] }, bob.idToken), 403);
+  assert.equal(await commit(path, { lastMessage: 'Hello' }, bob.idToken, ['lastMessageAt'], ['lastMessage']), 403, 'plain-text preview');
+  assert.equal(await commit(path, { lastMessage: envelope() }, bob.idToken, ['lastMessageAt'], ['lastMessage']), 200, 'encrypted preview');
 });
 test('chat members cannot add a stranger to the members', async () => {
   const path = await chat('add-member');
   assert.equal(await write(path, { memberIds: [alice.localId, bob.localId, carol.localId] }, bob.idToken, ['memberIds']), 403);
 });
-test('chat members can update the last-message preview', async () => {
-  const path = await chat('preview');
-  assert.equal(await write(path, { lastMessage: 'hej' }, bob.idToken, ['lastMessage']), 200);
+test('a stranger cannot pre-create a DM between two other people', async () => {
+  const [a, b] = [alice.localId, bob.localId].sort();
+  const path = `chats/dm_${a}_${b}`; paths.push(path);
+  const chat = (type, memberIds, createdBy) => ({ type, createdBy, memberIds, name: null, avatarUrl: null, lastMessage: null, lastMessageAt: null });
+  const create = (data, token) => commit(path, data, token, ['createdAt']);
+  assert.equal(await create(chat('DM', [a, b, carol.localId], carol.localId), carol.idToken), 403, 'stranger added to the DM');
+  assert.equal(await create(chat('DM', [carol.localId], carol.localId), carol.idToken), 403, 'stranger blocks the DM');
+  assert.equal(await create(chat('GROUP', [carol.localId, a, b], carol.localId), carol.idToken), 403, 'stranger disguises it as a group');
+  assert.equal(await create(chat('DM', [a, b], alice.localId), alice.idToken), 200, 'a real participant creates it');
 });
-
+test('messages must be encrypted and only members can send them', async () => {
+  const chatPath = await fixture(`chats/${prefix}-messages`, { createdBy: alice.localId, memberIds: [alice.localId] });
+  const message = (id) => { const path = `${chatPath}/messages/${id}`; paths.push(path); return path; };
+  const send = (id, data, token) => commit(message(id), data, token, ['createdAt']);
+  assert.equal(await send('plain', { senderId: alice.localId, content: 'hello' }, alice.idToken), 403, 'plain text');
+  assert.equal(await send('mixed', { senderId: alice.localId, content: 'hello', envelope: envelope() }, alice.idToken), 403, 'plain text beside an envelope');
+  assert.equal(await send('stranger', { senderId: bob.localId, envelope: envelope() }, bob.idToken), 403, 'non-member');
+  assert.equal(await send('sealed', { senderId: alice.localId, envelope: envelope() }, alice.idToken), 200, 'encrypted');
+});
 // ── Gatherings: invitees answer for themselves, members link the chat ──
 test('gathering invitees cannot rewrite its creator', async () => {
   const path = await gathering('creator');
@@ -172,6 +198,12 @@ test('a gathering invitee cannot bring someone else in when accepting', async ()
   const path = await gathering('accept-plus-one');
   assert.equal(await write(path, {
     memberIds: [alice.localId, bob.localId, carol.localId], invitedIds: [],
+  }, bob.idToken, ['memberIds', 'invitedIds']), 403);
+});
+test('a gathering invitee cannot join twice or pad the invite list', async () => {
+  const path = await gathering('padding');
+  assert.equal(await write(path, {
+    memberIds: [alice.localId, bob.localId, bob.localId], invitedIds: [],
   }, bob.idToken, ['memberIds', 'invitedIds']), 403);
 });
 test('a gathering invitee can accept', async () => {

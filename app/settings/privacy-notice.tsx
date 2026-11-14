@@ -20,7 +20,7 @@ export default function PrivacyNoticeScreen() {
   return (
     <SettingsDetailLayout
       title="Privacy Notice"
-      subtitle="What us stores, who can see it, and your rights. Last updated 3 July 2026."
+      subtitle="What us stores, who can see it, and your rights. Last updated 31 October 2026."
     >
       <Section title="Who is responsible">
         {`us is a nonprofit project run by Pål Schakonat, Malmö, Sweden. Questions or requests: ${SUPPORT_EMAIL}.`}
@@ -31,7 +31,11 @@ export default function PrivacyNoticeScreen() {
       </Section>
 
       <Section title="Location — the important part">
-        {'Your position is shared ONLY while you are inside one of your own active spots, and only with your friends. In transit you are invisible: the location record is deleted, not hidden. Ghost mode turns everything off instantly. Friends who see you also see the name of the spot you are at. Every location record carries a 24-hour expiry.'}
+        {'Your position is shared ONLY while you are inside one of your own active spots, and only with your friends. In transit you are invisible: the location record is deleted, not hidden. Ghost mode turns everything off instantly. Friends who see you also see the name of the spot you are at. The app ignores a location record after 24 hours, and deletes it the next time you open the app outside your spots, or sign out.'}
+      </Section>
+
+      <Section title="Encryption">
+        {'Messages, group names, your location, your spots, signals and gathering details are end-to-end encrypted: they leave your phone encrypted and only the people they are meant for can read them. We cannot read them, and neither can Google. The key stays on your phone, so if you uninstall the app or change phone, old messages and spots cannot be recovered. We can still see what the service needs to work: your display name, handle and bio, who is friends and in which chat, and when things happen (not what was said). The encryption has not been independently audited yet.'}
       </Section>
 
       <Section title="Where it lives">

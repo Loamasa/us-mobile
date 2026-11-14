@@ -14,7 +14,6 @@ import {
   switchAccount,
   type DevAccount,
 } from '@/dev/devAccounts';
-import seedDevData from '@/dev/seedDevData';
 
 export default function DeveloperSettingsScreen() {
   const router = useRouter();
@@ -24,7 +23,6 @@ export default function DeveloperSettingsScreen() {
   if (!__DEV__) {
     return <Redirect href="/(tabs)/settings" />;
   }
-  const [seeding, setSeeding] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [currentAccountId, setCurrentAccountId] = useState<string | null>(
     getCurrentAccountId()
@@ -33,25 +31,6 @@ export default function DeveloperSettingsScreen() {
   useEffect(() => {
     return onAuthStateChanged(auth, () => setCurrentAccountId(getCurrentAccountId()));
   }, []);
-
-  const handleSeed = async () => {
-    setSeeding(true);
-    try {
-      await seedDevData();
-      Alert.alert('Done', 'Test data seeded successfully.');
-    } catch (err: unknown) {
-      console.error('Seed failed:', err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      Alert.alert(
-        'Seed Failed',
-        message.includes('Network request failed')
-          ? 'Firestore emulator not reachable. Is it running?'
-          : message
-      );
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   const handleSwitchAccount = async (account: DevAccount) => {
     if (account.id === currentAccountId) return;
@@ -62,7 +41,7 @@ export default function DeveloperSettingsScreen() {
       console.error('Switch failed:', err);
       Alert.alert(
         'Switch Failed',
-        'Could not switch account. Have you seeded test data first?'
+        'Could not switch account. Have you run npm run seed?'
       );
     } finally {
       setSwitching(false);
@@ -74,21 +53,6 @@ export default function DeveloperSettingsScreen() {
       title="Developer / Debug"
       subtitle="Tools for development and testing."
     >
-      {/* Seed Test Data */}
-      <SettingsGroup title="Test Data">
-        <SettingRow
-          label={seeding ? 'Seeding…' : 'Seed Test Data'}
-          subtitle="Creates 5 dummy friends, spots & chats"
-          onPress={seeding ? undefined : handleSeed}
-          disabled={seeding}
-          right={
-            <Text className={`font-bold ${seeding ? 'text-mint/50' : 'text-mint'}`}>
-              {seeding ? '…' : 'Run'}
-            </Text>
-          }
-        />
-      </SettingsGroup>
-
       {/* Account Switcher */}
       <SettingsGroup title={`Switch Account${switching ? ' (switching…)' : ''}`}>
         {DEV_ACCOUNTS.map((account) => {
@@ -114,7 +78,7 @@ export default function DeveloperSettingsScreen() {
       <SettingsGroup title="Onboarding">
         <SettingRow
           label="Test Onboarding"
-          subtitle="Carousel → phone → OTP → profile flow"
+          subtitle="Carousel → sign-in flow"
           icon={<PlayCircleIcon size={20} color={COLORS.signal} />}
           onPress={() => router.push('/(auth)/onboarding')}
         />

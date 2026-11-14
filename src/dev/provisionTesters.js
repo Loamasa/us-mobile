@@ -2,7 +2,7 @@
  * Provision fixed tester accounts (Phase 3 Step 3 — re-scoped: no self-registration).
  *
  *   node src/dev/provisionTesters.js --emulator --count 3     # against emulators
- *   node src/dev/provisionTesters.js --count 20               # against PRODUCTION
+ *   node src/dev/provisionTesters.js --count 20               # against the real test project
  *
  * Creates N email/password accounts (tester01..testerNN @ us.test) with a ready
  * profile (users/{uid}) and reserved handle (handles/testerNN). Testers sign in
@@ -14,14 +14,12 @@
  * rules allow exactly that), so a successful emulator run doubles as proof the
  * production rules permit the flow.
  *
- * Idempotent: testers-credentials.csv (gitignored) is both output and state.
+ * Idempotent: a project-specific, gitignored credentials CSV is both output and state.
  *   - account in CSV  → signs in with the stored password, verifies docs exist
  *   - account missing → created fresh, appended to the CSV
  *   - existing profiles are NEVER overwritten (a tester's edited name survives)
  *
- * PRODUCTION prerequisites (one-time, in the Firebase console / CLI):
- *   1. Authentication → Sign-in method → enable Email/Password
- *   2. firebase deploy --only firestore   (rules must be live)
+ * Prerequisite (one time): firebase deploy --only auth,firestore
  *
  * Note: tester emails use the reserved .test TLD — no mail is ever delivered,
  * so password RESET emails won't work. Reset passwords via the Firebase console.
@@ -29,6 +27,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { randomBytes } = require('crypto');
 
 // ── Targets ──────────────────────────────────────────────────────────────────
 const EMULATOR = process.argv.includes('--emulator');
@@ -52,28 +51,28 @@ const DOCS = EMULATOR
 // Keep in sync with TESTER_EMAIL_DOMAIN in src/config/constants.ts (the sign-in
 // screen appends this to bare account IDs). .test is RFC-reserved — never real.
 const EMAIL_DOMAIN = 'us.test';
-const CSV_PATH = path.join(__dirname, '..', '..', 'testers-credentials.csv');
+const CSV_PATH = path.join(__dirname, '..', '..', EMULATOR ? 'testers-credentials-emulator.csv' : `testers-credentials-${FIRESTORE_PROJECT}.csv`);
 const CSV_HEADER = 'accountId,email,password,uid,handle,displayName';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const WORDS = [
-  'void', 'echo', 'mint', 'rose', 'fog', 'signal', 'orbit', 'pulse', 'radar',
-  'spark', 'drift', 'glow', 'nova', 'flux', 'wave', 'stone', 'pine', 'cedar',
-  'amber', 'coral', 'slate', 'frost', 'ember', 'cloud', 'river', 'delta',
-];
 function generatePassword() {
-  const pick = () => WORDS[Math.floor(Math.random() * WORDS.length)];
-  const num = String(Math.floor(Math.random() * 90) + 10);
-  let a = pick();
-  let b = pick();
-  while (b === a) b = pick();
-  return `${a}-${b}-${num}`;
+  return randomBytes(18).toString('base64url');
 }
+
+// The 2026-06-14 run against us-v1-ff6b3 wrote the un-suffixed name. Read it
+// when the project file doesn't exist yet; saving then writes CSV_PATH and
+// leaves the old file untouched (delete it yourself once the new one exists).
+const LEGACY_CSV_PATH = path.join(__dirname, '..', '..', 'testers-credentials.csv');
 
 function loadCsv() {
   const rows = new Map();
-  if (!fs.existsSync(CSV_PATH)) return rows;
-  const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split(/\r?\n/).slice(1);
+  let source = CSV_PATH;
+  if (!fs.existsSync(source)) {
+    if (EMULATOR || !fs.existsSync(LEGACY_CSV_PATH)) return rows;
+    source = LEGACY_CSV_PATH;
+    console.log(`ℹ️  Reading existing accounts from ${path.basename(LEGACY_CSV_PATH)} → will save as ${path.basename(CSV_PATH)}`);
+  }
+  const lines = fs.readFileSync(source, 'utf8').trim().split(/\r?\n/).slice(1);
   for (const line of lines) {
     if (!line.trim()) continue;
     const [accountId, email, password, uid, handle, displayName] = line.split(',');
@@ -141,7 +140,7 @@ function profileFields(displayName, handle) {
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(
-    `Provisioning ${COUNT} tester accounts against ${EMULATOR ? 'EMULATORS' : '🔴 PRODUCTION'} (${FIRESTORE_PROJECT})\n`
+    `Provisioning ${COUNT} tester accounts against ${EMULATOR ? 'EMULATORS' : '🔴 REMOTE'} (${FIRESTORE_PROJECT})\n`
   );
 
   const csv = loadCsv();
@@ -187,10 +186,14 @@ async function main() {
       if (r.ok) {
         ({ idToken, localId: uid } = r.data);
         state = 'created';
+        // Save now: the account exists, so losing this password would lock it
+        // out if a later step fails or the script crashes.
+        csv.set(accountId, { accountId, email, password, uid, handle, displayName });
+        saveCsv(csv);
       } else if (r.data?.error?.message?.includes('EMAIL_EXISTS')) {
         results.push({
           accountId,
-          state: '❌ exists but password unknown (restore testers-credentials.csv or delete the auth user)',
+          state: `❌ exists but password unknown (restore ${path.basename(CSV_PATH)} or delete the auth user)`,
         });
         continue;
       } else {
@@ -217,14 +220,14 @@ async function main() {
     }
 
     csv.set(accountId, { accountId, email, password, uid, handle, displayName });
-    results.push({ accountId, password, state: `✅ ${state}` });
+    results.push({ accountId, state: `✅ ${state}` });
   }
 
   saveCsv(csv);
 
-  console.log(`${'ID'.padEnd(10)} ${'PASSWORD'.padEnd(18)} STATE`);
+  console.log(`${'ID'.padEnd(10)} STATE`);
   for (const r of results) {
-    console.log(`${r.accountId.padEnd(10)} ${(r.password ?? '—').padEnd(18)} ${r.state}`);
+    console.log(`${r.accountId.padEnd(10)} ${r.state}`);
   }
   console.log(`\nCredentials written to ${path.basename(CSV_PATH)} (gitignored — distribute out-of-band).`);
 

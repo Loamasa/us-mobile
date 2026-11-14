@@ -369,8 +369,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const router = useRouter();
 
-  // Tester builds sign in with fixed accounts; phone/OTP stays reachable via the
-  // sign-in screen's dev-only secondary link (Phase 3 Step 3 re-scope).
+  // Testers sign in with accounts they were given; nobody can self-register.
   const handleComplete = () => router.replace('/(auth)/signin');
 
   switch (step) {
