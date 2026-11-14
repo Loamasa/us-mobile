@@ -4,6 +4,13 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-11-14 — GitHub branch clean-up: Maps key runbook folded into fel/phase1
+- **Branches checked** against `main` (no open PRs): `feat/group-chat` (merged as PR #1 in April) and `cl/dreamy-dirac-ju2j20` (same commit as `main`) hold nothing new; `prel/great-faraday-hscinl` is the same commit as `fel/phase1`. All three to be deleted. `prel/hopeful-goodall-bbm8io` held one commit not on this line (entry below) and is folded in here.
+- **Fold**: merged `prel/hopeful-goodall-bbm8io` with this line's docs as the base (4 doc conflicts: STATUS, memory, CHANGELOG, development-setup). Brought in `docs/maps-key-hardening.md`, `src/dev/checkMapsKey.js` + `npm run check:maps-key`, and the Phase 3 plan pointer (auto-merged into `docs/archive/plans/`).
+- **Adapted the runbook to this line**: build profile `tester` / `npm run apk` instead of `preview` / `android:cloud`; `lomasas-team` keystore; no APK yet → API restriction first, Android-app restriction after the first build; enable Maps SDK for Android if missing; status re-checked today (still BILLING OFF, key `AIzaSyDbe2K0…`).
+- STATUS "Open — needs you" 3 now follows the runbook's order (restrict → trim APIs → billing + $5 budget) and uses `npm run check:maps-key` as the check; dropped the stale "uncommitted" note from the 2026-11-09 line.
+- Docs: STATUS (Last Updated, item 3), memory (new Maps gotcha), development-setup pointer, this entry.
+
 ## 2026-11-09 — Back to the original backend (`us-v1-ff6b3`) and Expo account (`lomasas-team`)
 - **Why**: user decision — run Milestone 1 on the original project instead of Felix's test project `us-felix-test-20261030` / Expo `fsopelsa`. Encryption and all M1 code unchanged.
 - **Code/config**: `src/config/firebase.ts` (us-v1-ff6b3 client config from its `google-services.json`, Android appId as in June), `.firebaserc`, `EMULATOR_PROJECT_ID`/`FIRESTORE_PROJECT` in `runSeed`, `freshenLocations`, `verify*`, `provisionTesters` (+ its API key), `tests/firebase-sdk.cjs`, `tests/security.rules.test.cjs`, `tests/tester-invites.test.cjs`. `app.json`: owner `lomasas-team`, `extra.eas.projectId` + `updates.url` → `b9ed9b69-…`.
@@ -22,6 +29,15 @@
 - **Web map shim**: `src/dev/fakeMaps.tsx` draws darkened OpenStreetMap tiles under a Web Mercator projection (`src/dev/webMercator.ts`, 11 tests incl. the OSM wiki tile formula). Drag to pan, wheel/± zoom around the cursor, cooperative wheel in scrolling forms, `onRegionChangeComplete`. Map taps now report the tapped coordinate (before: always the map center). `EXPO_PUBLIC_DEV_MAP_TILES=off` restores the grid.
 - **Tester invites**: `src/dev/testerInvites.js` (+8 tests) builds one message per tester (install link + own Account ID/password) as a gitignored page with SMS / Email / WhatsApp / Copy buttons; default text follows this line's tester message (change password, encryption note). `docs/invites-and-distribution.md`: current state, EAS link vs Firebase App Distribution vs Play internal testing with step-by-step tries, a sketch of in-app invites, decisions.
 - Docs: STATUS (Last Updated, Open items 3–4, key files), memory (Maps billing, SDK drift, Sentry warning, web shim, emulators-down 502, `CI=1` Metro stale code, Playwright host blocking), README commands, development-setup, tester-distribution.
+
+## 2026-11-08 — Google Maps key hardening prepared (user action; Cloud unchanged)
+- **Question answered**: the Android map (Maps SDK for Android via `react-native-maps`) has unlimited no-cost map loads; only other Maps Platform APIs are metered (Essentials: 10k free calls/SKU/month, the old $200 credit is gone). Native place search uses the device geocoder (`Location.geocodeAsync`), web uses Nominatim, so the app calls no metered Google API.
+- **Decision**: restrict the key rather than hide it (it ships in every APK and has been in git since 2026-04-17). Budget alert $5/month (user's choice), thresholds 50/90/100%.
+- **Found**: the Maps key is a separate key from the Firebase `apiKey` (restriction is safe for Firebase). Baseline probe: the key's Cloud project has **no billing linked** → nothing chargeable now, but the Maps SDK for Android needs billing, so the restrict → trim APIs → link billing → budget order matters.
+- **Added**: `docs/maps-key-hardening.md` (Console + Cloud Shell gcloud steps: key → project lookup, EAS SHA-1, API + Android-app restriction, disable unused metered Maps APIs, billing link with the Spark→Blaze note, budget, verification, Play/local-build follow-ups); `src/dev/checkMapsKey.js` + `npm run check:maps-key` (one Geocoding probe, key redacted; RESTRICTED 0 / BILLING OFF 2 / UNRESTRICTED or INVALID KEY 1). All eight outcome branches exercised with a stubbed `fetch`; real run → BILLING OFF.
+- **Not done (no credentials in the cloud session)**: the actual key restriction, API disabling, billing link and budget — STATUS USER ACTION 5.
+- **Environment**: cloud setup script fixed again (`npm.cmd--version` typo + Windows-only `npm.cmd` → `npm`).
+- Docs: STATUS (Last Updated, USER ACTION 5, Open Item 2), Phase 3 plan Step 4 line, development-setup pointer, `.context/memory.md` (new gotcha).
 
 ## 2026-11-06 — Merged main's rules hardening into fel/phase1 (not deployed)
 - `main` had closed three privacy findings in `firestore.rules`; `fel/phase1` had already fixed the same holes inside its E2EE rules. Kept phase1's rules and added what only main had: `acceptsFriendRequests()` (missing profile/setting = allowed), and invitee size checks on gatherings (exactly one invite removed, at most one member added; blocks padding).
