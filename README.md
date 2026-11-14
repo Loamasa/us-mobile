@@ -56,6 +56,7 @@ Old Expo Go can NOT run this app (SDK 58 + Maps 1.29).
 | `npm run test:rules` | Authorization tests: fake friendship, plain text refused, DM hijack, real accept | yes |
 | `npx expo install --check` | Deps match Expo SDK | no |
 | `npx --yes expo-doctor@latest` | Expo project health | no |
+| `npm run check:maps-key` | Maps key can't reach metered Google APIs ([runbook](docs/maps-key-hardening.md)) | no |
 | `npm audit` | Dep advisories ([known ones](docs/dependency-audit.md)) | no |
 
 ### Real backend
