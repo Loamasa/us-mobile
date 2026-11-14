@@ -166,6 +166,12 @@ npm run check:maps-key
 
 - `✅ RESTRICTED` (exit 0): done.
 - `⚠️ BILLING OFF` (exit 2): billing isn't linked yet (step 5); re-run after.
+- `⚠️ INCONCLUSIVE` (exit 2): Google refused the probe for a reason other than the key,
+  usually because step 4 turned the Geocoding API off. That says nothing about the key, so
+  check the key itself: Console → the key → API restrictions must list only Maps SDK for
+  Android. Or in Cloud Shell (`KEY_NAME` from step 1):
+  `gcloud services api-keys describe "$KEY_NAME" --format='yaml(restrictions)'` →
+  `apiTargets` must hold only `maps-android-backend.googleapis.com`.
 - `❌ UNRESTRICTED` (exit 1): the key still reaches a metered API; redo step 3.
 - `❌ INVALID KEY` (exit 1): `app.json` holds a key Google doesn't know.
 

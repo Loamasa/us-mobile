@@ -6,10 +6,14 @@
  * Sends ONE Geocoding request with the key (the key is never printed). Once the
  * key is restricted (docs/maps-key-hardening.md), Google must refuse it:
  *
- *   RESTRICTED    denied for a reason other than billing        → exit 0
+ *   RESTRICTED    Google says the KEY is not allowed (API or app
+ *                 restriction)                                   → exit 0
  *   BILLING OFF   the key's project has no billing linked, so
  *                 nothing can be charged; the restriction itself
  *                 is not proven yet — re-run after linking billing → exit 2
+ *   INCONCLUSIVE  denied, but not because of the key (e.g. the
+ *                 Geocoding API is turned off on the project, which
+ *                 step 4 does) — check the key's settings instead → exit 2
  *   UNRESTRICTED  the request went through: the key reaches a
  *                 metered API                                    → exit 1
  *
@@ -53,10 +57,24 @@ async function main() {
     console.log('   The restriction is not proven yet; re-run after linking billing (step 5).');
     process.exit(2);
   }
-  if (body.status === 'REQUEST_DENIED') {
+  // Only Google's key-restriction messages prove a restriction. A disabled API on the
+  // project ("not activated", "project is not authorized") is also REQUEST_DENIED, but
+  // says nothing about the key: an unrestricted key would get it too.
+  if (
+    body.status === 'REQUEST_DENIED' &&
+    (/API key is not authorized to use this service/i.test(message) ||
+      /not authorized to use this API key/i.test(message))
+  ) {
     console.log('✅ RESTRICTED — Google refused the key for a metered API.');
     console.log(`   ${message}`);
     process.exit(0);
+  }
+  if (body.status === 'REQUEST_DENIED') {
+    console.log('⚠️  INCONCLUSIVE — Google refused the request, but not because of the key');
+    console.log('   (Geocoding is probably turned off on the project). Confirm the key itself:');
+    console.log('   docs/maps-key-hardening.md, step 7.');
+    console.log(`   ${message}`);
+    process.exit(2);
   }
   console.error(`❌ Unexpected response: HTTP ${res.status}, status ${body.status}. ${message}`);
   process.exit(1);
