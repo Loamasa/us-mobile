@@ -26,11 +26,19 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npx expo install --check
-      - run: npx --yes expo-doctor@latest
       - run: npx expo export --platform android --output-dir .expo/ci-android
       - run: npx expo export --platform web --output-dir .expo/ci-web
       - run: npm run check:emulators
+      # SDK-drift checks run last: every Expo SDK patch release makes them fail
+      # with no code change, and as early steps they hid every check after them.
+      # They still fail the job; `!cancelled()` makes them report even when a
+      # functional check above already failed.
+      - name: Expo dependency versions
+        if: ${{ !cancelled() }}
+        run: npx expo install --check
+      - name: Expo doctor
+        if: ${{ !cancelled() }}
+        run: npx --yes expo-doctor@latest
       - name: Report dependency advisories
         run: npm audit
         continue-on-error: true

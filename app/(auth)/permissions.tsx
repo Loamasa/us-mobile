@@ -14,13 +14,7 @@ export default function PermissionsScreen() {
   const handleAllow = async () => {
     setLoading(true);
     try {
-      const { status: foreground } = await Location.requestForegroundPermissionsAsync();
-
-      if (foreground === 'granted') {
-        // Also request background (optional, may not be granted immediately)
-        await Location.requestBackgroundPermissionsAsync();
-      }
-
+      await Location.requestForegroundPermissionsAsync();
       router.replace('/(auth)/spots');
     } catch {
       // Permission denied or error — still continue
@@ -86,7 +80,7 @@ export default function PermissionsScreen() {
         <View className="flex-row items-center gap-2 bg-glass border border-glass-border px-4 py-2 rounded-full">
           <ShieldIcon size={14} color={COLORS.mint} />
           <Text className="text-fog/50 text-[10px] font-bold">
-            ONLY YOUR FRIENDS · ONLY AT SPOTS YOU CHOOSE
+            CONTROL LOCATION SHARING IN SETTINGS
           </Text>
         </View>
       </View>

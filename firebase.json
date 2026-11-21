@@ -1,7 +1,8 @@
 {
     "firestore": {
         "rules": "firestore.rules",
-        "indexes": "firestore.indexes.json"
+        "indexes": "firestore.indexes.json",
+        "location": "eur3"
     },
     "emulators": {
         "auth": {
@@ -19,5 +20,10 @@
             "host": "0.0.0.0"
         },
         "singleProjectMode": true
+    },
+    "auth": {
+        "providers": {
+            "emailPassword": true
+        }
     }
 }

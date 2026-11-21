@@ -1,29 +1,69 @@
 {
   "indexes": [
     {
-      "collectionGroup": "locations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "geohash", "order": "ASCENDING" },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "friendRequests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "chats",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "memberIds", "arrayConfig": "CONTAINS" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "memberIds",
+          "arrayConfig": "CONTAINS"
+        }
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "messages",
+      "fieldPath": "envelope",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "chats",
+      "fieldPath": "name",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "chats",
+      "fieldPath": "lastMessage",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "locations",
+      "fieldPath": "envelope",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "spots",
+      "fieldPath": "envelope",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "broadcasts",
+      "fieldPath": "envelope",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "users",
+      "fieldPath": "currentSignal",
+      "indexes": []
+    }
+  ]
 }

@@ -15,18 +15,21 @@
         "buildType": "apk"
       }
     },
-    "preview": {
-      "distribution": "internal",
-      "channel": "preview",
-      "android": {
-        "buildType": "apk"
-      }
-    },
     "production": {
       "channel": "production",
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      }
+    },
+    "tester": {
+      "distribution": "internal",
+      "channel": "tester",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },

@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { onAuthStateChanged } from 'firebase/auth';
+import {
+  EmailAuthProvider,
+  onAuthStateChanged,
+  reauthenticateWithCredential,
+  updatePassword,
+} from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { onUserProfile } from '@/lib/firestore';
@@ -10,6 +15,8 @@ import UserAvatar from '@/components/UserAvatar';
 import SettingsDetailLayout from '@/components/settings/SettingsDetailLayout';
 import { CameraIcon, CheckIcon } from '@/components/ui/icons';
 
+const MIN_PASSWORD_LENGTH = 10;
+
 export default function AccountSettingsScreen() {
   const [userId, setUserId] = useState<string | undefined>(auth.currentUser?.uid);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -17,6 +24,9 @@ export default function AccountSettingsScreen() {
   const [bio, setBio] = useState('');
   const [saving, setSaving] = useState(false);
   const hydrated = useRef(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     return onAuthStateChanged(auth, (user) => setUserId(user?.uid ?? undefined));
@@ -62,6 +72,39 @@ export default function AccountSettingsScreen() {
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const canChangePassword =
+    currentPassword.length > 0 &&
+    newPassword.length >= MIN_PASSWORD_LENGTH &&
+    !changingPassword;
+
+  // Testers start with a password the developer issued. Changing it means only
+  // they can sign in as themselves.
+  const handleChangePassword = async () => {
+    const user = auth.currentUser;
+    if (!user?.email || !canChangePassword) return;
+    setChangingPassword(true);
+    try {
+      await reauthenticateWithCredential(
+        user,
+        EmailAuthProvider.credential(user.email, currentPassword)
+      );
+      await updatePassword(user, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      Alert.alert('Password changed', 'Keep it safe. It cannot be reset by email.');
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code ?? '';
+      Alert.alert(
+        'Could not change password',
+        code.includes('invalid-credential') || code.includes('wrong-password')
+          ? 'Your current password is wrong.'
+          : 'Check your connection and try again.'
+      );
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -148,6 +191,48 @@ export default function AccountSettingsScreen() {
               </>
             )}
           </TouchableOpacity>
+
+          {/* Password */}
+          <Text className="text-fog/50 text-xs font-bold uppercase tracking-wider mt-10 mb-1.5 px-1">
+            Change Password
+          </Text>
+          <TextInput
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            placeholder="Current password"
+            placeholderTextColor="rgba(242,244,246,0.3)"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            className="bg-black/20 border border-glass-border rounded-xl px-4 py-3 text-fog font-semibold mb-3"
+          />
+          <TextInput
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder={`New password (${MIN_PASSWORD_LENGTH}+ characters)`}
+            placeholderTextColor="rgba(242,244,246,0.3)"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            className="bg-black/20 border border-glass-border rounded-xl px-4 py-3 text-fog font-semibold mb-4"
+          />
+          <TouchableOpacity
+            onPress={handleChangePassword}
+            disabled={!canChangePassword}
+            activeOpacity={0.85}
+            className={`rounded-xl py-3.5 items-center ${canChangePassword ? 'bg-signal' : 'bg-glass'}`}
+          >
+            {changingPassword ? (
+              <ActivityIndicator color={COLORS.fog} />
+            ) : (
+              <Text className={`font-bold ${canChangePassword ? 'text-fog' : 'text-fog/30'}`}>
+                Change Password
+              </Text>
+            )}
+          </TouchableOpacity>
+          <Text className="text-fog/30 text-xs mt-2 mb-6 px-1">
+            Your starting password was issued to you. Choose your own so only you can sign in.
+          </Text>
         </>
       )}
     </SettingsDetailLayout>

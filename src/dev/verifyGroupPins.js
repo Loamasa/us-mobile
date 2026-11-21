@@ -27,6 +27,7 @@ function fromValue(v) {
   if (v == null) return undefined;
   if ('nullValue' in v) return null;
   if ('stringValue' in v) return v.stringValue;
+  if ('bytesValue' in v) return fromBytes(v.bytesValue);
   if ('booleanValue' in v) return v.booleanValue;
   if ('integerValue' in v) return Number(v.integerValue);
   if ('doubleValue' in v) return v.doubleValue;
@@ -78,10 +79,11 @@ async function queryChats(viewerId) {
   const rows = await res.json();
   return rows
     .filter((r) => r.document)
-    .map((r) => ({ id: r.document.name.split('/').pop(), ...fromFields(r.document.fields) }));
+    .map((r) => decodeChatName({ id: r.document.name.split('/').pop(), ...fromFields(r.document.fields) }));
 }
 
 // Execute the production functions compiled by npm run build:checks.
+const { decodeChatName, decodeLocation, decodeProfile, fromBytes } = require('./devDecode');
 const { projectMapEntities: project } = require('../../.expo/test-build/features/map/mapProjection.js');
 const { buildGroupPins } = require('../../.expo/test-build/features/map/groupPins.js');
 const sameMembers = (a, b) => [...a].sort().join('|') === [...b].sort().join('|');
@@ -129,10 +131,15 @@ async function main() {
         }),
       }
     );
-    const [profile, location] = await Promise.all([
+    const [rawProfile, rawLocation] = await Promise.all([
       getDoc(`users/${id}`),
       getDoc(`locations/${id}`),
     ]);
+    const profile = decodeProfile(id, rawProfile, (date) => ({
+      toDate: () => date,
+      toMillis: () => date.getTime(),
+    }));
+    const location = decodeLocation(id, rawLocation);
     if (profile) memberProfiles[id] = profile;
     if (profile && location) friendLocations[id] = { profile, location };
   }

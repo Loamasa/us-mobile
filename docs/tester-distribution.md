@@ -1,103 +1,82 @@
-# Distributing the App to Testers
+# Tester distribution
 
-> How to get **us** onto other people's phones with the fixed tester accounts.
-> Android only (Phase 3 decision D2). Written 2026-06-11 — the checklist below
-> tracks what's already done vs. still pending.
+> Get **us** on friends' phones. Android only. Plan: [PLAN.md](../PLAN.md).
 
-## The short version
+## Short version
 
-1. You build a **preview APK** once with EAS — Expo's cloud build service. It gives you a
-   **shareable install link** (no Play Store, no review, no developer account fees).
-2. You send each tester the link + one line from `testers-credentials.csv`
-   (their Account ID + password).
-3. They install the APK, open the app, sign in, change their display name, and add each
-   other by `@handle`. Done.
+1. Build tester APK in EAS cloud → get install link.
+2. Send each tester the link + their own row from `testers-credentials-us-v1-ff6b3.csv` (Account ID + password).
+3. They install, sign in, set display name, add each other by `@handle`.
 
-**Why not Expo Go?** Expo Go only runs the app while YOUR dev machine serves it (same
-network or a tunnel), against YOUR local emulators — useless for someone across town.
-A standalone APK talks to the real Firebase backend from anywhere. (Expo Go also has the
-broken-marker bug; the APK ships the fixed maps library.)
+Why not Expo Go? Expo Go need your PC running + your emulators. APK talk to real Firebase from anywhere.
 
-## Prerequisites checklist
+## Before first build (one time)
 
-Status as of 2026-06-11:
+Backend = Firebase `us-v1-ff6b3`; Email/Password + `tester01`–`tester20` exist since June, but its
+rules + indexes are June's — deploy the current ones before the first build (the app needs them):
 
-- [x] Fixed tester accounts system (`src/dev/provisionTesters.js` + sign-in screen)
-- [x] Production Firestore config ready (`.firebaserc`, rules, indexes — committed)
-- [ ] **`firebase login`** in a terminal (one-time), then **`firebase deploy --only firestore`**
-- [ ] **Enable Email/Password sign-in**: [Firebase console](https://console.firebase.google.com)
-      → project `us-v1-ff6b3` → Authentication → Sign-in method → Email/Password → Enable
-- [ ] **Provision the real accounts**: `node src/dev/provisionTesters.js --count 20`
-      (writes `testers-credentials.csv` — gitignored, keep it private)
-- [ ] **EAS pipeline** (Phase 3 Step 4 — includes the react-native-maps 1.27.x upgrade that
-      fixes the clipped markers; build AFTER that lands): see below
-
-## One-time EAS setup (Phase 3 Step 4)
-
-```powershell
-npm install -g eas-cli          # or: npx eas-cli ...
-eas login                       # free Expo account (expo.dev) — create one if needed
-eas init                        # links the project, writes the project ID into app.json
+```bash
+npx firebase login
+npx firebase deploy --only auth,firestore
+node src/dev/provisionTesters.js --count 20   # checks all, adds missing; first run reads the June testers-credentials.csv
+npx eas-cli@25.3.0 login                      # an Expo account in lomasas-team
 ```
 
-`eas.json` gets two profiles (Step 4 creates this):
+Keep `tester19` + `tester20` for your own smoke tests; hand out `tester01`–`tester18`.
 
-```json
-{
-  "build": {
-    "development": { "developmentClient": true, "distribution": "internal" },
-    "preview":     { "distribution": "internal", "autoIncrement": true }
-  }
-}
+Close sign-up when accounts are final: Firebase console → Authentication → Settings → User actions. Open it again before adding accounts.
+
+## Build + share
+
+```bash
+npm run apk
 ```
 
-`distribution: "internal"` is the key — it produces an installable APK with a shareable
-URL instead of a store submission.
+- 10–25 min in Expo cloud (free queue). Done → terminal + https://expo.dev show build page with APK link.
+- Send link any way (WhatsApp, Signal, mail). Normal HTTPS link.
+- JS-only fix → no rebuild:
 
-## Building and sharing
-
-```powershell
-eas build --platform android --profile preview
+```bash
+npx eas-cli@25.3.0 update --channel tester --environment preview --message "fix chat send"
 ```
 
-- Takes ~10–25 min in Expo's cloud (free tier queue). When it finishes, the terminal and
-  https://expo.dev print a **build page link** ending in an APK download.
-- Send testers that link (WhatsApp/Signal/email — anything). It's a normal HTTPS URL.
-- Rebuilds are only needed for native changes; JS-only fixes ship instantly to installed
-  apps via `eas update` (OTA, configured in Step 4).
+- Native change (new native package, app.json plugin, permission) → `npm run apk` again. Testers install **over** the old app, never uninstall first (uninstall = new key, old messages + spots gone).
 
-## What each tester does (copy-paste this to them)
+## Message for testers
 
-> 1. Open the link on your Android phone and download the APK.
-> 2. Android will warn about installing unknown apps — allow it for your browser
->    (Settings prompt appears automatically; it's our app, not store-reviewed yet).
-> 3. Open **us**, swipe through the intro, and sign in with the **Account ID** and
->    **password** I sent you (e.g. `tester07` / `echo-frost-42`).
-> 4. Allow location when asked — the app shows you to friends ONLY while you're inside
->    a place you define yourself (and you can go ghost anytime).
-> 5. Settings → **My Account** → change your display name to whatever you like.
-> 6. Add me from the Chats tab → person-plus icon (or the **Add Friend** button) →
->    type my handle.
-> 7. Optional: Settings → **My Spots** → add a place (search an address like on Google
->    Maps, or tap the map) — that's where friends can see you.
+Fastest: one ready message per tester (link + their own Account ID and password) with one-tap
+SMS / Email / WhatsApp / Copy buttons. Nothing is sent for you:
 
-## Managing the accounts
+```bash
+node src/dev/testerInvites.js --link <APK link> --handle <your handle> --skip tester19,tester20
+```
 
-- **Credentials**: `testers-credentials.csv` (repo root, gitignored). One row per account —
-  distribute rows individually, never post the whole file in a group chat.
-- **Who got which account**: add a `givenTo` note column in your own copy if helpful.
-- **Password reset**: the fake `@us.test` emails can't receive reset mail. Reset in the
-  Firebase console (Authentication → Users → ⋮ → Reset password) or delete the auth user
-  and re-run the provisioning script (it recreates missing accounts and updates the CSV).
-- **More accounts**: bump `--count` (e.g. `--count 30`) and re-run — existing accounts are
-  untouched (their profiles and chosen names survive; the script only fills gaps).
-- **Wiping a test round**: deleting users/data in the production console is manual for
-  now; a service-account admin script is in the Phase 3 deferred ledger if rounds get
-  frequent.
+Writes `testers-invites.html` (gitignored — holds passwords; delete when done). `--print` = plain
+text, `--template <file>` = own wording. Other ways to hand out the APK (Firebase App Distribution,
+Play internal testing): [invites-and-distribution.md](invites-and-distribution.md).
 
-## Known limitations to tell testers about
+Or copy + paste:
 
-- Background presence (app closed) doesn't work yet — Phase 3 Step 5.
-- Crashes aren't auto-reported until Sentry lands (Step 6) — ask them to screenshot.
-- One account per person; the account is shared infrastructure — anything they put in it
-  is visible to you (trusted-tester posture).
+> 1. Open the link on your Android phone, download the APK.
+> 2. Android warns about unknown apps — allow it for your browser (it's our app, not from the store).
+> 3. Open **us**, swipe the intro, sign in with the **Account ID** and **password** I sent you.
+> 4. Allow location when asked — friends see you ONLY while you're inside a place you set yourself. Ghost mode hides you anytime.
+>    Messages are end-to-end encrypted: if you uninstall the app, old messages can't be recovered.
+> 5. Settings → **My Account** → change display name, and change your password so only you know it. There is no email reset, so remember it.
+> 6. Chats tab → person-plus icon (or **Add Friend**) → type my handle.
+> 7. Try DMs and a group chat. Tell me what breaks (screenshot helps).
+
+## Accounts
+
+- `testers-credentials-us-v1-ff6b3.csv` (repo root, gitignored; until the first provisioning run it's still the June `testers-credentials.csv`). Give one row per person. Never post whole file.
+- Password reset: fake `@us.test` mail can't get mail. Reset in Firebase console
+  (Authentication → Users → ⋮ → Reset password), or delete the user and re-run the provision script.
+- Re-run is safe: existing accounts + chosen names untouched. A tester who changed their password shows as ❌ "password unknown": normal, nothing changed.
+- Wipe a test round: manual in Firebase console for now.
+
+## Tell testers
+
+- App closed = friends don't see you move (no background location yet).
+- Crashes not auto-reported yet → screenshot + tell.
+- Admin can't read messages, location or spots ([encrypted](encryption.md)), but can see name, handle, bio, who is friends and when. Admin also holds your starting password until you change it: with it, admin could sign in as you and read new messages. Your friends would get a key warning.
+- App closed = you get no alert. Check Chats tab for the unread dot.
