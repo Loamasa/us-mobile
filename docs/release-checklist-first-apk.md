@@ -87,8 +87,8 @@ If anything in this step is denied by rules: fix, redeploy rules with
 
 ## 7. Send invites
 
-- [ ] `node src/dev/testerInvites.js --link <build link> --handle <your handle> --skip tester19,tester20`
-      → opens `testers-invites.html` (gitignored, holds passwords). Send one row per person.
+- [ ] `node src/dev/testerInvites.js --csv testers-credentials-us-v1-ff6b3.csv --link <build link> --handle <your handle> --skip tester19,tester20`
+      (`--csv` is needed while the June `testers-credentials.csv` still sits next to it) → opens `testers-invites.html` (gitignored, holds passwords). Send one row per person.
 - [ ] Delete `testers-invites.html` when done. Never post the whole CSV anywhere.
 - [ ] Remind testers: install **over** the old app on updates, never uninstall first.
 
