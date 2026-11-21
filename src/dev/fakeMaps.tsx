@@ -1,8 +1,8 @@
 /**
- * Dev-only web stand-in for react-native-maps. metro.config.js resolves
- * 'react-native-maps' to this file on web, so the REAL native map screens run
- * unchanged in the browser (Claude preview self-testing). Never bundled on
- * native — the real package resolves there.
+ * Dev-only web stand-in for the native MapLibre map. On web the app's map
+ * components (src/components/map/{AppMap,MapMarker,MapCircle}.web.tsx)
+ * re-export this file, so the REAL native map screens run unchanged in the
+ * browser (Claude preview self-testing). Never bundled on native.
  *
  * Web Mercator projection (math in ./webMercator.ts, unit-tested by
  * `npm test`) over OpenStreetMap raster tiles, darkened to the app's void

@@ -21,7 +21,6 @@ import {
 } from '@/lib/firestore';
 import { haversineDistance } from '@/utils/distance';
 import { COLORS, MAP_DEFAULTS, BROADCAST_RADIUS } from '@/config/constants';
-import { DARK_MAP_STYLE } from '@/config/mapStyles';
 import { useLocationTracking } from '@/features/location/useLocationTracking';
 import { isSpotActiveNow } from '@/features/spots/spotSchedule';
 import { useFriendLocations } from '@/features/map/useFriendLocations';
@@ -29,6 +28,9 @@ import { useMapProjection } from '@/features/map/useMapProjection';
 import { useGroupMemberProfiles } from '@/features/map/useGroupMemberProfiles';
 import { buildGroupPins } from '@/features/map/groupPins';
 import { BlurView } from 'expo-blur';
+import AppMap from '@/components/map/AppMap';
+import MapMarker from '@/components/map/MapMarker';
+import MapCircle from '@/components/map/MapCircle';
 import FriendMarker from '@/components/map/FriendMarker';
 import ClusterMarker from '@/components/map/ClusterMarker';
 import ClusterCard from '@/components/map/ClusterCard';
@@ -50,8 +52,15 @@ import {
   GhostIcon,
   ZapIcon,
 } from '@/components/ui/icons';
-import type { UserSpot, UserProfile, ChatSummary, MapEntity, Broadcast } from '@/types';
-import type MapView from 'react-native-maps';
+import type {
+  UserSpot,
+  UserProfile,
+  ChatSummary,
+  MapEntity,
+  Broadcast,
+  AppMapHandle,
+  MapPressEvent,
+} from '@/types';
 
 
 
@@ -75,7 +84,7 @@ export default function MapScreen() {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [openingChat, setOpeningChat] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<AppMapHandle>(null);
 
   // Track auth state so profile/spots re-subscribe on account switch
   useEffect(() => {
@@ -459,21 +468,15 @@ export default function MapScreen() {
     }
     : MAP_DEFAULTS.initialRegion;
 
-  const renderMap = () => {
-    // On web this resolves to the dev shim (metro.config.js → src/dev/fakeMaps.tsx).
-    const MapView = require('react-native-maps').default;
-    const { Marker, Circle } = require('react-native-maps');
-
-    return (
-      <MapView
+  const renderMap = () => (
+      <AppMap
         ref={mapRef}
         style={{ flex: 1 }}
         initialRegion={initialRegion}
-        customMapStyle={DARK_MAP_STYLE}
         showsUserLocation={!ghostMode}
-        showsMyLocationButton={false}
-        showsCompass={false}
-        onPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
+        // The floating glass tab bar covers the bottom ~80px.
+        attributionBottom={96}
+        onPress={(e: MapPressEvent) => {
           // With a finished draft waiting, the tap places the broadcast;
           // otherwise it just dismisses any open card.
           if (pendingDraft) {
@@ -485,7 +488,7 @@ export default function MapScreen() {
           setSelectedFriendId(null);
           setSelectedBroadcastId(null);
         }}
-        onLongPress={(e: { nativeEvent: { coordinate: { latitude: number; longitude: number } } }) => {
+        onLongPress={(e: MapPressEvent) => {
           // Long-press shortcut: pick the location FIRST, then the menu opens
           // with it pre-set (CTA broadcasts directly).
           const { latitude, longitude } = e.nativeEvent.coordinate;
@@ -501,7 +504,7 @@ export default function MapScreen() {
         {spots
           .filter((s) => isSpotActiveNow(s, currentTime))
           .map((spot) => (
-            <Circle
+            <MapCircle
               key={spot.id}
               center={{
                 latitude: spot.location.latitude,
@@ -516,19 +519,18 @@ export default function MapScreen() {
         {spots
           .filter((s) => isSpotActiveNow(s, currentTime))
           .map((spot) => (
-            <Marker
+            <MapMarker
               key={`label-${spot.id}`}
               coordinate={{
                 latitude: spot.location.latitude,
                 longitude: spot.location.longitude,
               }}
-              anchor={{ x: 0.5, y: 0.5 }}
             >
               <View className="items-center opacity-60">
                 <Text className="text-xl">{spot.emoji}</Text>
                 <Text className="text-fog/50 text-[10px]">{spot.name}</Text>
               </View>
-            </Marker>
+            </MapMarker>
           ))}
 
         {/* Friend Markers & Clusters */}
@@ -581,9 +583,8 @@ export default function MapScreen() {
             }}
           />
         ))}
-      </MapView>
-    );
-  };
+      </AppMap>
+  );
 
   const timeStr = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const dateStr = currentTime.toLocaleDateString([], {

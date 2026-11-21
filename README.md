@@ -49,14 +49,13 @@ Old Expo Go can NOT run this app (SDK 58 + Maps 1.29).
 | Command | Does | Needs emulators? |
 |---|---|---|
 | `npm run typecheck` | TypeScript. Must pass before commit | no |
-| `npm test` | Encryption, map projection, group pins, Metro proxy, web-map math, invite generator tests | no |
+| `npm test` | Encryption, map projection, group pins, Metro proxy, web-map math, map camera, invite generator tests | no |
 | `npm run check:emulators` | Starts own emulators, seeds, runs everything below, stops | no (stop other emulators first) |
 | `npm run verify` | Projection + group pins + rules checks on live data | yes, seeded |
 | `npm run verify:sdk` | Real Firebase SDK sign-in + read + listener | yes, seeded |
 | `npm run test:rules` | Authorization tests: fake friendship, plain text refused, DM hijack, real accept | yes |
 | `npx expo install --check` | Deps match Expo SDK | no |
 | `npx --yes expo-doctor@latest` | Expo project health | no |
-| `npm run check:maps-key` | Maps key can't reach metered Google APIs ([runbook](docs/maps-key-hardening.md)) | no |
 | `npm audit` | Dep advisories ([known ones](docs/dependency-audit.md)) | no |
 
 ### Real backend
@@ -80,7 +79,7 @@ Firebase project = `us-v1-ff6b3` (the only project in the app, and the `.firebas
 Native change (new package, app.json plugin, permissions) → new `npm run apk`.
 Full runbook: [tester distribution](docs/tester-distribution.md). Other channels (Firebase App
 Distribution, Play internal testing): [invites and distribution](docs/invites-and-distribution.md).
-Maps on the phone first need billing on the Maps key's Cloud project ([STATUS](STATUS.md) "Open — needs you" 3).
+The phone map uses MapLibre with free OpenFreeMap tiles: no API key, no billing.
 
 ### Good to know
 

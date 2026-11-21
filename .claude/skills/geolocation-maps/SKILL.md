@@ -1,40 +1,46 @@
 ---
 name: geolocation-maps
-description: Geolocation and maps for this mobile-first Expo app. Use when implementing map rendering (react-native-maps), location tracking (expo-location), friend marker clustering (Haversine 100m), saved spots on map, geofencing/alerts, geohash spatial queries with Firestore, or battery-efficient background location. Mobile only -- no Leaflet/web maps.
+description: Geolocation and maps for this mobile-first Expo app. Use when implementing map rendering (MapLibre + OpenFreeMap via AppMap), location tracking (expo-location), friend marker clustering (Haversine 100m), saved spots on map, geofencing/alerts, geohash spatial queries with Firestore, or battery-efficient background location. Mobile only -- no Leaflet/web maps.
 ---
 
 # Geolocation + Maps (Mobile)
 
 ## Stack
 
-- `react-native-maps` -- MapView, Markers, Callouts, clustering
+- `@maplibre/maplibre-react-native` (v11) + free OpenFreeMap vector tiles -- no API key, no billing
+- App wrappers in `src/components/map/`: `AppMap`, `MapMarker`, `MapCircle` (`.native` = MapLibre, `.web` = `src/dev/fakeMaps.tsx` shim)
 - `expo-location` -- foreground/background tracking, geofencing
-- Firestore `locations/{userId}` with geohash for spatial queries
+- Firestore `locations/{userId}`; clustering is client-side
 
 ## Map Setup
 
-```tsx
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+Screens never import MapLibre directly (the web build would break). Use the wrappers:
 
-export default function FriendMap({ friends }: { friends: FriendLocation[] }) {
-  return (
-    <MapView
-      provider={PROVIDER_GOOGLE}
-      className="flex-1"
-      initialRegion={DEFAULT_REGION}
-      showsUserLocation
-      showsMyLocationButton={false}
-      customMapStyle={DARK_MAP_STYLE}  // match void theme
-    >
-      {friends.map((f) => (
-        <Marker key={f.uid} coordinate={{ latitude: f.latitude, longitude: f.longitude }}>
-          <FriendAvatar user={f} />
-        </Marker>
-      ))}
-    </MapView>
-  );
-}
+```tsx
+import AppMap from '@/components/map/AppMap';
+import MapMarker from '@/components/map/MapMarker';
+import MapCircle from '@/components/map/MapCircle';
+import type { AppMapHandle } from '@/types';
+
+const mapRef = useRef<AppMapHandle>(null);
+
+<AppMap
+  ref={mapRef}
+  style={{ flex: 1 }}
+  initialRegion={MAP_DEFAULTS.initialRegion}
+  showsUserLocation
+  onPress={(e) => console.log(e.nativeEvent.coordinate)}
+>
+  <MapCircle center={{ latitude, longitude }} radius={150} />
+  <MapMarker coordinate={{ latitude, longitude }} onPress={() => select(id)}>
+    <View collapsable={false} style={{ width: 110, height: 110 }}>{/* one child */}</View>
+  </MapMarker>
+</AppMap>
+
+mapRef.current?.animateToRegion({ latitude, longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 });
 ```
+
+Dark style: `DARK_MAP_STYLE` in `src/config/mapStyles.ts` (MapLibre style JSON). Keep the attribution button on.
 
 ## Location Tracking
 

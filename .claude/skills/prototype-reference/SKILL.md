@@ -26,7 +26,7 @@ Not all features are in the MVP — only reference what's relevant to the curren
 
 | Prototype (Web) | Production (React Native) |
 |----------------|--------------------------|
-| Leaflet maps | react-native-maps |
+| Leaflet maps | MapLibre via `src/components/map/AppMap` |
 | CSS / Tailwind web | NativeWind v4 className |
 | localStorage | AsyncStorage / Firestore |
 | React context mock state | Firebase + real-time listeners |

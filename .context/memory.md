@@ -8,7 +8,7 @@
 
 ## Firebase
 - Only backend: `us-v1-ff6b3` (back from Felix's `us-felix-test-20261030` on 2026-11-09), hardcoded in `src/config/firebase.ts` + `.firebaserc` + the dev scripts/tests (`EMULATOR_PROJECT_ID`/`FIRESTORE_PROJECT` — the emulator stores Firestore data under the app's projectId, so all must match). Env-driven config broke OTA (`eas update` doesn't read build profile env). Package `com.us.mobile`. Spark (free) plan: TTL policies need billing. Expo project: `lomasas-team` (`b9ed9b69-…`); `fsopelsa`'s project (`d74d2bb5-…`) is no longer used — OTA updates only reach APKs built by the same Expo project.
-- **Firebase web API keys are not Maps keys**: `AIzaSyCQE2t2…` (us-v1-ff6b3) and `AIzaSyBzq…` (us-felix-test) are Firebase client keys. Never add Android-app restrictions to them — the JS SDK sends no Android package/SHA-1 headers, so sign-in would break. The Maps key is the separate one in `app.json`.
+- **Firebase web API keys are not Maps keys**: `AIzaSyCQE2t2…` (us-v1-ff6b3) and `AIzaSyBzq…` (us-felix-test) are Firebase client keys. Never add Android-app restrictions to them — the JS SDK sends no Android package/SHA-1 headers, so sign-in would break. (The app has no Maps key any more — MapLibre + OpenFreeMap since 2026-11-21.)
 - Friends rule needs `requestId` on friend docs + pending request. Chat update = `lastMessage*` or self-leave only. New chat/gathering field write → update rules too.
 - Auth: Email/Password (testers). Phone/OTP screens removed (git history); public release → `@react-native-firebase/auth`.
 - **`firebase deploy --dry-run` is not dry**: it enabled the Firestore API and created `us-felix-test`'s database in `nam5`. `firebase.json` `firestore.location: eur3` is only used when deploy has to CREATE a database (firebase-tools `prepare.js`, on 404) — it never moves or checks an existing one.
@@ -23,7 +23,7 @@
 - `chats/{chatId}` (+ `/messages/{id}`) · `broadcasts/{id}` (gatherings)
 
 ## Build / deps
-- Expo 58 / RN 0.88 / React 19.3 / TS 6 / Maps 1.29.11. Native pkgs via `npx expo install` (SDK matrix). Plain `npm ci`, no `--legacy-peer-deps`.
+- Expo 58 / RN 0.88 / React 19.3 / TS 6 / MapLibre RN 11.5.1. Native pkgs via `npx expo install` (SDK matrix). Plain `npm ci`, no `--legacy-peer-deps`.
 - Never downgrade Firebase/NativeWind or swap Expo/Router majors alone to quiet `npm audit`. Overrides + advisories: `docs/dependency-audit.md`.
 - npm 10 keeps stale nested versions after incremental install → check `npm ls --all` + lockfile.
 - NativeWind 4.2.7 + react-native-css-interop 0.2.7 need Tailwind **v3** (not v4). Tailwind needs `darkMode: 'class'` for web.
@@ -33,18 +33,17 @@
 - Firebase CLI 15 needs Java 21. Windows: `Dev-Terminal.cmd`.
 - **Expo SDK patch releases turn CI red with no code change** (`expo install --check` / `expo-doctor` find drift) → `npx expo install --fix` (patch bumps only). CI runs these two drift checks LAST so they can't hide the real checks (they did, 2026-11-02 → 11-08).
 - **Metro warning "expo-router contains an invalid package.json … router-store.js does not exist" = Sentry, harmless**: `@sentry/react-native` 8.28 `require`s an expo-router internal removed in SDK 58 (inside try/catch → just no route names in Sentry). Fixed in Sentry 8.34; let `expo install --fix` pick it up when Expo's SDK pin moves.
-- Expo Go can NOT run the app (SDK 58 + Maps 1.29). Use dev client (`npm run android:cloud`) or browser.
+- Expo Go can NOT run the app (SDK 58 + MapLibre is not in Expo Go). Use dev client (`npm run android:cloud`) or browser.
 
 ## EAS / release
 - `eas.json`: development (dev client APK, emulators) · tester (APK — M1) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
 - app.json `runtimeVersion: { policy: "fingerprint" }` → any native change = new runtime, OTA won't reach old APKs → rebuild.
 - `google-services.json` gitignored, NOT needed (JS SDK, no `googleServicesFile`).
-- **Google Maps = billing, not code** (2026-11-08): key in app.json (`AIzaSyDbe2K0…`, not a Firebase key — probably in `us-v1-ff6b3`'s Cloud project) is valid, but its Cloud project has NO billing → every Maps API answers `403 … You must enable Billing` → phone shows grey grid + Google logo (logcat "Authorization failure"). Probe: `curl "https://maps.googleapis.com/maps/api/staticmap?center=0,0&zoom=1&size=2x2&key=<KEY>"` — "invalid" = bad key, "enable Billing" = no billing, "not authorized" = restricted/API off. Maps SDK for Android is free but needs billing linked; link billing + enable API + restrict key (Maps SDK for Android only; `com.us.mobile` + each signing SHA-1) in ONE sitting — key is committed and extractable from any APK anyway. Steps: STATUS "Open — needs you" 3 + `docs/maps-key-hardening.md`.
-- **Maps key: restrict BEFORE linking billing** (2026-11-08, folded in 2026-11-14): `npm run check:maps-key` (one Geocoding probe, key redacted) → RESTRICTED 0 / BILLING OFF or INCONCLUSIVE 2 / UNRESTRICTED or INVALID KEY 1. A disabled API on the project is also `REQUEST_DENIED`, so only Google's key messages ("API key is not authorized…", "…not authorized to use this API key") count as RESTRICTED; once step 4 turns Geocoding off, confirm the key's `apiTargets` instead. The API restriction (Maps SDK for Android only) is the part that blocks spending, so it can go on before an APK exists; the Android-app restriction needs the EAS keystore SHA-1. Linking billing on `us-v1-ff6b3` moves Firebase Spark → Blaze. Expo Go uses Expo's own Maps key, web uses the `fakeMaps` shim, so only EAS APKs use ours. Cloud sessions have no usable gcloud/EAS credentials → the Cloud/EAS steps are user actions.
+- **Map = MapLibre + OpenFreeMap, no key** (2026-11-21): replaced react-native-maps because the Google key's project had no billing (grey map). Screens import only `@/components/map/{AppMap,MapMarker,MapCircle}` (react-native-maps-like props: `initialRegion`, `onPress` → `nativeEvent.coordinate`, ref `animateToRegion`); `.native` = MapLibre, `.web` = `fakeMaps` shim. Never import `@maplibre/maplibre-react-native` in a screen — it breaks the web build. MapLibre zoom uses 512px tiles (`mapCamera.zoomForRegion`), circles in meters are GeoJSON polygons (`circleRing`), markers can't be dragged, and a marker tap would also fire the map's onPress without the `MapPressGuard` window. Style = `src/config/mapStyles.ts` (OpenFreeMap `planet` TileJSON + `Noto Sans Regular/Italic` glyphs, OpenMapTiles layers). Attribution (i) button must stay on (OpenFreeMap/OSM terms). Cloud sessions can't reach tiles.openfreemap.org (proxy 403).
 - EAS login/build run under user's Expo account. Can't script from here.
 
 ## Testing
-- **Browser runs whole app incl. map**: `metro.config.js` swaps `react-native-maps` → `src/dev/fakeMaps.tsx` on web and proxies emulator traffic same-origin (`/identitytoolkit*`→9099, `/google.firestore.v1.Firestore` + `/v1/projects`→8088). Not a test of native markers or Google Maps.
+- **Browser runs whole app incl. map**: the `.web` map components re-export `src/dev/fakeMaps.tsx`, and `metro.config.js` proxies emulator traffic same-origin (`/identitytoolkit*`→9099, `/google.firestore.v1.Firestore` + `/v1/projects`→8088). Not a test of native markers or the MapLibre map.
 - **Web map shim = real streets** (2026-11-08): Web Mercator (`src/dev/webMercator.ts`, unit-tested) over darkened OpenStreetMap tiles. Drag pans, wheel/± zooms, taps report the TAPPED coordinate (before: always map center). Inside a scrolling form a plain wheel scrolls, Ctrl+wheel/pinch zooms. `EXPO_PUBLIC_DEV_MAP_TILES=off` = old grid (offline), or a `{z}/{x}/{y}` template.
 - **Web `502 … Emulator proxy error (port 9099): ECONNREFUSED` / `auth/network-request-failed` = emulators not running**, not an app bug. `🔥 Firebase emulators connected` only means the client is configured. Start `npm run emulators` (Java 21), `npm run seed`, reload.
 - **`CI=1 npx expo start` serves STALE code**: CI mode turns off Metro's file watcher. In cloud sessions start Metro with `NODE_ENV=development npx expo start --web < /dev/null`; `CI=1` only for one-shot `expo export`.
@@ -80,7 +79,7 @@
 
 ## React / UI gotchas
 - `as const` arrays + useState = narrow literal types → `useState<string>()`.
-- Platform splits: Metro picks `.native.tsx`, tsc doesn't → keep plain `.tsx` re-export barrel. `app/` routes get pulled into web bundle anyway (hence maps resolver).
+- Platform splits: Metro picks `.native.tsx`, tsc doesn't → keep plain `.tsx` re-export barrel. `app/` routes get pulled into web bundle anyway (so routes must import platform-split `src/` components, never a native-only package).
 - `MapView` in `.native.tsx`: `import type MapView`.
 - **Fan-out subscriptions need a stable string key**: `Array.from(set).sort().join('|')` as dep, not a fresh array (else N listeners rebuilt every snapshot). See `profileIdKey` in `app/(tabs)/chats.tsx`.
 - DMs: `ChatSummary.name` is `null`, client resolves peer name. Map group names need `c.name !== null` predicate.
@@ -94,7 +93,7 @@
 - Named group pins (`src/features/map/groupPins.ts`): members together → decorate live cluster; apart → pin at `fixedLocation`. Proximity wins. Fixed pins don't absorb visible members.
 - Chat presence + map share ONE cluster universe: feed full friend list, sorted by id. Never a chat's member subset.
 - Spot tier "2 at Home" needs same name+emoji AND overlapping zones. `LocationPresence.spot` snapshot is the only way to see a friend's spot — don't relax spots rule.
-- Old marker clipping (Maps 1.20.1 + New Arch, rnm #5877/#5655) = library bug, no JS fix. Maps 1.29 maybe fixes — check on dev build. Keep marker rules: no `tracksViewChanges`, `collapsable={false}` fixed-size root, no looping Animated.
+- Old marker clipping (react-native-maps 1.20.1 + New Arch) is gone with react-native-maps. MapLibre `Marker` places real native views on Android — still keep a fixed-size `collapsable={false}` root (tap target, centered anchor) and check markers on the first dev build.
 
 ## Prototype reference
 - Web prototype in `.context/prototype/src/` (done, won't change). Index: `.context/prototype/prototype-map.md`. Skill: `prototype-reference`. Read map first → fetch 1–2 files → adapt to RN.
