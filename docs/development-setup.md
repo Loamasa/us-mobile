@@ -51,7 +51,7 @@ traffic same-origin. Does NOT test native markers, Google Maps or location permi
 | `tester` | `npm run apk` | Firebase `us-v1-ff6b3` | testers (Milestone 1) |
 | `production` | — | real Firebase | Play Store AAB, later |
 
-- Google Maps needs billing on the Maps key's Cloud project first, or every build shows a grey map ([STATUS](../STATUS.md) "Open — needs you" 3).
+- Google Maps needs billing on the Maps key's Cloud project first, or every build shows a grey map ([STATUS](../STATUS.md) "Open — needs you" 3). Steps: [maps-key-hardening.md](maps-key-hardening.md); check: `npm run check:maps-key`.
 - Dev client finds emulators via Metro host. Phone + PC same network; open firewall ports if needed.
 - Dev profile sets `EXPO_PUBLIC_USE_EMULATORS=true`. `false` → real backend. Public vars are not secrets.
 - Dev personas (`dev-user`, `alice`…) use fixed encryption keys so the seed can encrypt their chats. Dev builds only. Tester accounts use real keys, also on emulators.
