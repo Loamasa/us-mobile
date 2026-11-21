@@ -1,3 +1,6 @@
+> **Archived 2026-11-21.** The app no longer uses Google Maps: the map is MapLibre +
+> OpenFreeMap, with no API key. `npm run check:maps-key` was removed. Kept for history.
+
 # Google Maps key hardening (Android)
 
 The Maps key in `app.json` (`react-native-maps` plugin → `androidGoogleMapsApiKey`) ships

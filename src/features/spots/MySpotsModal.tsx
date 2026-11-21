@@ -28,7 +28,9 @@ import {
     SPOT_ICONS,
     DEFAULT_SPOT_RADIUS,
 } from '@/config/constants';
-import { DARK_MAP_STYLE } from '@/config/mapStyles';
+import AppMap from '@/components/map/AppMap';
+import MapMarker from '@/components/map/MapMarker';
+import MapCircle from '@/components/map/MapCircle';
 import { useEffect } from 'react';
 import {
     formatSchedule,
@@ -37,7 +39,7 @@ import {
 } from '@/features/spots/spotSchedule';
 import RadiusChips from '@/features/spots/RadiusChips';
 import ScheduleFields from '@/features/spots/ScheduleFields';
-import type { UserSpot } from '@/types';
+import type { AppMapHandle, MapPressEvent, UserSpot } from '@/types';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -106,9 +108,9 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
     const [search, setSearch] = useState('');
     const [searchState, setSearchState] = useState<'idle' | 'searching' | 'noresults' | 'error'>('idle');
     // Last GPS fix — drawn as a dot on the web shim (native uses the built-in
-    // showsUserLocation layer; a custom marker would hit the Fabric clipping bug).
+    // user-location layer).
     const [myPosition, setMyPosition] = useState<{ lat: number; lng: number } | null>(null);
-    const mapRef = useRef<any>(null);
+    const mapRef = useRef<AppMapHandle>(null);
 
     const userId = auth.currentUser?.uid;
 
@@ -299,12 +301,7 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
         }
     };
 
-    const handleMapPress = (e: any) => {
-        const { latitude, longitude } = e.nativeEvent.coordinate;
-        setForm((f) => ({ ...f, lat: latitude, lng: longitude }));
-    };
-
-    const handleMarkerDrag = (e: any) => {
+    const handleMapPress = (e: MapPressEvent) => {
         const { latitude, longitude } = e.nativeEvent.coordinate;
         setForm((f) => ({ ...f, lat: latitude, lng: longitude }));
     };
@@ -314,164 +311,133 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
     const renderMap = () => {
         if (mode === 'LIST') return null;
 
-        try {
-            // On web, metro resolves react-native-maps to the fakeMaps shim, so
-            // the same editor runs in the browser (no web fork needed).
-            const MapView = require('react-native-maps').default;
-            const { Marker, Circle } = require('react-native-maps');
+        // On web the map components resolve to the fakeMaps shim, so the same
+        // editor runs in the browser (no web fork needed).
+        return (
+            <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden' }}>
+                <AppMap
+                    ref={mapRef}
+                    style={{ flex: 1 }}
+                    // initialRegion (not region): the camera must stay free —
+                    // a controlled region snaps the map back on every
+                    // keystroke and makes panning to "where am I?" impossible.
+                    initialRegion={{
+                        latitude: form.lat,
+                        longitude: form.lng,
+                        latitudeDelta: 0.01,
+                        longitudeDelta: 0.01,
+                    }}
+                    onPress={handleMapPress}
+                    showsUserLocation
+                >
+                    <MapCircle
+                        center={{ latitude: form.lat, longitude: form.lng }}
+                        radius={form.radius}
+                        fillColor="rgba(46, 92, 255, 0.12)"
+                        strokeColor="rgba(46, 92, 255, 0.4)"
+                        strokeWidth={1.5}
+                    />
+                    <MapMarker coordinate={{ latitude: form.lat, longitude: form.lng }}>
+                        <View
+                            style={{
+                                backgroundColor: 'rgba(15,17,21,0.85)',
+                                borderWidth: 1.5,
+                                borderColor: COLORS.signal,
+                                borderRadius: 12,
+                                paddingHorizontal: 10,
+                                paddingVertical: 6,
+                                alignItems: 'center',
+                            }}
+                        >
+                            <Text style={{ fontSize: 22 }}>{form.emoji}</Text>
+                            {form.name ? (
+                                <Text style={{ color: COLORS.fog, fontSize: 10, marginTop: 2 }}>
+                                    {form.name}
+                                </Text>
+                            ) : null}
+                        </View>
+                    </MapMarker>
 
-            return (
-                <View style={{ flex: 1, borderRadius: 16, overflow: 'hidden' }}>
-                    <MapView
-                        ref={mapRef}
-                        style={{ flex: 1 }}
-                        customMapStyle={DARK_MAP_STYLE}
-                        // initialRegion (not region): the camera must stay free —
-                        // a controlled region snaps the map back on every
-                        // keystroke and makes panning to "where am I?" impossible.
-                        initialRegion={{
-                            latitude: form.lat,
-                            longitude: form.lng,
-                            latitudeDelta: 0.01,
-                            longitudeDelta: 0.01,
-                        }}
-                        onPress={handleMapPress}
-                        showsUserLocation
-                        showsMyLocationButton={false}
-                        showsCompass={false}
-                    >
-                        <Circle
-                            center={{ latitude: form.lat, longitude: form.lng }}
-                            radius={form.radius}
-                            fillColor="rgba(46, 92, 255, 0.12)"
-                            strokeColor="rgba(46, 92, 255, 0.4)"
-                            strokeWidth={1.5}
-                        />
-                        <Marker
-                            coordinate={{ latitude: form.lat, longitude: form.lng }}
-                            draggable
-                            onDragEnd={handleMarkerDrag}
-                            anchor={{ x: 0.5, y: 0.5 }}
+                    {/* Web shim has no showsUserLocation layer — draw the dot
+                        ourselves. Native keeps MapLibre's built-in layer. */}
+                    {Platform.OS === 'web' && myPosition && (
+                        <MapMarker
+                            coordinate={{ latitude: myPosition.lat, longitude: myPosition.lng }}
                         >
                             <View
                                 style={{
-                                    backgroundColor: 'rgba(15,17,21,0.85)',
-                                    borderWidth: 1.5,
-                                    borderColor: COLORS.signal,
-                                    borderRadius: 12,
-                                    paddingHorizontal: 10,
-                                    paddingVertical: 6,
-                                    alignItems: 'center',
+                                    width: 14,
+                                    height: 14,
+                                    borderRadius: 7,
+                                    backgroundColor: COLORS.signal,
+                                    borderWidth: 2,
+                                    borderColor: '#fff',
                                 }}
-                            >
-                                <Text style={{ fontSize: 22 }}>{form.emoji}</Text>
-                                {form.name ? (
-                                    <Text style={{ color: COLORS.fog, fontSize: 10, marginTop: 2 }}>
-                                        {form.name}
-                                    </Text>
-                                ) : null}
-                            </View>
-                        </Marker>
+                            />
+                        </MapMarker>
+                    )}
+                </AppMap>
 
-                        {/* Web shim has no showsUserLocation layer — draw the dot
-                            ourselves. Native keeps the built-in layer (a custom
-                            marker there would hit the Fabric clipping bug). */}
-                        {Platform.OS === 'web' && myPosition && (
-                            <Marker
-                                coordinate={{ latitude: myPosition.lat, longitude: myPosition.lng }}
-                                anchor={{ x: 0.5, y: 0.5 }}
-                            >
-                                <View
-                                    style={{
-                                        width: 14,
-                                        height: 14,
-                                        borderRadius: 7,
-                                        backgroundColor: COLORS.signal,
-                                        borderWidth: 2,
-                                        borderColor: '#fff',
-                                    }}
-                                />
-                            </Marker>
-                        )}
-                    </MapView>
-
-                    {/* My-location: center the camera on the user (never moves the pin) */}
-                    <TouchableOpacity
-                        onPress={handleMyLocation}
-                        accessibilityLabel="My location"
-                        activeOpacity={0.8}
-                        style={{
-                            position: 'absolute',
-                            bottom: 12,
-                            right: 12,
-                            width: 40,
-                            height: 40,
-                            borderRadius: 20,
-                            backgroundColor: 'rgba(0,0,0,0.6)',
-                            borderWidth: 1,
-                            borderColor: 'rgba(255,255,255,0.15)',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <NavigationIcon size={18} color={COLORS.fog} />
-                    </TouchableOpacity>
-
-                    {/* Mode hint overlay */}
-                    <View
-                        style={{
-                            position: 'absolute',
-                            top: 12,
-                            left: 12,
-                            zIndex: 10,
-                            pointerEvents: 'none',
-                        }}
-                    >
-                        <BlurView
-                            tint="dark"
-                            intensity={40}
-                            style={{
-                                backgroundColor: 'rgba(0,0,0,0.6)',
-                                borderRadius: 99,
-                                paddingHorizontal: 12,
-                                paddingVertical: 5,
-                                borderWidth: 1,
-                                borderColor: 'rgba(255,255,255,0.08)',
-                                overflow: 'hidden',
-                            }}
-                        >
-                            <Text
-                                style={{
-                                    color: COLORS.signal,
-                                    fontSize: 10,
-                                    fontWeight: '700',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: 1.2,
-                                }}
-                            >
-                                🔵 Placement Mode
-                            </Text>
-                        </BlurView>
-                    </View>
-                </View>
-            );
-        } catch {
-            return (
-                <View
+                {/* My-location: center the camera on the user (never moves the pin) */}
+                <TouchableOpacity
+                    onPress={handleMyLocation}
+                    accessibilityLabel="My location"
+                    activeOpacity={0.8}
                     style={{
-                        flex: 1,
+                        position: 'absolute',
+                        bottom: 12,
+                        right: 12,
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: 'rgba(0,0,0,0.6)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(255,255,255,0.15)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        backgroundColor: 'rgba(255,255,255,0.03)',
-                        borderRadius: 16,
                     }}
                 >
-                    <Text style={{ color: COLORS.fog, opacity: 0.4, fontSize: 13 }}>
-                        Map unavailable
-                    </Text>
+                    <NavigationIcon size={18} color={COLORS.fog} />
+                </TouchableOpacity>
+
+                {/* Mode hint overlay */}
+                <View
+                    style={{
+                        position: 'absolute',
+                        top: 12,
+                        left: 12,
+                        zIndex: 10,
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <BlurView
+                        tint="dark"
+                        intensity={40}
+                        style={{
+                            backgroundColor: 'rgba(0,0,0,0.6)',
+                            borderRadius: 99,
+                            paddingHorizontal: 12,
+                            paddingVertical: 5,
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.08)',
+                            overflow: 'hidden',
+                        }}
+                    >
+                        <Text
+                            style={{
+                                color: COLORS.signal,
+                                fontSize: 10,
+                                fontWeight: '700',
+                                textTransform: 'uppercase',
+                                letterSpacing: 1.2,
+                            }}
+                        >
+                            🔵 Placement Mode
+                        </Text>
+                    </BlurView>
                 </View>
-            );
-        }
+            </View>
+        );
     };
 
     // ── LIST view ─────────────────────────────────────────────────────────────
@@ -894,7 +860,7 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
                             marginBottom: 8,
                         }}
                     >
-                        Location — search, tap map, or drag pin
+                        Location — search or tap the map
                     </Text>
 
                     {/* Address / place search (moves the pin to the match) */}

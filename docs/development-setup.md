@@ -41,7 +41,7 @@ Real map screens run on a fake map (`src/dev/fakeMaps.tsx`): Web Mercator (`src/
 over darkened OpenStreetMap tiles. Drag to pan, wheel or +/− to zoom, taps land where you tap.
 `EXPO_PUBLIC_DEV_MAP_TILES=off` = plain grid (offline), or a `{z}/{x}/{y}` URL template for another
 source (OSM's policy allows light dev use with the attribution shown). Metro proxies emulator
-traffic same-origin. Does NOT test native markers, Google Maps or location permissions.
+traffic same-origin. Does NOT test native markers, the MapLibre map or location permissions.
 
 ## Phone builds
 
@@ -51,7 +51,7 @@ traffic same-origin. Does NOT test native markers, Google Maps or location permi
 | `tester` | `npm run apk` | Firebase `us-v1-ff6b3` | testers (Milestone 1) |
 | `production` | — | real Firebase | Play Store AAB, later |
 
-- Google Maps needs billing on the Maps key's Cloud project first, or every build shows a grey map ([STATUS](../STATUS.md) "Open — needs you" 3). Steps: [maps-key-hardening.md](maps-key-hardening.md); check: `npm run check:maps-key`.
+- The native map is MapLibre with OpenFreeMap tiles (style in `src/config/mapStyles.ts`): no API key or billing. It needs a dev build or APK — Expo Go doesn't include MapLibre.
 - Dev client finds emulators via Metro host. Phone + PC same network; open firewall ports if needed.
 - Dev profile sets `EXPO_PUBLIC_USE_EMULATORS=true`. `false` → real backend. Public vars are not secrets.
 - Dev personas (`dev-user`, `alice`…) use fixed encryption keys so the seed can encrypt their chats. Dev builds only. Tester accounts use real keys, also on emulators.

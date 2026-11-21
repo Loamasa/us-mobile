@@ -1,5 +1,5 @@
 import { View, Text } from 'react-native';
-import { Marker } from 'react-native-maps';
+import MapMarker from '@/components/map/MapMarker';
 import UserAvatar from '@/components/UserAvatar';
 import type { MapEntity } from '@/types';
 
@@ -8,14 +8,8 @@ interface FriendMarkerProps {
   onPress?: (entity: MapEntity) => void;
 }
 
-// MARKER RENDERING — FINAL DIAGNOSIS (device round 5, 2026-06-11): custom View
-// markers are broken at the LIBRARY level in react-native-maps 1.20.1 on
-// Android + New Architecture (clip/flicker/blank — rnm issues #5877, #5655).
-// Rounds 1–5 of device evidence match the issue threads; NO JS-side workaround
-// exists. Fix = react-native-maps 1.27.x (Fabric-native) + EAS dev build
-// (Phase 3 Step 4) — Expo Go bundles 1.20.1 native code and crashes on newer.
-// Until then keep: no tracksViewChanges, collapsable={false} fixed-size root,
-// no looping Animated (these prevent total invisibility; clipping remains).
+// Marker views render natively through MapLibre (MapMarker). Keep the
+// fixed-size root: it sets the tap target and keeps the anchor centered.
 export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
   const friend = entity.friends[0];
   if (!friend) return null;
@@ -27,12 +21,11 @@ export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
   const stale = entity.stale === true;
 
   return (
-    <Marker
+    <MapMarker
       coordinate={{
         latitude: entity.location.lat,
         longitude: entity.location.lng,
       }}
-      anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(entity) : undefined}
     >
       <View
@@ -89,6 +82,6 @@ export default function FriendMarker({ entity, onPress }: FriendMarkerProps) {
           {friend.displayName.split(' ')[0]}
         </Text>
       </View>
-    </Marker>
+    </MapMarker>
   );
 }

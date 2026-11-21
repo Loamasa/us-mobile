@@ -53,5 +53,4 @@ Only fake test data is lost, and existing logins keep working.
 2. Turn off public sign-up in the Firebase console, under Authentication → Settings → User actions. Anyone can still register until you do, though they can't read anyone's private data.
 3. Run `npm run apk` and test it on your phone.
 4. Tell me when to commit or push.
-5. Restrict the Maps key after the first build.
-6. Review who is named as responsible in the privacy notice.
+5. Review who is named as responsible in the privacy notice.

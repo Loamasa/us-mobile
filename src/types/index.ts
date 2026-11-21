@@ -186,3 +186,27 @@ export interface Broadcast {
   // Set once "Open Group Chat" spawns the deterministic group chat.
   chatId: string | null;
 }
+
+// ─── Map surface (src/components/map/AppMap) ─────────
+// The app's own small map API. Native draws it with MapLibre, the web dev
+// build with the shim in src/dev/fakeMaps.tsx, so screens never import a map
+// library directly.
+
+export interface MapCoordinate {
+  latitude: number;
+  longitude: number;
+}
+
+export interface MapRegion extends MapCoordinate {
+  latitudeDelta: number;
+  longitudeDelta: number;
+}
+
+export interface MapPressEvent {
+  nativeEvent: { coordinate: MapCoordinate };
+}
+
+export interface AppMapHandle {
+  /** Move the camera so `region` fills the view. */
+  animateToRegion: (region: MapRegion, durationMs?: number) => void;
+}

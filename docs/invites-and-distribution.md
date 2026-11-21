@@ -44,9 +44,7 @@ wording (`{link} {accountId} {password} {inviterHandle}`).
 1. **No install link** — the EAS build has to run under an Expo account in `lomasas-team`.
 2. **Rules deploy** — `us-v1-ff6b3` still runs June's rules; the app needs the current
    encrypted-data rules + indexes: `npx firebase deploy --only auth,firestore` before the first build.
-3. **Google Maps billing** — without it every tester sees a grey map
-   ([STATUS](../STATUS.md) "Open — needs you" 3).
-4. Optional before handing out: database region (STATUS item 1) and closing sign-up (item 2).
+3. Optional before handing out: database region (STATUS item 1) and closing sign-up (item 2).
 
 ## Getting the APK to testers — three channels
 
@@ -116,8 +114,7 @@ password, so they still get their row (e.g. via `src/dev/testerInvites.js`).
 5. **Testers** tab → email list (their Google accounts, up to 100) → save → copy the opt-in link.
 6. Testers open the link → Become a tester → install from the Play Store. Updates arrive like
    any store app; no "unknown apps" prompt.
-7. Add Play's **app signing key SHA-1** (App integrity) to the Maps key restriction.
-8. This line already blocks background location, camera and the other sensitive permissions
+7. This line already blocks background location, camera and the other sensitive permissions
    (`app.json` `blockedPermissions`), which keeps Play's permission questions short.
 
 **Suggested order:** channel 1 to your own phone first (it proves the build, the backend, the
@@ -125,8 +122,7 @@ encryption on a real phone and the map), then decide whether testers get it via 
 link (1), by email (2) or the store (3).
 
 Docs: [App Distribution CLI](https://firebase.google.com/docs/app-distribution/android/distribute-cli) ·
-[Expo Submit for Android](https://docs.expo.dev/submit/android/) ·
-[Maps key restrictions](https://developers.google.com/maps/documentation/android-sdk/get-api-key)
+[Expo Submit for Android](https://docs.expo.dev/submit/android/)
 
 ## In-app invites — what a real feature would be (after M1)
 

@@ -4,6 +4,13 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-11-21 — Map switched from Google Maps to MapLibre + OpenFreeMap
+- **Why**: the Google Maps key's Cloud project has no billing, so every phone build showed a grey map. MapLibre + OpenFreeMap is free and open source, with no key and no billing.
+- **Deps**: removed `react-native-maps`; added `@maplibre/maplibre-react-native` 11.5.1 (New Architecture, Expo plugin in `app.json`) and `@types/geojson`. Removed the `react-native-maps` plugin + Maps key from `app.json`, the Metro web alias, `src/dev/checkMapsKey.js` + `npm run check:maps-key`. Runbook archived.
+- **Code**: screens now use `AppMap` / `MapMarker` / `MapCircle` (`src/components/map/`, types in `src/types`). Native = MapLibre (camera from region via `src/features/map/mapCamera.ts`, spot circles as GeoJSON polygons, marker taps don't double as map taps); web = the existing `fakeMaps` shim. Dark style rebuilt as a MapLibre style on OpenFreeMap tiles (`src/config/mapStyles.ts`): land, water, borders, place names. Touched: map tab, onboarding spots, My Spots editor, friend/cluster/gathering markers.
+- **Behavior change**: My Spots pin can no longer be dragged (MapLibre markers don't drag); tap the map or search to move it.
+- **Checks**: typecheck, `npm test` 58/58 (new `tests/map-camera.test.cjs`), web + Android `expo export`, `expo prebuild` (manifest has no Maps key), browser map on seeded emulators. Not phone-tested.
+
 ## 2026-11-14 — GitHub branch clean-up: Maps key runbook folded into fel/phase1
 - **Branches checked** against `main` (no open PRs): `feat/group-chat` (merged as PR #1 in April) and `cl/dreamy-dirac-ju2j20` (same commit as `main`) hold nothing new; `prel/great-faraday-hscinl` is the same commit as `fel/phase1`. All three to be deleted. `prel/hopeful-goodall-bbm8io` held one commit not on this line (entry below) and is folded in here.
 - **Fold**: merged `prel/hopeful-goodall-bbm8io` with this line's docs as the base (4 doc conflicts: STATUS, memory, CHANGELOG, development-setup). Brought in `docs/maps-key-hardening.md`, `src/dev/checkMapsKey.js` + `npm run check:maps-key`, and the Phase 3 plan pointer (auto-merged into `docs/archive/plans/`).

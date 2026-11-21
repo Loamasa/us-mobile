@@ -64,12 +64,7 @@
           "resizeMode": "contain"
         }
       ],
-      [
-        "react-native-maps",
-        {
-          "androidGoogleMapsApiKey": "AIzaSyDbe2K0Ttie5U24QvxUdRXi_2hFwfTDLEg"
-        }
-      ],
+      "@maplibre/maplibre-react-native",
       "expo-secure-store"
     ],
     "extra": {

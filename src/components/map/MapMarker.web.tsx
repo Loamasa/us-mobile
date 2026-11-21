@@ -1,0 +1,2 @@
+// Web dev build: the browser shim stands in for MapLibre (see src/dev/fakeMaps.tsx).
+export { Marker as default } from '@/dev/fakeMaps';

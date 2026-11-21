@@ -1,6 +1,5 @@
 import { View, Text } from 'react-native';
-// Resolves to the dev shim on web via metro.config.js.
-import { Marker } from 'react-native-maps';
+import MapMarker from '@/components/map/MapMarker';
 import { COLORS } from '@/config/constants';
 import type { Broadcast } from '@/types';
 
@@ -11,9 +10,8 @@ interface BroadcastMarkerProps {
   onPress?: (broadcast: Broadcast) => void;
 }
 
-// MARKER RENDERING: clipping is a react-native-maps 1.20.1 + New Architecture
-// LIBRARY bug — no JS workaround; fixed by the 1.27.x upgrade in Phase 3 Step 4.
-// See ClusterMarker.native.tsx for the full diagnosis (device rounds 1–5).
+// Marker views render natively through MapLibre (MapMarker). Keep the
+// fixed-size root: it sets the tap target and keeps the anchor centered.
 export default function BroadcastMarker({
   broadcast,
   invite,
@@ -22,12 +20,11 @@ export default function BroadcastMarker({
   const count = broadcast.memberIds.length;
 
   return (
-    <Marker
+    <MapMarker
       coordinate={{
         latitude: broadcast.location.latitude,
         longitude: broadcast.location.longitude,
       }}
-      anchor={{ x: 0.5, y: 0.5 }}
       onPress={onPress ? () => onPress(broadcast) : undefined}
     >
       <View
@@ -80,6 +77,6 @@ export default function BroadcastMarker({
           </Text>
         </View>
       </View>
-    </Marker>
+    </MapMarker>
   );
 }

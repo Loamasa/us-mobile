@@ -12,7 +12,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import MapView, { Marker, Circle } from 'react-native-maps';
+import AppMap from '@/components/map/AppMap';
+import MapMarker from '@/components/map/MapMarker';
+import MapCircle from '@/components/map/MapCircle';
 import { GeoPoint } from 'firebase/firestore';
 import { auth } from '@/config/firebase';
 import { createUserSpot } from '@/lib/firestore';
@@ -28,8 +30,7 @@ import {
   MAX_ONBOARDING_SPOTS,
   DEFAULT_SPOT_RADIUS,
 } from '@/config/constants';
-import { DARK_MAP_STYLE } from '@/config/mapStyles';
-import type { SpotSchedule } from '@/types';
+import type { AppMapHandle, MapPressEvent, SpotSchedule } from '@/types';
 
 interface SpotDraft {
   name: string;
@@ -67,7 +68,7 @@ export default function SpotsScreen() {
   const [draftCoord, setDraftCoord] = useState<{ lat: number; lng: number } | null>(null);
   const [draftError, setDraftError] = useState('');
   const [saving, setSaving] = useState(false);
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<AppMapHandle>(null);
   const router = useRouter();
 
   const animateTo = (lat: number, lng: number) => {
@@ -115,7 +116,7 @@ export default function SpotsScreen() {
     }
   };
 
-  const handleMapPress = (e: any) => {
+  const handleMapPress = (e: MapPressEvent) => {
     if (spots.length >= MAX_ONBOARDING_SPOTS) return;
     const { latitude, longitude } = e.nativeEvent.coordinate;
     setDraftCoord({ lat: latitude, lng: longitude });
@@ -234,17 +235,15 @@ export default function SpotsScreen() {
 
       {/* Map */}
       <View className="flex-1 mx-4 rounded-2xl overflow-hidden border border-glass-border">
-        <MapView
+        <AppMap
           ref={mapRef}
           style={{ flex: 1 }}
           initialRegion={MAP_DEFAULTS.initialRegion}
-          customMapStyle={DARK_MAP_STYLE}
           onPress={handleMapPress}
           showsUserLocation
-          showsMyLocationButton={false}
         >
           {spots.map((spot, i) => (
-            <Marker
+            <MapMarker
               key={i}
               coordinate={{ latitude: spot.latitude, longitude: spot.longitude }}
               onPress={() => handleRemoveSpot(i)}
@@ -255,10 +254,10 @@ export default function SpotsScreen() {
                   <Text className="text-fog text-xs mt-1">{spot.name}</Text>
                 </View>
               </View>
-            </Marker>
+            </MapMarker>
           ))}
           {spots.map((spot, i) => (
-            <Circle
+            <MapCircle
               key={`circle-${i}`}
               center={{ latitude: spot.latitude, longitude: spot.longitude }}
               radius={spot.radius}
@@ -267,7 +266,7 @@ export default function SpotsScreen() {
               strokeWidth={1}
             />
           ))}
-        </MapView>
+        </AppMap>
 
         {/* Find-me — centers the camera, never places a spot */}
         <TouchableOpacity

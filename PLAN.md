@@ -43,7 +43,7 @@ Pick next based on what M1 teach us. Order not fixed.
 
 | # | Milestone | Idea |
 |---|-----------|------|
-| M2 | Map on phone | Markers + foreground location on real device. Restrict Maps key to package + SHA-1 |
+| M2 | Map on phone | Markers + foreground location on real device (MapLibre + OpenFreeMap, no key) |
 | M3 | Ambient presence | Background location (add back `expo-task-manager` + permission), push notifications, battery check |
 | M4 | Safe enough to share wider | Outside security review, forward secrecy, Sentry, server-side expiry (needs paid plan) |
 | M5 | Public path | Phone auth (native SDK), App Check, Play Store location review |

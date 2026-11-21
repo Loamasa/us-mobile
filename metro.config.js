@@ -50,24 +50,4 @@ config.server.enhanceMiddleware = (metroMiddleware, server) => {
   };
 };
 
-// react-native-maps has no web implementation. On web, resolve the package to
-// the dev shim (src/dev/fakeMaps.tsx — dark pane + lat/lng→pixel projection)
-// so the REAL native map screens render in the browser for self-testing.
-const path = require('path');
-const defaultResolveRequest = config.resolver.resolveRequest;
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (
-    platform === 'web' &&
-    (moduleName === 'react-native-maps' || moduleName.startsWith('react-native-maps/'))
-  ) {
-    return {
-      type: 'sourceFile',
-      filePath: path.resolve(__dirname, 'src', 'dev', 'fakeMaps.tsx'),
-    };
-  }
-  return defaultResolveRequest
-    ? defaultResolveRequest(context, moduleName, platform)
-    : context.resolveRequest(context, moduleName, platform);
-};
-
 module.exports = withNativeWind(config, { input: './global.css' });
