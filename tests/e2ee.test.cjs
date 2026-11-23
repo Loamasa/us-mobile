@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const nacl = require('tweetnacl');
 const { devKeyPair, generateKeyPair, open, safetyCode, seal, toHex } = require('../.expo/test-build/features/e2ee/envelope.js');
-const { acceptKey, isPinned, pinIfFirstSeen, resolveChatKeys } = require('../.expo/test-build/features/e2ee/trust.js');
+const { acceptKey, isPinned, pinIfFirstSeen, canSend, resolveChatKeys } = require('../.expo/test-build/features/e2ee/trust.js');
 
 const alice = generateKeyPair();
 const bob = generateKeyPair();
@@ -116,4 +116,11 @@ test('a member with no key, or not loaded yet, is reported separately', () => {
 test('offline, the newest pinned key is used', () => {
   const pins = { bob: [toHex(carol.publicKey), toHex(bob.publicKey)] };
   assert.deepEqual(resolveChatKeys(['bob'], {}, pins).recipients, { bob: bob.publicKey });
+});
+test('sending waits for members whose key has not loaded yet', () => {
+  const pins = {};
+  const loading = resolveChatKeys(['bob', 'carol'], { bob: bob.publicKey }, pins);
+  assert.equal(canSend(loading), false);
+  assert.equal(canSend(resolveChatKeys(['bob', 'carol'], { bob: bob.publicKey, carol: null }, pins)), true);
+  assert.equal(canSend(resolveChatKeys(['bob'], { bob: null }, pins)), false);
 });

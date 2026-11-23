@@ -209,26 +209,36 @@ export default function MapScreen() {
   // Get user location for local display
   useEffect(() => {
     let subscription: Location.LocationSubscription | null = null;
+    let cancelled = false;
 
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted' || cancelled) return;
 
-      subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Balanced,
-          distanceInterval: MAP_DEFAULTS.locationDistanceInterval,
-        },
-        (loc) => {
-          setUserLocation({
-            lat: loc.coords.latitude,
-            lng: loc.coords.longitude,
-          });
-        }
-      );
+        const watcher = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            distanceInterval: MAP_DEFAULTS.locationDistanceInterval,
+          },
+          (loc) => {
+            setUserLocation({
+              lat: loc.coords.latitude,
+              lng: loc.coords.longitude,
+            });
+          }
+        );
+        // The screen closed while the watcher was starting.
+        if (cancelled) watcher.remove();
+        else subscription = watcher;
+      } catch (e) {
+        // e.g. location services turned off.
+        console.warn('[map] could not watch location:', e);
+      }
     })();
 
     return () => {
+      cancelled = true;
       subscription?.remove();
     };
   }, []);

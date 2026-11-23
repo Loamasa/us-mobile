@@ -22,6 +22,7 @@ import {
 } from '@/lib/firestore';
 import UserAvatar from '@/components/UserAvatar';
 import ChatInfoSheet from '@/features/chat/ChatInfoSheet';
+import { canSend as canSendTo } from '@/features/e2ee/trust';
 import { useChatKeys } from '@/features/e2ee/useChatKeys';
 import { markChatRead } from '@/features/chat/readMarks';
 import { useFriendLocations } from '@/features/map/useFriendLocations';
@@ -330,11 +331,7 @@ export default function ChatDetailScreen() {
     [members]
   );
 
-  // Nothing goes out until a changed key is acknowledged: it could be a new
-  // phone, or someone swapping keys to read along. A DM also needs the peer's
-  // key; a group can go ahead without members who haven't got one yet.
-  const hasRecipient = Object.keys(chatKeys.recipients).length > 0;
-  const canSend = chatKeys.changed.length === 0 && hasRecipient;
+  const canSend = canSendTo(chatKeys);
 
   const renderMessage = useCallback(
     ({ item, index }: { item: Message; index: number }) => {
