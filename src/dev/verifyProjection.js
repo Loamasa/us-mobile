@@ -15,7 +15,7 @@
  *
  * Expected output: CLUSTER(alice+bob) + FRIEND(charlie); dana/eve absent.
  */
-const EMULATOR_PROJECT_ID = 'us-felix-test-20261030';
+const EMULATOR_PROJECT_ID = 'us-v1-ff6b3';
 const FIRESTORE_EMULATOR_PORT = 8088;
 const BASE = `http://127.0.0.1:${FIRESTORE_EMULATOR_PORT}/v1/projects/${EMULATOR_PROJECT_ID}/databases/(default)/documents`;
 const HEADERS = { Authorization: 'Bearer owner' };

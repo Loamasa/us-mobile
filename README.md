@@ -31,7 +31,8 @@ Two terminals.
 | 3 | `npm run web` | App in browser → http://localhost:8081, auto sign-in as `dev-user` |
 | opt | `npm run freshen` | Keep seeded people "fresh" on map (else they go stale after 5 min) |
 
-Browser map is a fake (`src/dev/fakeMaps.tsx`). Good for data/logic/UI, not native map.
+Browser map is a stand-in (`src/dev/fakeMaps.tsx`) on real OpenStreetMap streets: drag, zoom, tap to place.
+Good for data/logic/UI, not the native Google map. `EXPO_PUBLIC_DEV_MAP_TILES=off` = plain grid (offline).
 
 ### Run on phone (development client)
 
@@ -48,23 +49,24 @@ Old Expo Go can NOT run this app (SDK 58 + Maps 1.29).
 | Command | Does | Needs emulators? |
 |---|---|---|
 | `npm run typecheck` | TypeScript. Must pass before commit | no |
-| `npm test` | Encryption, map projection, group pins, Metro proxy tests | no |
+| `npm test` | Encryption, map projection, group pins, Metro proxy, web-map math, invite generator tests | no |
 | `npm run check:emulators` | Starts own emulators, seeds, runs everything below, stops | no (stop other emulators first) |
 | `npm run verify` | Projection + group pins + rules checks on live data | yes, seeded |
 | `npm run verify:sdk` | Real Firebase SDK sign-in + read + listener | yes, seeded |
 | `npm run test:rules` | Authorization tests: fake friendship, plain text refused, DM hijack, real accept | yes |
 | `npx expo install --check` | Deps match Expo SDK | no |
 | `npx --yes expo-doctor@latest` | Expo project health | no |
+| `npm run check:maps-key` | Maps key can't reach metered Google APIs ([runbook](docs/maps-key-hardening.md)) | no |
 | `npm audit` | Dep advisories ([known ones](docs/dependency-audit.md)) | no |
 
-### Real backend (test project)
+### Real backend
 
-Test project = `us-felix-test-20261030` (the only project in the app, and the `.firebaserc` default).
+Firebase project = `us-v1-ff6b3` (the only project in the app, and the `.firebaserc` default). Expo account = `lomasas-team`.
 
 | Command | Does |
 |---|---|
 | `npx firebase deploy --only auth,firestore` | Push sign-in setting, `firestore.rules`, `firestore.indexes.json` |
-| `node src/dev/provisionTesters.js --count 20` | Make tester accounts → `testers-credentials-us-felix-test-20261030.csv` (gitignored, private). Safe to re-run |
+| `node src/dev/provisionTesters.js --count 20` | Make/check tester accounts → `testers-credentials-us-v1-ff6b3.csv` (gitignored, private; first run reads the June `testers-credentials.csv`). Safe to re-run |
 | `node src/dev/provisionTesters.js --emulator --count 3` | Same on emulators → `testers-credentials-emulator.csv` |
 
 ### Ship to testers
@@ -72,14 +74,17 @@ Test project = `us-felix-test-20261030` (the only project in the app, and the `.
 | Command | Does |
 |---|---|
 | `npm run apk` | Build tester APK in EAS cloud → install link |
+| `node src/dev/testerInvites.js --link <link> --handle <you> --skip tester19,tester20` | One-tap SMS / email / WhatsApp invite per tester → `testers-invites.html` (gitignored, holds passwords) |
 | `npx eas-cli@25.3.0 update --channel tester --environment preview --message "fix ..."` | Send JS-only fix to installed APKs (no reinstall) |
 
 Native change (new package, app.json plugin, permissions) → new `npm run apk`.
-Full runbook: [tester distribution](docs/tester-distribution.md).
+Full runbook: [tester distribution](docs/tester-distribution.md). Other channels (Firebase App
+Distribution, Play internal testing): [invites and distribution](docs/invites-and-distribution.md).
+Maps on the phone first need billing on the Maps key's Cloud project ([STATUS](STATUS.md) "Open — needs you" 3).
 
 ### Good to know
 
-- Emulators MUST run with `--project demo-us-app` (script does it). Auth lives there, Firestore data under `us-felix-test-20261030`.
+- Emulators MUST run with `--project demo-us-app` (script does it). Auth lives there, Firestore data under `us-v1-ff6b3`.
 - Firebase CLI needs Java 21.
 - After editing `firestore.rules`: restart emulators + reseed (hot reload lies).
 - Dev build uses emulators. Set `EXPO_PUBLIC_USE_EMULATORS=false` to hit real backend from dev.

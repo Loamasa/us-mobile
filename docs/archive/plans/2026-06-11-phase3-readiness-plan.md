@@ -155,7 +155,8 @@ delivered; reset via the Firebase console instead.
       Android) or EAS file env var — decide once
 - [ ] Build `development` + `preview`, install both on the Pixel 7
 - [ ] Pull keystore SHA-1 from `eas credentials` → restrict the Google Maps key in Cloud
-      Console (package `com.us.mobile` + SHA-1, Maps SDK for Android only)
+      Console (package `com.us.mobile` + SHA-1, Maps SDK for Android only) — steps, billing
+      order and $5 budget in `docs/maps-key-hardening.md`; verify with `npm run check:maps-key`
 - [ ] Show app version + build number in Settings (testers report "build N")
 
 Exit: preview APK installs from the EAS link, signs in against real Firebase, map renders

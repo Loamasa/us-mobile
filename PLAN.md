@@ -17,16 +17,16 @@
 - [ ] Close app, open again → still signed in
 - [ ] One week normal use, no crash that stop chat
 
-**Backend:** test project `us-felix-test-20261030`, the only project the app knows. Chats and other private data are [end-to-end encrypted](docs/encryption.md).
+**Backend:** Firebase `us-v1-ff6b3`, the only project the app knows (back from Felix's test project on 2026-11-09). Expo: `lomasas-team`. Chats and other private data are [end-to-end encrypted](docs/encryption.md).
 
 **Steps**
-1. [x] Enable Email/Password, push rules + indexes (`npx firebase deploy --only auth,firestore`)
-2. [x] Make accounts (`node src/dev/provisionTesters.js --count 20`). `tester19` + `tester20` used for testing, don't hand out
-3. [ ] **Choose database region** (one-time). Now US (`nam5`). For EU: see [STATUS](STATUS.md#open--needs-you)
+1. [ ] Push current rules + indexes to `us-v1-ff6b3` (`npx firebase deploy --only auth,firestore`). Email/Password is on since June; the deployed rules are June's
+2. [x] Accounts exist (June). Re-check: `node src/dev/provisionTesters.js --count 20`. Keep `tester19` + `tester20` for your own smoke tests
+3. [ ] **Check database region** (Firestore → Settings). See [STATUS](STATUS.md#open--needs-you)
 4. [ ] Stop strangers: Firebase console → Authentication → Settings → turn off sign-up
 5. [ ] Build APK: `npm run apk` → EAS gives link ([how](docs/tester-distribution.md))
 6. [ ] Smoke test: own phone + one friend. Sign in, add, DM, group, leave group, remove friend, reopen app
-7. [ ] Send each friend: link + one row from `testers-credentials-us-felix-test-20261030.csv` ([message to copy](docs/tester-distribution.md#message-for-testers))
+7. [ ] Send each friend: link + one row from `testers-credentials-us-v1-ff6b3.csv` — `node src/dev/testerInvites.js` ([message to copy](docs/tester-distribution.md#message-for-testers))
 8. [ ] Fix only bugs that break chat. JS fix → OTA update. Native change → new APK
 
 **Not in M1** — no work here until M1 done

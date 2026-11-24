@@ -33,6 +33,8 @@ export interface Friend {
   status: 'ACTIVE';
   since: Timestamp;
   nickname: string | null;
+  /** The friend request this edge answers — the rules' consent proof. Absent on older and seeded edges. */
+  requestId?: string;
 }
 
 export interface FriendRequest {

@@ -2,6 +2,14 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // The recipient's Settings -> "Allow Friend Requests" toggle. A missing
+    // profile or setting means requests are allowed (the default).
+    function acceptsFriendRequests(userId) {
+      let profilePath = /databases/$(database)/documents/users/$(userId);
+      return !exists(profilePath)
+             || get(profilePath).data.get('settings', {}).get('allowFriendRequests', true) != false;
+    }
+
     // End-to-end encrypted text, see docs/encryption.md. Plain strings are
     // rejected, so a client can't store message text unencrypted by mistake.
     function isEnvelope(e) {
@@ -53,7 +61,10 @@ service cloud.firestore {
         allow delete: if request.auth.uid == userId || request.auth.uid == friendId;
       }
 
-      // Friend requests: creator can create, recipient can read/update
+      // Friend requests: the sender creates a PENDING request addressed to
+      // this inbox (never to themselves, only if the recipient allows
+      // requests). The recipient may only answer it: status PENDING →
+      // ACCEPTED / REJECTED, no other field, no reopening.
       match /friendRequests/{requestId} {
         allow read: if request.auth.uid == userId
                     || request.auth.uid == resource.data.fromUserId;
@@ -62,7 +73,7 @@ service cloud.firestore {
                       && request.resource.data.toUserId == userId
                       && request.auth.uid != userId
                       && request.resource.data.status == 'PENDING'
-                      && get(/databases/$(database)/documents/users/$(userId)).data.settings.allowFriendRequests != false;
+                      && acceptsFriendRequests(userId);
         allow update: if request.auth.uid == userId
                       && resource.data.status == 'PENDING'
                       && request.resource.data.status in ['ACCEPTED', 'REJECTED']
@@ -182,6 +193,8 @@ service cloud.firestore {
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['chatId']))
         || (request.auth.uid in resource.data.invitedIds
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds', 'invitedIds'])
+          && request.resource.data.invitedIds.size() == resource.data.invitedIds.size() - 1
+          && request.resource.data.memberIds.size() <= resource.data.memberIds.size() + 1
           && request.resource.data.memberIds.toSet().difference(resource.data.memberIds.toSet()).hasOnly([request.auth.uid])
           && resource.data.memberIds.toSet().difference(request.resource.data.memberIds.toSet()).size() == 0
           && resource.data.invitedIds.toSet().difference(request.resource.data.invitedIds.toSet()).hasOnly([request.auth.uid])

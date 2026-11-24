@@ -36,10 +36,10 @@ const COUNT = (() => {
   return i === -1 ? 20 : Math.max(1, parseInt(process.argv[i + 1], 10) || 20);
 })();
 
-const FIRESTORE_PROJECT = 'us-felix-test-20261030';
+const FIRESTORE_PROJECT = 'us-v1-ff6b3';
 // Public client key from src/config/firebase.ts (API keys are identifiers, not
 // secrets). The emulator accepts any key.
-const API_KEY = EMULATOR ? 'fake-api-key' : 'AIzaSyBzqReaQtKNzcZ0UeKFVcHUiWcbzQLkaNQ';
+const API_KEY = EMULATOR ? 'fake-api-key' : 'AIzaSyCQE2t2nLYTxKMA7SeM-FPx1y2th9wEHFM';
 
 const AUTH_BASE = EMULATOR
   ? 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1'
@@ -59,10 +59,20 @@ function generatePassword() {
   return randomBytes(18).toString('base64url');
 }
 
+// The 2026-06-14 run against us-v1-ff6b3 wrote the un-suffixed name. Read it
+// when the project file doesn't exist yet; saving then writes CSV_PATH and
+// leaves the old file untouched (delete it yourself once the new one exists).
+const LEGACY_CSV_PATH = path.join(__dirname, '..', '..', 'testers-credentials.csv');
+
 function loadCsv() {
   const rows = new Map();
-  if (!fs.existsSync(CSV_PATH)) return rows;
-  const lines = fs.readFileSync(CSV_PATH, 'utf8').trim().split(/\r?\n/).slice(1);
+  let source = CSV_PATH;
+  if (!fs.existsSync(source)) {
+    if (EMULATOR || !fs.existsSync(LEGACY_CSV_PATH)) return rows;
+    source = LEGACY_CSV_PATH;
+    console.log(`ℹ️  Reading existing accounts from ${path.basename(LEGACY_CSV_PATH)} → will save as ${path.basename(CSV_PATH)}`);
+  }
+  const lines = fs.readFileSync(source, 'utf8').trim().split(/\r?\n/).slice(1);
   for (const line of lines) {
     if (!line.trim()) continue;
     const [accountId, email, password, uid, handle, displayName] = line.split(',');

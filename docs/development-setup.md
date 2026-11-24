@@ -30,24 +30,28 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 
 ## Emulators
 
-- Auth = project `demo-us-app`, Firestore data = `us-felix-test-20261030`. Keep `--project demo-us-app`.
+- Auth = project `demo-us-app`, Firestore data = `us-v1-ff6b3`. Keep `--project demo-us-app`.
 - Ports: Auth 9099, Firestore 8088, UI 4000.
 - Seed + verify write local fixtures. Restart → stop only that terminal, never kill all Node/Java.
 - Emulator export: use same `TEMP`/`TMP` as the terminal that started it.
 
 ## Browser
 
-Real map screens run on a fake map (`src/dev/fakeMaps.tsx`). Metro proxies emulator traffic
-same-origin. Does NOT test native markers or location permissions.
+Real map screens run on a fake map (`src/dev/fakeMaps.tsx`): Web Mercator (`src/dev/webMercator.ts`)
+over darkened OpenStreetMap tiles. Drag to pan, wheel or +/− to zoom, taps land where you tap.
+`EXPO_PUBLIC_DEV_MAP_TILES=off` = plain grid (offline), or a `{z}/{x}/{y}` URL template for another
+source (OSM's policy allows light dev use with the attribution shown). Metro proxies emulator
+traffic same-origin. Does NOT test native markers, Google Maps or location permissions.
 
 ## Phone builds
 
 | Profile | Command | Backend | Use |
 |---|---|---|---|
 | `development` | `npm run android:cloud` | your emulators | daily dev with `npm run start:dev` |
-| `tester` | `npm run apk` | test project `us-felix-test-20261030` | testers (Milestone 1) |
+| `tester` | `npm run apk` | Firebase `us-v1-ff6b3` | testers (Milestone 1) |
 | `production` | — | real Firebase | Play Store AAB, later |
 
+- Google Maps needs billing on the Maps key's Cloud project first, or every build shows a grey map ([STATUS](../STATUS.md) "Open — needs you" 3). Steps: [maps-key-hardening.md](maps-key-hardening.md); check: `npm run check:maps-key`.
 - Dev client finds emulators via Metro host. Phone + PC same network; open firewall ports if needed.
 - Dev profile sets `EXPO_PUBLIC_USE_EMULATORS=true`. `false` → real backend. Public vars are not secrets.
 - Dev personas (`dev-user`, `alice`…) use fixed encryption keys so the seed can encrypt their chats. Dev builds only. Tester accounts use real keys, also on emulators.
@@ -56,8 +60,10 @@ same-origin. Does NOT test native markers or location permissions.
 
 ## CI
 
-`.github/workflows/checks.yml`: install, typecheck, tests, Expo checks, Android/web Metro export,
-emulator checks on push + PR. Reports advisories. No APK, no deploy.
+`.github/workflows/checks.yml`: install, typecheck, tests, Android/web Metro export, emulator
+checks, then the Expo SDK-drift checks (`expo install --check`, `expo-doctor`) on push + PR.
+Drift checks run last: Expo patch releases fail them with no code change (fix: `npx expo install --fix`).
+Reports advisories. No APK, no deploy.
 
 ## Security
 
