@@ -70,7 +70,8 @@
           "androidGoogleMapsApiKey": "AIzaSyDbe2K0Ttie5U24QvxUdRXi_2hFwfTDLEg"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-status-bar"
     ],
     "extra": {
       "router": {

@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/@expo/dom-webview/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/@expo/log-box/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/@react-native-async-storage/async-storage/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/@react-native-masked-view/masked-view/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/@react-native/gradle-plugin" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/@sentry/react-native" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-application/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-asset/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-blur/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-constants/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-constants/scripts" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-crypto/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-dev-client/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-dev-launcher/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-dev-launcher/expo-dev-launcher-gradle-plugin" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/node_modules/expo-dev-launcher/expo-dev-launcher-gradle-plugin" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-dev-menu-interface/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-dev-menu/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-eas-client/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-file-system/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-font/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-json-utils/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-keep-awake/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-linking/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-location/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-manifests/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-modules-autolinking/android/expo-gradle-plugin" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-modules-core/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-modules-core/expo-module-gradle-plugin" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-router/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-secure-store/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-splash-screen/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-status-bar/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-structured-headers/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-system-ui/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-updates-interface/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-updates/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-updates/expo-updates-gradle-plugin" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native-gesture-handler/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native-maps/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native-reanimated/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native-safe-area-context/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$/node_modules/react-native-safe-area-context/android" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native-screens/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native-svg/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/react-native-worklets/android" />
+        <option name="gradleJvm" value="#JAVA_HOME" />
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>

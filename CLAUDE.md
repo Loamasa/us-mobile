@@ -39,3 +39,14 @@ Full list: `README.md` → Commands. Most used:
 - Ghost mode: delete location doc + stop watcher + set globalLocationSharing=false
 - Signals: `users/{uid}.currentSignal`, sealed to friends, client-side expiry check
 - Encryption: user content is end-to-end encrypted at the `src/lib/firestore.ts` boundary, rules refuse plain text. See `docs/encryption.md` before storing anything new
+
+## Commit trailers
+
+When you commit, end the message with these two trailer lines, together in its last paragraph, so the next agent knows who changed what and why:
+
+    Agent: <your tool, and your role if you have one>
+    Why: <the reason for the change, in one line>
+
+## To-do list
+
+This project's shared to-do list is `TODO.md`, one task per line as `- [ ] task`. When you finish a task on it, tick it as `- [x]`. Add work you find but won't do now. Commit the list with the change it belongs to.
