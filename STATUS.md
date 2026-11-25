@@ -4,6 +4,8 @@
 > History: [docs/CHANGELOG.md](docs/CHANGELOG.md). Gotchas: [.context/memory.md](.context/memory.md).
 
 ## Last Updated
+2026-11-26 — **Android map = OpenStreetMap** (same shim as web, `metro.config.js` → `src/dev/fakeMaps.tsx`), no Google key or billing needed. New tester APK build `47ce2427-…` (runtime `7e4fe518…`). Older EAS builds and the unused OTA update deleted. Firebase test projects `us-felix-test-20261030` + `test-fsop` to be deleted in the console (the CLI can't).
+
 2026-11-25 — **Expo back to `fsopelsa`** (`app.json` owner + project `d74d2bb5-…`; `lomasas-team` not used). **Rules + indexes deployed to `us-v1-ff6b3`** (current encrypted-data rules; one extra index on the server left alone). Database region checked: `europe-north2`. Expo SDK 58 patch bumps, tests 53/53. Tester APK built under `fsopelsa` (build `7809a060-…`, link on expo.dev → us-mobile → Builds), not yet installed on a phone.
 
 2026-11-14 — **GitHub branch clean-up.** Folded `prel/hopeful-goodall-bbm8io` (Maps key runbook) into this line: [docs/maps-key-hardening.md](docs/maps-key-hardening.md) (adapted to the `tester` profile and the `lomasas-team` keystore) + `npm run check:maps-key` (one Geocoding probe, key never printed; today → BILLING OFF, exit 2). Item 3 below now follows the runbook's order. CI was red again from Expo SDK 58 patch drift only (functional checks all green): 13 patch bumps applied (`expo` 58.0.25), `expo install --check` + `expo-doctor` pass. Branches `feat/group-chat`, `cl/dreamy-dirac-ju2j20` (both already in `main`) and `prel/great-faraday-hscinl` (= `fel/phase1`) are to be deleted.
