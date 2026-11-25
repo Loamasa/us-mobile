@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="JavaScriptLibraryMappings">
+    <file url="file://$PROJECT_DIR$" libraries="{Node.js Core}" />
+    <file url="file://$PROJECT_DIR$/node_modules/@react-native/gradle-plugin" libraries="{Node.js Core}" />
+    <file url="file://$PROJECT_DIR$/node_modules/expo-dev-launcher/expo-dev-launcher-gradle-plugin" libraries="{Node.js Core}" />
+    <file url="file://$PROJECT_DIR$/node_modules/expo-dev-launcher/expo-dev-launcher-gradle-plugin/src/main" libraries="{Node.js Core}" />
+    <file url="file://$PROJECT_DIR$/node_modules/react-native-safe-area-context/android" libraries="{Node.js Core}" />
+  </component>
+</project>

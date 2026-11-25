@@ -14,7 +14,6 @@ _Last updated: 2026-11-25_
 - No decisions logged yet.
 
 ## Notes
-- chore(maps): switch to the new API-restricted Google Maps key
 - chore: back to the original backend (us-v1-ff6b3) and Expo account (lomasas-team)
 - Merge prel/hopeful-goodall-bbm8io into fel/phase1
 - chore(deps): apply Expo SDK 58 patch updates
@@ -24,6 +23,7 @@ _Last updated: 2026-11-25_
 - Merge pull request #5 from Loamasa/claude/project-thread-03eqlp
 - chore: update Expo SDK dependencies and project setup
 - Merge branch 'fel/phase1' of https://github.com/Loamasa/us-mobile into fel/phase1
+- New feature: feat: use OpenStreetMap on Android [src/dev/fakeMaps.tsx]
 
 ## Key files
 - `package-lock.json`
