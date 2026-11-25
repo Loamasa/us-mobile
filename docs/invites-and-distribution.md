@@ -1,7 +1,7 @@
 # Inviting testers + getting the app onto their phones — status and options
 
 > Written 2026-11-08, updated 2026-11-09 for the switch back to Firebase `us-v1-ff6b3` +
-> Expo `lomasas-team` (Felix's test project `us-felix-test-20261030` / Expo `fsopelsa` are no
+> Expo `fsopelsa` (since 2026-11-25; Felix's test project `us-felix-test-20261030` is no
 > longer used). Nothing here is decided — decisions at the end.
 
 ## Where it stands
@@ -41,7 +41,7 @@ wording (`{link} {accountId} {password} {inviterHandle}`).
 
 ## What blocks "invite by SMS/email" today
 
-1. **No install link** — the EAS build has to run under an Expo account in `lomasas-team`.
+1. **No install link** — the EAS build has to run as Expo account `fsopelsa`.
 2. **Rules deploy** — `us-v1-ff6b3` still runs June's rules; the app needs the current
    encrypted-data rules + indexes: `npx firebase deploy --only auth,firestore` before the first build.
 3. **Google Maps billing** — without it every tester sees a grey map
@@ -76,7 +76,7 @@ password, so they still get their row (e.g. via `src/dev/testerInvites.js`).
 
 ### 1. EAS internal link — ready now (≈30 min + build queue)
 
-1. `npx eas-cli@25.3.0 login` with an Expo account in `lomasas-team`; check with `npx eas-cli@25.3.0 whoami`.
+1. `npx eas-cli@25.3.0 login` as `fsopelsa`; check with `npx eas-cli@25.3.0 whoami`.
 2. `npm run apk`. First run: let EAS **generate the Android keystore** (it keeps it; every later
    APK must use the same one so updates install over the old app — testers must never
    uninstall first, that loses their encryption key and old messages). The free plan queues

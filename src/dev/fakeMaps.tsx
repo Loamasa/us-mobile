@@ -1,19 +1,22 @@
 /**
- * Dev-only web stand-in for react-native-maps. metro.config.js resolves
- * 'react-native-maps' to this file on web, so the REAL native map screens run
- * unchanged in the browser (Claude preview self-testing). Never bundled on
- * native — the real package resolves there.
+ * OpenStreetMap stand-in for react-native-maps. metro.config.js resolves
+ * 'react-native-maps' to this file on web AND Android, so the same map
+ * screens run in the browser and in the APK without Google Maps (no key, no
+ * billing). iOS still gets the real package (Apple Maps).
  *
  * Web Mercator projection (math in ./webMercator.ts, unit-tested by
  * `npm test`) over OpenStreetMap raster tiles, darkened to the app's void
- * theme. Drag to pan, wheel or +/- to zoom; taps report the tapped
- * coordinate. Markers assume the anchor={{ x: 0.5, y: 0.5 }} this codebase
- * always passes (children centered on the coordinate).
+ * theme. Web: drag to pan, wheel or +/- to zoom. Android: drag to pan, pinch
+ * or +/- to zoom. Taps report the tapped coordinate. Markers assume the
+ * anchor={{ x: 0.5, y: 0.5 }} this codebase always passes (children centered
+ * on the coordinate).
  *
  * Tiles: EXPO_PUBLIC_DEV_MAP_TILES — unset = OSM standard tiles; "off" = the
  * old dark grid (offline / CI screenshots); any other value = a
- * `{z}/{x}/{y}` URL template. OSM's tile policy allows this light dev use
- * with visible attribution; never point production traffic at it.
+ * `{z}/{x}/{y}` URL template. OSM's tile policy allows light use (a small
+ * tester group) with visible attribution and an app User-Agent.
+ * shortcut: tile.openstreetmap.org is not for public-release traffic, switch
+ * to a paid/self-hosted tile source before a public launch.
  */
 import {
   createContext,
@@ -26,7 +29,8 @@ import {
   useState,
 } from 'react';
 import type { ReactNode } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, PanResponder, Platform, Pressable, Text, View } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import {
   metersPerPixel,
   panRegion,
@@ -53,6 +57,9 @@ const TILE_ATTRIBUTION =
   TILE_TEMPLATE === OSM_TILES ? '© OpenStreetMap contributors' : 'Map tiles: custom source';
 // Light OSM tiles → dark map close to DARK_MAP_STYLE (void background, muted roads).
 const DARK_TILE_FILTER = 'invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.35)';
+const IS_WEB = Platform.OS === 'web';
+// OSM's tile policy blocks generic HTTP-library User-Agents; browsers send their own.
+const TILE_HEADERS = IS_WEB ? undefined : { 'User-Agent': 'us-mobile/1.0 (com.us.mobile)' };
 
 const DRAG_THRESHOLD_PX = 6;
 const MIN_ZOOM_DELTA = 0.0005; // ~zoom 17 on a phone-sized pane
@@ -98,7 +105,7 @@ function TileLayer({ region, size }: { region: Region; size: Size }) {
       {visibleTiles(region, size).map((tile) => (
         <Image
           key={tile.key}
-          source={{ uri: tileUrl(TILE_TEMPLATE, tile) }}
+          source={{ uri: tileUrl(TILE_TEMPLATE, tile), headers: TILE_HEADERS }}
           style={{
             position: 'absolute',
             left: tile.left,
@@ -288,6 +295,55 @@ const MapView = forwardRef(function MapView(props: MapViewProps, ref) {
     };
   }, [pane, changeRegion, reportRegion]);
 
+  // Android: drag to pan, pinch to zoom. Capture only once a touch moves (or a
+  // second finger lands), so taps still reach markers and the press catcher.
+  const gestureRef = useRef<{ region: Region; x: number; y: number; dist: number; two: boolean } | null>(null);
+  const responder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_e, g) =>
+        g.numberActiveTouches === 2 || Math.hypot(g.dx, g.dy) >= DRAG_THRESHOLD_PX,
+      onPanResponderGrant: () => {
+        draggedRef.current = true;
+        gestureRef.current = null;
+      },
+      onPanResponderMove: (e: GestureResponderEvent) => {
+        const t = e.nativeEvent.touches;
+        if (t.length === 0) return;
+        const two = t.length >= 2;
+        const x = two ? (t[0].pageX + t[1].pageX) / 2 : t[0].pageX;
+        const y = two ? (t[0].pageY + t[1].pageY) / 2 : t[0].pageY;
+        const dist = two ? Math.hypot(t[0].pageX - t[1].pageX, t[0].pageY - t[1].pageY) : 0;
+        const start = gestureRef.current;
+        // New gesture, or a finger was added/lifted: restart from here so the map never jumps.
+        if (!start || start.two !== two) {
+          gestureRef.current = { region: regionRef.current, x, y, dist, two };
+          return;
+        }
+        let next = panRegion(start.region, sizeRef.current, x - start.x, y - start.y);
+        if (two && dist > 0) {
+          // shortcut: zooms around the map center, not the pinch point; anchor it if it feels off.
+          const factor = start.dist / dist;
+          next = {
+            ...next,
+            latitudeDelta: clampDelta(start.region.latitudeDelta * factor),
+            longitudeDelta: clampDelta(start.region.longitudeDelta * factor),
+          };
+        }
+        regionRef.current = next;
+        setRegion(next);
+      },
+      onPanResponderRelease: () => endGesture(),
+      onPanResponderTerminate: () => endGesture(),
+    })
+  ).current;
+  function endGesture() {
+    gestureRef.current = null;
+    reportRegion(regionRef.current);
+    setTimeout(() => {
+      draggedRef.current = false;
+    }, 0);
+  }
+
   useImperativeHandle(ref, () => ({
     animateToRegion: (next: Region, _duration?: number) => changeRegion(() => next),
   }));
@@ -312,15 +368,20 @@ const MapView = forwardRef(function MapView(props: MapViewProps, ref) {
 
   return (
     <View
-      ref={paneRef as never}
+      ref={IS_WEB ? (paneRef as never) : undefined}
+      // Native has no DOM to measure; onLayout is reliable there.
+      onLayout={
+        IS_WEB
+          ? undefined
+          : (e) => {
+              const { width, height } = e.nativeEvent.layout;
+              setSize((s) => (s.width === width && s.height === height ? s : { width, height }));
+            }
+      }
+      {...(IS_WEB ? {} : responder.panHandlers)}
       style={[
-        webOnly({
-          overflow: 'hidden',
-          backgroundColor: '#0F1115',
-          cursor: 'grab',
-          userSelect: 'none',
-          touchAction: 'none',
-        }),
+        { overflow: 'hidden', backgroundColor: '#0F1115' },
+        IS_WEB ? webOnly({ cursor: 'grab', userSelect: 'none', touchAction: 'none' }) : null,
         style,
       ]}
     >
@@ -334,6 +395,14 @@ const MapView = forwardRef(function MapView(props: MapViewProps, ref) {
       {onPress || onLongPress ? (
         <Pressable
           style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+          // Web gets the press point from its pointerdown listener.
+          onPressIn={
+            IS_WEB
+              ? undefined
+              : (e) => {
+                  pressPointRef.current = { x: e.nativeEvent.locationX, y: e.nativeEvent.locationY };
+                }
+          }
           onPress={
             onPress
               ? () => {
@@ -391,16 +460,18 @@ const MapView = forwardRef(function MapView(props: MapViewProps, ref) {
             <Text style={{ color: '#F2F4F6', fontSize: 18, lineHeight: 20 }}>{label}</Text>
           </Pressable>
         ))}
-        <Text
-          style={{
-            color: 'rgba(242,244,246,0.25)',
-            fontSize: 9,
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-          }}
-        >
-          {`Dev map (web shim) · z${zoomLevel.toFixed(1)}`}
-        </Text>
+        {IS_WEB ? (
+          <Text
+            style={{
+              color: 'rgba(242,244,246,0.25)',
+              fontSize: 9,
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+            }}
+          >
+            {`Dev map (web shim) · z${zoomLevel.toFixed(1)}`}
+          </Text>
+        ) : null}
         {TILE_TEMPLATE ? (
           <Text style={{ color: 'rgba(242,244,246,0.45)', fontSize: 9 }}>{TILE_ATTRIBUTION}</Text>
         ) : null}

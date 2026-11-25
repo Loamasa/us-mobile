@@ -50,14 +50,14 @@ config.server.enhanceMiddleware = (metroMiddleware, server) => {
   };
 };
 
-// react-native-maps has no web implementation. On web, resolve the package to
-// the dev shim (src/dev/fakeMaps.tsx — dark pane + lat/lng→pixel projection)
-// so the REAL native map screens render in the browser for self-testing.
+// On web and Android, resolve react-native-maps to the OpenStreetMap shim
+// (src/dev/fakeMaps.tsx): web has no implementation, and on Android Google Maps
+// needs a billed key. iOS keeps the real package (Apple Maps, no key).
 const path = require('path');
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (
-    platform === 'web' &&
+    (platform === 'web' || platform === 'android') &&
     (moduleName === 'react-native-maps' || moduleName.startsWith('react-native-maps/'))
   ) {
     return {

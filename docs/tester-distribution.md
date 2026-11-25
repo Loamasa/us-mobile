@@ -19,7 +19,7 @@ rules + indexes are June's — deploy the current ones before the first build (t
 npx firebase login
 npx firebase deploy --only auth,firestore
 node src/dev/provisionTesters.js --count 20   # checks all, adds missing; first run reads the June testers-credentials.csv
-npx eas-cli@25.3.0 login                      # an Expo account in lomasas-team
+npx eas-cli@25.3.0 login                      # Expo account fsopelsa
 ```
 
 Keep `tester19` + `tester20` for your own smoke tests; hand out `tester01`–`tester18`.

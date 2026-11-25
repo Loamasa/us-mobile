@@ -17,14 +17,14 @@
 - [ ] Close app, open again → still signed in
 - [ ] One week normal use, no crash that stop chat
 
-**Backend:** Firebase `us-v1-ff6b3`, the only project the app knows (back from Felix's test project on 2026-11-09). Expo: `lomasas-team`. Chats and other private data are [end-to-end encrypted](docs/encryption.md).
+**Backend:** Firebase `us-v1-ff6b3`, the only project the app knows (back from Felix's test project on 2026-11-09). Expo: `fsopelsa`. Chats and other private data are [end-to-end encrypted](docs/encryption.md).
 
 **Steps**
-1. [ ] Push current rules + indexes to `us-v1-ff6b3` (`npx firebase deploy --only auth,firestore`). Email/Password is on since June; the deployed rules are June's
-2. [x] Accounts exist (June). Re-check: `node src/dev/provisionTesters.js --count 20`. Keep `tester19` + `tester20` for your own smoke tests
-3. [ ] **Check database region** (Firestore → Settings). See [STATUS](STATUS.md#open--needs-you)
+1. [x] Push current rules + indexes to `us-v1-ff6b3` (`npx firebase deploy --only auth,firestore`). Deployed 2026-11-25
+2. [x] Accounts exist (June). Re-check: `node src/dev/provisionTesters.js --count 20`. Keep `tester19` + `tester20` for your own smoke tests. Needs the June `testers-credentials.csv` (not on this PC since 2026-11-25)
+3. [x] **Check database region**: `europe-north2` (Stockholm), checked 2026-11-25
 4. [ ] Stop strangers: Firebase console → Authentication → Settings → turn off sign-up
-5. [ ] Build APK: `npm run apk` → EAS gives link ([how](docs/tester-distribution.md))
+5. [x] Build APK: `npm run apk` → EAS gives link ([how](docs/tester-distribution.md)). Built 2026-11-25 under `fsopelsa`: build `7809a060-…`
 6. [ ] Smoke test: own phone + one friend. Sign in, add, DM, group, leave group, remove friend, reopen app
 7. [ ] Send each friend: link + one row from `testers-credentials-us-v1-ff6b3.csv` — `node src/dev/testerInvites.js` ([message to copy](docs/tester-distribution.md#message-for-testers))
 8. [ ] Fix only bugs that break chat. JS fix → OTA update. Native change → new APK
@@ -57,6 +57,7 @@ Feature ideas beyond prototype: [FEATURES.md](FEATURES.md).
 **This repo**
 - [README](README.md) — what app is + every command
 - [STATUS](STATUS.md) — current state, open items
+- [Android guide](docs/android-guide.md) — your steps to a working map + login, in order
 - [Tester distribution](docs/tester-distribution.md) — build, share, manage accounts
 - [Development setup](docs/development-setup.md) — toolchain, emulators, dev client
 - [Encryption](docs/encryption.md) — what is private, how, limits

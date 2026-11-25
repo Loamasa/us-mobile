@@ -20,6 +20,20 @@ use `npm.cmd` / `npx.cmd` in PowerShell. More on toolchain: [development setup](
 | `npx firebase login` | One time. Needed for deploy + prod scripts |
 | `npx eas-cli@25.3.0 login` | One time. Expo account for APK builds |
 
+### After a PC reboot
+
+Nothing starts by itself, and emulator data is not saved between runs. Run these in order:
+
+1. Open `Dev-Terminal.cmd` three times (one terminal each for emulators, seed and web).
+2. Only after `git pull` or a branch switch: `npm ci`. Stop running emulators first, or Windows blocks the reinstall (`EPERM`).
+3. Terminal 1: `npm run emulators`. Wait for "All emulators ready".
+4. Terminal 2: `npm run seed`.
+5. Terminal 3: `npm run web`, then open http://localhost:8081.
+
+The real backend (`us-v1-ff6b3`) and EAS builds are in the cloud and need no start-up.
+If a port is "not open" or "taken", an old emulator is still running: close it, do not change `firebase.json` ports.
+"Unable to find expo in this project" means `node_modules` is broken: run `npm ci`.
+
 ### Run local (browser, fake backend)
 
 Two terminals.
@@ -31,8 +45,8 @@ Two terminals.
 | 3 | `npm run web` | App in browser → http://localhost:8081, auto sign-in as `dev-user` |
 | opt | `npm run freshen` | Keep seeded people "fresh" on map (else they go stale after 5 min) |
 
-Browser map is a stand-in (`src/dev/fakeMaps.tsx`) on real OpenStreetMap streets: drag, zoom, tap to place.
-Good for data/logic/UI, not the native Google map. `EXPO_PUBLIC_DEV_MAP_TILES=off` = plain grid (offline).
+The map on web and Android is `src/dev/fakeMaps.tsx` on real OpenStreetMap streets: drag, zoom, tap to place.
+No Google key needed. iOS uses Apple Maps. `EXPO_PUBLIC_DEV_MAP_TILES=off` = plain grid (offline).
 
 ### Run on phone (development client)
 
@@ -61,7 +75,7 @@ Old Expo Go can NOT run this app (SDK 58 + Maps 1.29).
 
 ### Real backend
 
-Firebase project = `us-v1-ff6b3` (the only project in the app, and the `.firebaserc` default). Expo account = `lomasas-team`.
+Firebase project = `us-v1-ff6b3` (the only project in the app, and the `.firebaserc` default). Expo account = `fsopelsa`.
 
 | Command | Does |
 |---|---|

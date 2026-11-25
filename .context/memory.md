@@ -7,7 +7,7 @@
 - Felix (`FSopelsa`) — lead developer. His branches win conflicts (`felix/dev-setup` merged 2026-10-29).
 
 ## Firebase
-- Only backend: `us-v1-ff6b3` (back from Felix's `us-felix-test-20261030` on 2026-11-09), hardcoded in `src/config/firebase.ts` + `.firebaserc` + the dev scripts/tests (`EMULATOR_PROJECT_ID`/`FIRESTORE_PROJECT` — the emulator stores Firestore data under the app's projectId, so all must match). Env-driven config broke OTA (`eas update` doesn't read build profile env). Package `com.us.mobile`. Spark (free) plan: TTL policies need billing. Expo project: `lomasas-team` (`b9ed9b69-…`); `fsopelsa`'s project (`d74d2bb5-…`) is no longer used — OTA updates only reach APKs built by the same Expo project.
+- Only backend: `us-v1-ff6b3` (back from Felix's `us-felix-test-20261030` on 2026-11-09), hardcoded in `src/config/firebase.ts` + `.firebaserc` + the dev scripts/tests (`EMULATOR_PROJECT_ID`/`FIRESTORE_PROJECT` — the emulator stores Firestore data under the app's projectId, so all must match). Env-driven config broke OTA (`eas update` doesn't read build profile env). Package `com.us.mobile`. Spark (free) plan: TTL policies need billing. Expo project: `fsopelsa` (`d74d2bb5-…`, chosen 2026-11-25); `lomasas-team` (`b9ed9b69-…`) is not used — OTA updates only reach APKs built by the same Expo project.
 - **Firebase web API keys are not Maps keys**: `AIzaSyCQE2t2…` (us-v1-ff6b3) and `AIzaSyBzq…` (us-felix-test) are Firebase client keys. Never add Android-app restrictions to them — the JS SDK sends no Android package/SHA-1 headers, so sign-in would break. The Maps key is the separate one in `app.json`.
 - Friends rule needs `requestId` on friend docs + pending request. Chat update = `lastMessage*` or self-leave only. New chat/gathering field write → update rules too.
 - Auth: Email/Password (testers). Phone/OTP screens removed (git history); public release → `@react-native-firebase/auth`.
@@ -34,6 +34,7 @@
 - **Expo SDK patch releases turn CI red with no code change** (`expo install --check` / `expo-doctor` find drift) → `npx expo install --fix` (patch bumps only). CI runs these two drift checks LAST so they can't hide the real checks (they did, 2026-11-02 → 11-08).
 - **Metro warning "expo-router contains an invalid package.json … router-store.js does not exist" = Sentry, harmless**: `@sentry/react-native` 8.28 `require`s an expo-router internal removed in SDK 58 (inside try/catch → just no route names in Sentry). Fixed in Sentry 8.34; let `expo install --fix` pick it up when Expo's SDK pin moves.
 - Expo Go can NOT run the app (SDK 58 + Maps 1.29). Use dev client (`npm run android:cloud`) or browser.
+- **Android map = OSM shim, not Google** (2026-11-26): `metro.config.js` resolves `react-native-maps` to `src/dev/fakeMaps.tsx` on web AND android; iOS keeps the real package. The Google Maps key/billing only matter for iOS-less paths now (none). Shim ignores `showsUserLocation` (draw a dot yourself, see `MySpotsModal`). Native tiles need a User-Agent header (OSM blocks generic okhttp). `metro.config.js` is not in the expo fingerprint, so this ships by OTA.
 
 ## EAS / release
 - `eas.json`: development (dev client APK, emulators) · tester (APK — M1) · production (AAB). `appVersionSource: local` (app.json owns versionCode).

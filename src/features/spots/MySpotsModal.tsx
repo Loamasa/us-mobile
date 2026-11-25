@@ -105,8 +105,8 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
     const [saving, setSaving] = useState(false);
     const [search, setSearch] = useState('');
     const [searchState, setSearchState] = useState<'idle' | 'searching' | 'noresults' | 'error'>('idle');
-    // Last GPS fix — drawn as a dot on the web shim (native uses the built-in
-    // showsUserLocation layer; a custom marker would hit the Fabric clipping bug).
+    // Last GPS fix — drawn as a dot on the OSM shim (web + Android; iOS uses the
+    // built-in showsUserLocation layer, a custom marker there would hit the Fabric clipping bug).
     const [myPosition, setMyPosition] = useState<{ lat: number; lng: number } | null>(null);
     const mapRef = useRef<any>(null);
 
@@ -373,10 +373,11 @@ export default function MySpotsModal({ visible, onClose }: MySpotsModalProps) {
                             </View>
                         </Marker>
 
-                        {/* Web shim has no showsUserLocation layer — draw the dot
-                            ourselves. Native keeps the built-in layer (a custom
-                            marker there would hit the Fabric clipping bug). */}
-                        {Platform.OS === 'web' && myPosition && (
+                        {/* The OSM shim (web + Android) has no showsUserLocation
+                            layer — draw the dot ourselves. iOS keeps the built-in
+                            layer (a custom marker there would hit the Fabric
+                            clipping bug). */}
+                        {Platform.OS !== 'ios' && myPosition && (
                             <Marker
                                 coordinate={{ latitude: myPosition.lat, longitude: myPosition.lng }}
                                 anchor={{ x: 0.5, y: 0.5 }}

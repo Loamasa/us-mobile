@@ -33,7 +33,7 @@ until billing is linked. The key is the original `AIzaSyDbe2K0…` (the 2026-11-
 `AIzaSyBzq…` was reverted: that one is a Firebase web key, see `.context/memory.md`).
 **Do the steps in this order** so the key is never unrestricted *and* billable at the
 same time: restrict (3) → trim APIs (4) → link billing (5) → budget (6) → verify (7).
-No APK has been built under `lomasas-team` yet, so there is no signing SHA-1: do the
+The `fsopelsa` keystore already has a SHA-1 on EAS; still do the
 **API** restriction in step 3 now and add the Android-app restriction after the first
 build.
 
@@ -69,7 +69,7 @@ npx eas-cli@25.3.0 credentials -p android
 Pick a build profile (start with `tester`, the one `npm run apk` builds), then copy the
 keystore's **SHA1 Fingerprint** (`AA:BB:…`, 20 pairs). If it says no keystore is
 configured, run the first `npm run apk` and let EAS generate one (STATUS "Open — needs
-you" 4). The same SHA-1 is also shown at expo.dev → `lomasas-team` → us-mobile →
+you" 4). The same SHA-1 is also shown at expo.dev → `fsopelsa` → us-mobile →
 Credentials → Android → `com.us.mobile`.
 
 Repeat for `development` and `production`. They normally share one keystore; if any shows
