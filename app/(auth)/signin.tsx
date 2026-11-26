@@ -1,8 +1,17 @@
 import { useState } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { collection, getDocs, limit, query } from 'firebase/firestore';
+import { signInAnonymously, signInWithEmailAndPassword } from 'firebase/auth';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
 import * as Location from 'expo-location';
 import { auth, db } from '@/config/firebase';
 import { TESTER_EMAIL_DOMAIN } from '@/config/constants';
@@ -23,6 +32,67 @@ export default function SignInScreen() {
   const [focusedField, setFocusedField] = useState<'id' | 'password' | null>(null);
   const router = useRouter();
 
+  // Permission already granted → straight to the map. Otherwise only a truly
+  // fresh account (no spots yet) gets the first-run permissions → spots flow;
+  // a returning user goes to the map, where the location permission is
+  // requested natively anyway. One-shot read is fine here (imperative
+  // post-login check, not reactive UI). Same for testers and guests.
+  const routeAfterSignIn = async (uid: string) => {
+    const { status } = await Location.getForegroundPermissionsAsync();
+    if (status === 'granted') {
+      router.replace('/(tabs)/map');
+      return;
+    }
+    const spotsSnap = await getDocs(query(collection(db, 'users', uid, 'spots'), limit(1)));
+    router.replace(spotsSnap.empty ? '/(auth)/permissions' : '/(tabs)/map');
+  };
+
+  // Guest = Firebase anonymous account + a random @guest_xxxxxx handle so friends can add it.
+  // The account lives only on this device: signing out loses it for good.
+  const handleGuest = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const { user } = await signInAnonymously(auth);
+      if (!(await getDoc(doc(db, 'users', user.uid))).exists()) {
+        let handle = '';
+        // Handles are create-only in the rules, so a taken one fails; try a few.
+        for (let i = 0; i < 5 && !handle; i++) {
+          const candidate = `guest_${Math.random().toString(36).slice(2, 8)}`;
+          try {
+            await setDoc(doc(db, 'handles', candidate), { userId: user.uid });
+            handle = candidate;
+          } catch {
+            // taken, try another
+          }
+        }
+        if (!handle) throw new Error('Could not reserve a guest handle. Try again.');
+        await setDoc(doc(db, 'users', user.uid), {
+          displayName: 'Guest',
+          handle,
+          avatarUrl: null,
+          bio: '',
+          phoneNumber: '',
+          createdAt: serverTimestamp(),
+          settings: { globalLocationSharing: true, allowFriendRequests: true, showOnlineStatus: true },
+          currentSignal: null,
+        });
+      }
+      await routeAfterSignIn(user.uid);
+    } catch (err: any) {
+      const code: string = err?.code ?? '';
+      if (code.includes('operation-not-allowed') || code.includes('admin-restricted-operation')) {
+        setError('Guest access is turned off right now.');
+      } else if (err?.message?.includes('Network')) {
+        setError("Can't reach the server. Check your connection.");
+      } else {
+        setError(err?.message ?? 'Guest sign-in failed');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSignIn = async () => {
     const id = accountId.trim().toLowerCase();
     if (!id || !password) {
@@ -36,21 +106,7 @@ export default function SignInScreen() {
     try {
       const email = id.includes('@') ? id : `${id}@${TESTER_EMAIL_DOMAIN}`;
       const cred = await signInWithEmailAndPassword(auth, email, password);
-
-      // Permission already granted → straight to the map. Otherwise only a
-      // truly fresh account (no spots yet) gets the first-run permissions →
-      // spots flow; a returning tester goes to the map, where the location
-      // permission is requested natively anyway. One-shot read is fine here
-      // (imperative post-login check, not reactive UI).
-      const { status } = await Location.getForegroundPermissionsAsync();
-      if (status === 'granted') {
-        router.replace('/(tabs)/map');
-        return;
-      }
-      const spotsSnap = await getDocs(
-        query(collection(db, 'users', cred.user.uid, 'spots'), limit(1))
-      );
-      router.replace(spotsSnap.empty ? '/(auth)/permissions' : '/(tabs)/map');
+      await routeAfterSignIn(cred.user.uid);
     } catch (err: any) {
       const code: string = err?.code ?? '';
       if (
@@ -137,6 +193,20 @@ export default function SignInScreen() {
         <Text className="text-fog/30 text-xs mt-4">
           You can change your display name anytime in Settings → My Account.
         </Text>
+
+        <Pressable
+          onPress={handleGuest}
+          disabled={loading}
+          accessibilityRole="button"
+          className="mt-6 py-3 rounded-2xl border border-glass-border items-center"
+        >
+          <Text className="text-fog/70 text-sm font-bold uppercase tracking-[2px]">
+            Continue as guest
+          </Text>
+          <Text className="text-fog/30 text-[10px] mt-1">
+            No password. Signing out deletes access to this account.
+          </Text>
+        </Pressable>
 
         {/* Error */}
         {error ? (
