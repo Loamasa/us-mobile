@@ -34,6 +34,20 @@ export interface ChatKeys {
   unknown: string[];
 }
 
+/**
+ * Nothing goes out until a changed key is acknowledged: it could be a new
+ * phone, or someone swapping keys to read along. Members whose key hasn't
+ * loaded yet would be left out silently, so wait for them too. A group can go
+ * ahead without members who have no key at all (they see a banner).
+ */
+export function canSend(keys: ChatKeys): boolean {
+  return (
+    keys.changed.length === 0 &&
+    keys.unknown.length === 0 &&
+    Object.keys(keys.recipients).length > 0
+  );
+}
+
 /** `directory`: undefined = not loaded yet, null = the server says no key exists. */
 export function resolveChatKeys(
   memberIds: string[],

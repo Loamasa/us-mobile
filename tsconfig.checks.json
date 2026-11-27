@@ -19,6 +19,7 @@
     "src/features/map/groupPins.ts",
     "src/features/e2ee/envelope.ts",
     "src/features/e2ee/trust.ts",
-    "src/dev/webMercator.ts"
+    "src/dev/webMercator.ts",
+    "src/features/e2ee/keystore.ts"
   ]
 }

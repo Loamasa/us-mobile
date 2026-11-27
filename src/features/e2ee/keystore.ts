@@ -35,15 +35,9 @@ async function loadSecretKey(uid: string): Promise<KeyPair> {
   if (__DEV__ && DEV_PERSONAS.includes(uid)) return devKeyPair(uid);
 
   const name = `us.e2ee.secret.${uid}`;
-  let stored: string | null = null;
-  try {
-    stored = await secrets.get(name);
-  } catch (e) {
-    // Android can lose the Keystore entry that protects this value. It won't
-    // come back, so carry on with a new key: old messages stay unreadable, but
-    // the app keeps working and friends get a key-change warning.
-    console.warn('[e2ee] could not read the secret key:', e);
-  }
+  // A read error may be temporary (Keystore busy, device locked), so let it
+  // throw: making a new key here would lose every old message for good.
+  const stored = await secrets.get(name);
   if (stored) return keyPairFromSecret(fromHex(stored));
 
   const pair = generateKeyPair();
@@ -76,7 +70,14 @@ async function load(uid: string): Promise<KeyPair> {
 
 /** This user's key pair. Pinned keys are ready once it resolves. */
 export function loadIdentity(uid: string): Promise<KeyPair> {
-  if (loading?.uid !== uid) loading = { uid, pair: load(uid) };
+  if (loading?.uid !== uid) {
+    const entry = { uid, pair: load(uid) };
+    // Forget a failed load so the next call tries again.
+    entry.pair.catch(() => {
+      if (loading === entry) loading = null;
+    });
+    loading = entry;
+  }
   return loading.pair;
 }
 
