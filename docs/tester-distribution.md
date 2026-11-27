@@ -59,7 +59,7 @@ Or copy + paste:
 
 > 1. Open the link on your Android phone, download the APK.
 > 2. Android warns about unknown apps — allow it for your browser (it's our app, not from the store).
-> 3. Open **us**, swipe the intro, sign in with the **Account ID** and **password** I sent you.
+> 3. Open **us**, swipe the intro, sign in with the **Account ID** and **password** I sent you. Or tap **Continue as guest**: no password, but the guest account lives only on this phone (sign out or uninstall = gone).
 > 4. Allow location when asked — friends see you ONLY while you're inside a place you set yourself. Ghost mode hides you anytime.
 >    Messages are end-to-end encrypted: if you uninstall the app, old messages can't be recovered.
 > 5. Settings → **My Account** → change display name, and change your password so only you know it. There is no email reset, so remember it.

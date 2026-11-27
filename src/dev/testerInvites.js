@@ -34,6 +34,7 @@ const DEFAULT_TEMPLATE = `Hi! You're invited to test "us" — a small app for se
 2. Open us and sign in:
 Account ID: {accountId}
 Password: {password}
+(Or tap "Continue as guest" — no password needed, but the guest account lives only on this phone: sign out or uninstall and it's gone.)
 
 3. Settings → My Account: set your display name and change your password (there's no email reset, so remember it).
 4. Chats → Add Friend → {inviterHandle}
