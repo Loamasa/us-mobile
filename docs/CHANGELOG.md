@@ -4,6 +4,17 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-11-27 — Docs tidy
+- STATUS "Last Updated" held dated history again; the 11-25 and 11-26 lines moved here (older ones were already here).
+- Google Maps billing steps parked: removed from STATUS and README as current tasks (Android uses OpenStreetMap for now, Google Maps not used yet); runbook kept in `docs/maps-key-hardening.md`.
+- Stale "rules not deployed" note fixed in memory. `TODO.md` added (CLAUDE.md and AGENTS.md pointed to it).
+
+## 2026-11-26 — Android map on OpenStreetMap
+- **Android map = OpenStreetMap** (same shim as web, `metro.config.js` → `src/dev/fakeMaps.tsx`), no Google key or billing needed. New tester APK build `47ce2427-…` (runtime `7e4fe518…`). Older EAS builds and the unused OTA update deleted. Firebase test projects `us-felix-test-20261030` + `test-fsop` to be deleted in the console (the CLI can't).
+
+## 2026-11-25 — Expo back to fsopelsa, rules deployed
+- **Expo back to `fsopelsa`** (`app.json` owner + project `d74d2bb5-…`; `lomasas-team` not used). **Rules + indexes deployed to `us-v1-ff6b3`** (current encrypted-data rules; one extra index on the server left alone). Database region checked: `europe-north2`. Expo SDK 58 patch bumps, tests 53/53. Tester APK built under `fsopelsa` (build `7809a060-…`, link on expo.dev → us-mobile → Builds), not yet installed on a phone.
+
 ## 2026-11-14 — GitHub branch clean-up: Maps key runbook folded into fel/phase1
 - **Branches checked** against `main` (no open PRs): `feat/group-chat` (merged as PR #1 in April) and `cl/dreamy-dirac-ju2j20` (same commit as `main`) hold nothing new; `prel/great-faraday-hscinl` is the same commit as `fel/phase1`. All three to be deleted. `prel/hopeful-goodall-bbm8io` held one commit not on this line (entry below) and is folded in here.
 - **Fold**: merged `prel/hopeful-goodall-bbm8io` with this line's docs as the base (4 doc conflicts: STATUS, memory, CHANGELOG, development-setup). Brought in `docs/maps-key-hardening.md`, `src/dev/checkMapsKey.js` + `npm run check:maps-key`, and the Phase 3 plan pointer (auto-merged into `docs/archive/plans/`).

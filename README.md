@@ -94,7 +94,6 @@ Firebase project = `us-v1-ff6b3` (the only project in the app, and the `.firebas
 Native change (new package, app.json plugin, permissions) → new `npm run apk`.
 Full runbook: [tester distribution](docs/tester-distribution.md). Other channels (Firebase App
 Distribution, Play internal testing): [invites and distribution](docs/invites-and-distribution.md).
-Maps on the phone first need billing on the Maps key's Cloud project ([STATUS](STATUS.md) "Open — needs you" 3).
 
 ### Good to know
 

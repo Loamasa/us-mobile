@@ -65,6 +65,8 @@
         <option name="gradleJvm" value="#JAVA_HOME" />
       </GradleProjectSettings>
       <GradleProjectSettings>
+        <option name="delegatedBuild" value="false" />
+        <option name="testRunner" value="PLATFORM" />
         <option name="externalProjectPath" value="$PROJECT_DIR$/node_modules/expo-dev-client/android" />
         <option name="gradleJvm" value="#JAVA_HOME" />
       </GradleProjectSettings>

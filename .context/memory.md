@@ -34,14 +34,13 @@
 - **Expo SDK patch releases turn CI red with no code change** (`expo install --check` / `expo-doctor` find drift) → `npx expo install --fix` (patch bumps only). CI runs these two drift checks LAST so they can't hide the real checks (they did, 2026-11-02 → 11-08).
 - **Metro warning "expo-router contains an invalid package.json … router-store.js does not exist" = Sentry, harmless**: `@sentry/react-native` 8.28 `require`s an expo-router internal removed in SDK 58 (inside try/catch → just no route names in Sentry). Fixed in Sentry 8.34; let `expo install --fix` pick it up when Expo's SDK pin moves.
 - Expo Go can NOT run the app (SDK 58 + Maps 1.29). Use dev client (`npm run android:cloud`) or browser.
-- **Android map = OSM shim, not Google** (2026-11-26): `metro.config.js` resolves `react-native-maps` to `src/dev/fakeMaps.tsx` on web AND android; iOS keeps the real package. The Google Maps key/billing only matter for iOS-less paths now (none). Shim ignores `showsUserLocation` (draw a dot yourself, see `MySpotsModal`). Native tiles need a User-Agent header (OSM blocks generic okhttp). `metro.config.js` is not in the expo fingerprint, so this ships by OTA.
+- **Android map = OSM shim, not Google** (2026-11-26): `metro.config.js` resolves `react-native-maps` to `src/dev/fakeMaps.tsx` on web AND android; iOS keeps the real package. The Google Maps key and billing only matter once we switch Android to Google Maps (not yet). Shim ignores `showsUserLocation` (draw a dot yourself, see `MySpotsModal`). Native tiles need a User-Agent header (OSM blocks generic okhttp). `metro.config.js` is not in the expo fingerprint, so this ships by OTA.
 
 ## EAS / release
 - `eas.json`: development (dev client APK, emulators) · tester (APK — M1) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
 - app.json `runtimeVersion: { policy: "fingerprint" }` → any native change = new runtime, OTA won't reach old APKs → rebuild.
 - `google-services.json` gitignored, NOT needed (JS SDK, no `googleServicesFile`).
-- **Google Maps = billing, not code** (2026-11-08): key in app.json (`AIzaSyDbe2K0…`, not a Firebase key — probably in `us-v1-ff6b3`'s Cloud project) is valid, but its Cloud project has NO billing → every Maps API answers `403 … You must enable Billing` → phone shows grey grid + Google logo (logcat "Authorization failure"). Probe: `curl "https://maps.googleapis.com/maps/api/staticmap?center=0,0&zoom=1&size=2x2&key=<KEY>"` — "invalid" = bad key, "enable Billing" = no billing, "not authorized" = restricted/API off. Maps SDK for Android is free but needs billing linked; link billing + enable API + restrict key (Maps SDK for Android only; `com.us.mobile` + each signing SHA-1) in ONE sitting — key is committed and extractable from any APK anyway. Steps: STATUS "Open — needs you" 3 + `docs/maps-key-hardening.md`.
-- **Maps key: restrict BEFORE linking billing** (2026-11-08, folded in 2026-11-14): `npm run check:maps-key` (one Geocoding probe, key redacted) → RESTRICTED 0 / BILLING OFF or INCONCLUSIVE 2 / UNRESTRICTED or INVALID KEY 1. A disabled API on the project is also `REQUEST_DENIED`, so only Google's key messages ("API key is not authorized…", "…not authorized to use this API key") count as RESTRICTED; once step 4 turns Geocoding off, confirm the key's `apiTargets` instead. The API restriction (Maps SDK for Android only) is the part that blocks spending, so it can go on before an APK exists; the Android-app restriction needs the EAS keystore SHA-1. Linking billing on `us-v1-ff6b3` moves Firebase Spark → Blaze. Expo Go uses Expo's own Maps key, web uses the `fakeMaps` shim, so only EAS APKs use ours. Cloud sessions have no usable gcloud/EAS credentials → the Cloud/EAS steps are user actions.
+- **Google Maps not used yet** (Android = OSM shim for now, since 2026-11-26). The key in `app.json` (`AIzaSyDbe2K0…`) is valid, but its Cloud project has no billing, so Google Maps shows a grey grid. Before switching to Google Maps: restrict the key BEFORE linking billing (billing moves `us-v1-ff6b3` Spark → Blaze). Steps: `docs/maps-key-hardening.md`; check: `npm run check:maps-key`.
 - EAS login/build run under user's Expo account. Can't script from here.
 
 ## Testing
@@ -52,7 +51,7 @@
 - **Blocking prod in Playwright: match the hostname** (`/(^|\.)googleapis\.com$/.test(url.hostname)`), not the URL — emulator traffic goes through `localhost:8081/identitytoolkit.googleapis.com/...`.
 - **Metro proxy**: after upstream headers sent, a later error must close the response, not write a 2nd 502 header (`tests/metro-proxy.test.cjs`).
 - **Map bugs checkable without device**: emulators → `npm run seed` → `npm run verify`. Reads live data through app's real path.
-- **Privacy rules**: fake friendship + creator rewrite blocked, tested on emulator only, not deployed, no full audit.
+- **Privacy rules**: fake friendship + creator rewrite blocked, tested on emulator, deployed to `us-v1-ff6b3` 2026-11-25, no outside audit.
 - Two phones on dev build: both auto-sign-in as `dev-user` → phone B: Settings → Developer → Switch Account.
 - Seed timestamps go stale after 5 min → `npm run freshen`.
 
