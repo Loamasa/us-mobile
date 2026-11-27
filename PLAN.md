@@ -21,9 +21,9 @@
 
 **Steps**
 1. [x] Push current rules + indexes to `us-v1-ff6b3` (`npx firebase deploy --only auth,firestore`). Deployed 2026-11-25
-2. [x] Accounts exist (June). Re-check: `node src/dev/provisionTesters.js --count 20`. Keep `tester19` + `tester20` for your own smoke tests. Needs the June `testers-credentials.csv` (not on this PC since 2026-11-25)
+2. [x] Accounts exist (recreated 2026-11-27, creds in `testers-credentials-us-v1-ff6b3.csv`). Re-check: `node src/dev/provisionTesters.js --count 20`. Keep `tester19` + `tester20` for your own smoke tests
 3. [x] **Check database region**: `europe-north2` (Stockholm), checked 2026-11-25
-4. [ ] Stop strangers: Firebase console → Authentication → Settings → turn off sign-up
+4. [ ] ~~Stop strangers: turn off sign-up~~ Parked 2026-11-27: guests are allowed for now, and closing sign-up would block them too
 5. [x] Build APK: `npm run apk` → EAS gives link ([how](docs/tester-distribution.md)). Built 2026-11-25 under `fsopelsa`: build `7809a060-…`
 6. [ ] Smoke test: own phone + one friend. Sign in, add, DM, group, leave group, remove friend, reopen app
 7. [ ] Send each friend: link + one row from `testers-credentials-us-v1-ff6b3.csv` — `node src/dev/testerInvites.js` ([message to copy](docs/tester-distribution.md#message-for-testers))

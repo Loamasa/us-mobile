@@ -1,6 +1,6 @@
 # projectmem - us-mobile
 
-_Last updated: 2026-11-26_
+_Last updated: 2026-11-27_
 
 ## Project purpose
 **us** = location-based social app for meeting friends in person. Share location only where you choose. Map gatherings. DM + group chat. Built with Expo, React Native, Firebase. Nonprofit.
@@ -11,10 +11,9 @@ _Last updated: 2026-11-26_
 - [DONE] #legacy_1217 Legacy issue: fix(dev): check:maps-key no longer reads a disabled API as a restricted key (fixed)
 
 ## Decisions
-- No decisions logged yet.
+- Guests (Firebase anonymous auth) allowed for M1 testing; sign-up stays open because closing it would also block guests. PLAN M1 step 4 parked. [app/(auth)/signin.tsx]
 
 ## Notes
-- Merge prel/hopeful-goodall-bbm8io into fel/phase1
 - chore(deps): apply Expo SDK 58 patch updates
 - Merge pull request #3 from Loamasa/prel/zealous-curie-u46z05
 - chore: drop leftover format-patch, archive Felix's phase 1 rundown
@@ -24,6 +23,7 @@ _Last updated: 2026-11-26_
 - Merge branch 'fel/phase1' of https://github.com/Loamasa/us-mobile into fel/phase1
 - New feature: feat: use OpenStreetMap on Android [src/dev/fakeMaps.tsx]
 - New feature: feat: add guest sign-in [app/(auth)/signin.tsx]
+- gotcha: Firebase Auth signUp returning ADMIN_ONLY_OPERATION means user sign-up is disabled in project settings; it also blocks signInAnonymously (guest). [src/dev/provisionTesters.js]
 
 ## Key files
 - `package-lock.json`

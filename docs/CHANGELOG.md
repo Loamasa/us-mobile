@@ -7,6 +7,8 @@
 ## 2026-11-27 — Docs tidy
 - STATUS "Last Updated" held dated history again; the 11-25 and 11-26 lines moved here (older ones were already here).
 - Google Maps billing steps parked: removed from STATUS and README as current tasks (Android uses OpenStreetMap for now, Google Maps not used yet); runbook kept in `docs/maps-key-hardening.md`.
+- **Backend `us-v1-ff6b3`**: auth deployed (anonymous + email/password). Sign-up was closed (`ADMIN_ONLY_OPERATION`, also blocks guests) → turned back on; guests allowed for now. The June tester passwords were lost (the available CSV belonged to `us-felix-test-20261030`), so `tester01`…`tester20` (unused since 2026-06-18) and their `users`/`handles`/`publicKeys`/`locations` docs were deleted and recreated with `provisionTesters.js`. Checked: all 20 sign in, a guest sign-in works.
+- **OTA update** `75d6b881-…` ("guest sign-in", channel `tester`, runtime `7e4fe518…`, from `cd0c7a3`) brings guest sign-in to APK `47ce2427-…`.
 - Stale "rules not deployed" note fixed in memory. `TODO.md` added (CLAUDE.md and AGENTS.md pointed to it).
 
 ## 2026-11-26 — Android map on OpenStreetMap

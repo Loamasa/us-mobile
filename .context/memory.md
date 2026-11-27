@@ -68,6 +68,7 @@
 - **Multi-user batches**: rules must allow EVERY write as caller. Friends rule = `auth.uid == userId || auth.uid == friendId`.
 - **Emulator rules hot-reload lies (Windows)**: says "Rules updated" but keeps old compile. Restart emulator + reseed after editing rules. Tell: error line numbers don't match file.
 - **Prod index ≠ emulator**: emulator never enforces composite indexes. `==` + `array-contains` (chats) needs one in prod.
+- **`ADMIN_ONLY_OPERATION` on signUp = sign-up is closed** (Authentication → Settings → User actions). It blocks guest (anonymous) sign-in too; the app shows "Guest access is turned off right now." Must stay open while guests are allowed.
 - **Prod sign-in errors**: prod returns `INVALID_LOGIN_CREDENTIALS` for missing user AND wrong password (emulator says `USER_NOT_FOUND`). `provisionTesters.js` handles all three.
 - **Auth persistence restores ASYNC**: never read `auth.currentUser` sync at boot. `ensureDevUser` waits for first `onAuthStateChanged`.
 - **RN auth persistence import**: `getReactNativePersistence` only in `@firebase/auth` react-native entry → `@ts-expect-error` in `src/config/firebase.ts`. Not from `firebase/auth`. `initializeAuth` throws on 2nd call (Fast Refresh) → try/catch fallback to `getAuth`.

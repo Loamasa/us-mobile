@@ -7,24 +7,24 @@
 2026-11-27 — Docs tidy: dated history moved to the [changelog](docs/CHANGELOG.md), Google Maps steps parked until we switch to it.
 
 ## Now
-**Milestone 1 — Friends chat.** Next: find the June tester CSV, close sign-up, test the APK on an Android phone.
+**Milestone 1 — Friends chat.** Next: ship guest sign-in to the APK, test it on an Android phone.
 
 ## Stack
 Expo SDK 58 · React Native 0.88 · React 19.3 · TypeScript 6 · Maps 1.29.11 ·
 NativeWind 4.2.7 + Tailwind 3 · Firebase JS SDK 12. Android only.
 
 ## What is done
-- Firebase project `us-v1-ff6b3` (since June): Email/Password on, `tester01`…`tester20` exist (creds in gitignored CSV — the June file is `testers-credentials.csv`; `provisionTesters.js` reads it and saves `testers-credentials-us-v1-ff6b3.csv`). Current rules + indexes deployed 2026-11-25. Database region `europe-north2`.
+- Firebase project `us-v1-ff6b3` (since June): Email/Password on, Anonymous (guest) on, `tester01`…`tester20` exist (recreated 2026-11-27, creds in gitignored `testers-credentials-us-v1-ff6b3.csv`). Current rules + indexes deployed 2026-11-25. Database region `europe-north2`.
 - Chat flow checked two ways: two accounts in the browser app on emulators; friend → DM → group → leave → remove on Felix's old test backend (`us-felix-test-20261030`, no longer used by the app). All encrypted, server holds no text.
 - EAS project: owner `fsopelsa` (`d74d2bb5-…`). Profiles: development / tester / production. Its signing keystore already exists on EAS.
 - Every flow worked on device in June (Expo Go + emulators). Encryption is newer and not phone-tested.
 - Chat: DM, group, info sheet, safety code, leave group, remove friend, unread dot. Signal setter. Stale markers dimmed.
 
 ## Open — needs you
-1. **Tester passwords**: the June `testers-credentials.csv` (passwords for `tester01`…`tester20` on `us-v1-ff6b3`) is not on this PC. Copy it into the repo root, then `node src/dev/provisionTesters.js --count 20` (checks every account, saves `testers-credentials-us-v1-ff6b3.csv`). If the file is lost: reset the passwords in Firebase console → Authentication.
-2. **Close sign-up:** Firebase console → Authentication → Settings → User actions → untick sign-up. Needed once accounts are final. To add accounts later, tick it again first.
+1. **Tester accounts ready**: `tester01`…`tester20` were deleted and recreated on `us-v1-ff6b3` on 2026-11-27 (the June passwords were lost). New passwords are in the gitignored `testers-credentials-us-v1-ff6b3.csv`. Re-check any time: `node src/dev/provisionTesters.js --count 20`.
+2. **Sign-up stays open for now:** guests are allowed (decision 2026-11-27). Sign-up was found closed and turned back on 2026-11-27; guest sign-in checked against the real backend. Closing sign-up (Firebase console → Authentication → Settings → User actions) would also block guests, so leave it on until guests are no longer wanted.
 3. **Delete old Firebase test projects** `us-felix-test-20261030` + `test-fsop` in the Firebase console (the CLI can't). Google Maps is not used yet: Android uses OpenStreetMap for now. Before switching to Google Maps, follow [docs/maps-key-hardening.md](docs/maps-key-hardening.md).
-4. **Hand out the APK** (PLAN M1 steps 6–7): tester APK `47ce2427-…` is built (link on expo.dev → us-mobile → Builds), but **before guest sign-in** (commit `0e559b0`). Guest sign-in is JS-only: send it with the OTA command in README, or run `npm run apk` again. Guests need Anonymous auth on `us-v1-ff6b3` (`npx firebase deploy --only auth`), and closing sign-up (item 2) also blocks guests. After item 1, install it, smoke-test on your phone with `tester19`/`tester20`, then `node src/dev/testerInvites.js --link <link> --handle <you> --skip tester19,tester20`. Other ways to hand it out (Firebase App Distribution, Play internal testing): [docs/invites-and-distribution.md](docs/invites-and-distribution.md).
+4. **Hand out the APK** (PLAN M1 steps 6–7): tester APK `47ce2427-…` is built (link on expo.dev → us-mobile → Builds), before guest sign-in; guest sign-in reaches it as OTA update `75d6b881-…` (channel `tester`, runtime `7e4fe518…`, sent 2026-11-27). The app loads an update on its next start, so open it twice. Anonymous auth is on for `us-v1-ff6b3` (deployed 2026-11-27). After item 1, install it, smoke-test on your phone with `tester19`/`tester20`, then `node src/dev/testerInvites.js --link <link> --handle <you> --skip tester19,tester20`. Other ways to hand it out (Firebase App Distribution, Play internal testing): [docs/invites-and-distribution.md](docs/invites-and-distribution.md).
 5. Review `docs/privacy-notice.md` + confirm who is named as responsible and `SUPPORT_EMAIL`.
 6. Later: Sentry project → `EXPO_PUBLIC_SENTRY_DSN` as EAS env var. Paid plan → server-side expiry (TTL) on `locations.expireAt`, `broadcasts.expiresAt`.
 
