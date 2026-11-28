@@ -5,7 +5,7 @@
 > (e.g. Firebase Hosting) before the Play listing; the same page can carry the
 > account-deletion request flow Play requires.
 
-_Last updated: 31 October 2026_
+_Last updated: 28 November 2026_
 
 ## Who is responsible
 
@@ -14,7 +14,7 @@ Contact for anything in this notice: **pal.schakonat@gmail.com**.
 
 ## What we store
 
-- **Account**: sign-in email, display name, unique handle, bio.
+- **Account**: sign-in email (tester accounts only; guests have none), display name, unique handle, bio.
 - **Spots**: the places you define. Your spots list is visible only to you.
 - **Location**: see the next section — this is the one that matters.
 - **Messages**: your chats and group chats.
@@ -66,10 +66,13 @@ You can request:
 - **deletion** of your account and everything attached to it.
 
 Email **pal.schakonat@gmail.com** — requests are handled within one month
-(usually much faster at this stage). You may also lodge a complaint with the
+(usually much faster at this stage). Guest accounts have no email: tell us
+your handle. After a guest signs out or uninstalls, nobody can open that account
+again, but its data stays until you ask us to delete it. You may also lodge a complaint with the
 Swedish Authority for Privacy Protection (**IMY**, [imy.se](https://imy.se)).
 
 ## Testing phase
 
 This app is currently in a closed trusted-tester phase. Testers are adults
-(18+) who received their account personally from the developer.
+(18+) who received the app personally from the developer, with a tester account
+or as a guest (no email or password; the guest account lives only on that phone).

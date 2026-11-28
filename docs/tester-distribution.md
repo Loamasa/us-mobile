@@ -12,19 +12,20 @@ Why not Expo Go? Expo Go need your PC running + your emulators. APK talk to real
 
 ## Before first build (one time)
 
-Backend = Firebase `us-v1-ff6b3`; Email/Password + `tester01`–`tester20` exist since June, but its
-rules + indexes are June's — deploy the current ones before the first build (the app needs them):
+Backend = Firebase `us-v1-ff6b3`. Already done: rules + indexes deployed (2026-11-25),
+Email/Password + Anonymous (guest) sign-in on, `tester01`–`tester20` recreated (2026-11-27).
+On a new PC, or after changing rules:
 
 ```bash
 npx firebase login
 npx firebase deploy --only auth,firestore
-node src/dev/provisionTesters.js --count 20   # checks all, adds missing; first run reads the June testers-credentials.csv
+node src/dev/provisionTesters.js --count 20   # checks all, adds missing
 npx eas-cli@25.3.0 login                      # Expo account fsopelsa
 ```
 
 Keep `tester19` + `tester20` for your own smoke tests; hand out `tester01`–`tester18`.
 
-Close sign-up when accounts are final: Firebase console → Authentication → Settings → User actions. Open it again before adding accounts.
+Keep sign-up open (Firebase console → Authentication → Settings → User actions): guest sign-in needs it. Closing it blocks guests too.
 
 ## Build + share
 
@@ -32,7 +33,7 @@ Close sign-up when accounts are final: Firebase console → Authentication → S
 npm run apk
 ```
 
-- 10–25 min in Expo cloud (free queue). Done → terminal + https://expo.dev show build page with APK link.
+- 10–30 min in Expo cloud (free queue). Done → terminal + https://expo.dev show the build page. Send testers the direct `.apk` download link from that page: it starts the download at once.
 - Send link any way (WhatsApp, Signal, mail). Normal HTTPS link.
 - JS-only fix → no rebuild:
 
@@ -68,7 +69,7 @@ Or copy + paste:
 
 ## Accounts
 
-- `testers-credentials-us-v1-ff6b3.csv` (repo root, gitignored; until the first provisioning run it's still the June `testers-credentials.csv`). Give one row per person. Never post whole file.
+- `testers-credentials-us-v1-ff6b3.csv` (repo root, gitignored). Give one row per person. Never post whole file.
 - Password reset: fake `@us.test` mail can't get mail. Reset in Firebase console
   (Authentication → Users → ⋮ → Reset password), or delete the user and re-run the provision script.
 - Re-run is safe: existing accounts + chosen names untouched. A tester who changed their password shows as ❌ "password unknown": normal, nothing changed.

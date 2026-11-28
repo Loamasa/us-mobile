@@ -1,8 +1,7 @@
 # Inviting testers + getting the app onto their phones — status and options
 
-> Written 2026-11-08, updated 2026-11-09 for the switch back to Firebase `us-v1-ff6b3` +
-> Expo `fsopelsa` (since 2026-11-25; Felix's test project `us-felix-test-20261030` is no
-> longer used). Nothing here is decided — decisions at the end.
+> Written 2026-11-08, updated 2026-11-28. Firebase `us-v1-ff6b3`, Expo `fsopelsa`.
+> M1 uses channel 1 (EAS link); the other channels and in-app invites are options for later.
 
 ## Where it stands
 
@@ -16,16 +15,16 @@ map event, not invites to the app.
    Expo gives a shareable HTTPS install link. (`npm run android:cloud` is the *development
    client* for us, not for testers.)
 2. Send each tester the link + their own row (Account ID + password) from the gitignored
-   `testers-credentials-us-v1-ff6b3.csv` (June's `testers-credentials.csv` until the next
-   provisioning run) — SMS, WhatsApp, email, anything. Hand out `tester01`–`tester18`; keep
+   `testers-credentials-us-v1-ff6b3.csv` — SMS, WhatsApp, email, anything. Hand out `tester01`–`tester18`; keep
    19 and 20 for your own smoke tests.
 3. They install (allow "unknown apps" for the browser), sign in, set a name, change their
    password, add friends by `@handle`.
 
-**Accounts are fixed** — 20 pre-made tester accounts, no self-registration (M1 decision).
+**Accounts:** 20 pre-made tester accounts, or "Continue as guest" (anonymous, lives only on
+that phone; since 2026-11-27). No self-registration with own password yet.
 
-**No usable tester APK exists yet.** The Oct 30 build (`9baeca1c`) sends plain text, which
-the encrypted-data rules refuse.
+**Tester APK:** `c15413c4-…` (2026-11-28), checked on the emulator. Current state:
+[STATUS](../STATUS.md) item 4.
 
 **Ready-made messages:** `src/dev/testerInvites.js` turns the credentials CSV + the install
 link into one message per tester, as a local page with **SMS / Email / WhatsApp / Copy**
@@ -38,15 +37,6 @@ node src/dev/testerInvites.js --link <EAS install link> --handle <your handle> -
 It never sends or uploads anything; the page (`testers-invites.html`) is gitignored because
 it contains the passwords. `--print` gives plain text instead; `--template` takes your own
 wording (`{link} {accountId} {password} {inviterHandle}`).
-
-## What blocks "invite by SMS/email" today
-
-1. **No install link** — the EAS build has to run as Expo account `fsopelsa`.
-2. **Rules deploy** — `us-v1-ff6b3` still runs June's rules; the app needs the current
-   encrypted-data rules + indexes: `npx firebase deploy --only auth,firestore` before the first build.
-3. **Google Maps billing** — without it every tester sees a grey map
-   ([STATUS](../STATUS.md) "Open — needs you" 3).
-4. Optional before handing out: database region (STATUS item 1) and closing sign-up (item 2).
 
 ## Getting the APK to testers — three channels
 
@@ -84,7 +74,7 @@ password, so they still get their row (e.g. via `src/dev/testerInvites.js`).
 3. The terminal and expo.dev print the build page. Open it on **your** Android phone → Install →
    allow installs from the browser → Play Protect may say "unrecognised app" → install anyway.
 4. Smoke test with `tester19`/`tester20` (sign in, add a friend, DM, group, leave, reopen the app).
-5. `node src/dev/testerInvites.js --link <build page URL> --handle <you> --skip tester19,tester20` → send.
+5. `node src/dev/testerInvites.js --link <.apk download URL> --handle <you> --skip tester19,tester20` → send.
 6. Later fixes: JS-only → `npx eas-cli@25.3.0 update --channel tester --environment preview --message "…"`;
    native change → `npm run apk` again (new link).
 
@@ -116,7 +106,7 @@ password, so they still get their row (e.g. via `src/dev/testerInvites.js`).
 5. **Testers** tab → email list (their Google accounts, up to 100) → save → copy the opt-in link.
 6. Testers open the link → Become a tester → install from the Play Store. Updates arrive like
    any store app; no "unknown apps" prompt.
-7. Add Play's **app signing key SHA-1** (App integrity) to the Maps key restriction.
+7. Only if Android uses Google Maps by then: add Play's **app signing key SHA-1** (App integrity) to the Maps key restriction.
 8. This line already blocks background location, camera and the other sensitive permissions
    (`app.json` `blockedPermissions`), which keeps Play's permission questions short.
 
@@ -140,9 +130,9 @@ Docs: [App Distribution CLI](https://firebase.google.com/docs/app-distribution/a
   password" caveat from [encryption.md](encryption.md)) and becomes friends with the inviter.
   Data model: `invites/{code}` `{ inviterId, expiresAt, usesLeft }`; Firestore rules allow
   creating a profile only together with consuming a valid code (same `getAfter` pattern as the
-  friend-request proof). Works without Cloud Functions, but Auth sign-up must stay open —
-  the opposite of M1 step 4 ("close sign-up"); strangers could create empty Auth accounts
-  that the rules keep away from all data. Roughly 1–2 sessions incl. rules tests.
+  friend-request proof). Works without Cloud Functions, but Auth sign-up must stay open
+  (it already is, for guests: M1 step 4 "close sign-up" is parked); strangers could create
+  empty Auth accounts that the rules keep away from all data. Roughly 1–2 sessions incl. rules tests.
 - **C. Deep link** — the app already has the `us://` scheme; `us://add/<handle>` in a message
   could open the add-friend sheet when the app is installed. Plain https links need Android
   App Links (`assetlinks.json` on a domain you control).
@@ -151,7 +141,7 @@ A+B+C together is the "invite people by SMS or email and they're in" experience.
 
 ## Decisions for you
 
-1. **Fixed accounts or invite codes** — keep the 20 fixed accounts for M1 (no code needed),
-   or build B before inviting anyone.
-2. **Channel** — EAS link (ready now), Firebase App Distribution, or Play internal testing.
+1. **Fixed accounts or invite codes** — decided for M1: fixed accounts + guests. Invite
+   codes (B) are planned first after M1 ([PLAN](../PLAN.md)).
+2. **Channel** — decided for M1: EAS link. Later: Firebase App Distribution or Play internal testing.
 3. **Where `main` goes** — fast-forward it to this line, or leave it as the old reference.

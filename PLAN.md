@@ -11,7 +11,7 @@
 
 **Done when**
 - [ ] APK link open and install on friend phone
-- [ ] 3+ friends signed in with tester accounts
+- [ ] 3+ friends signed in (tester account or guest)
 - [ ] Add friend by `@handle` works
 - [ ] DM + group chat + leave group work on real backend
 - [ ] Close app, open again → still signed in
@@ -24,7 +24,7 @@
 2. [x] Accounts exist (recreated 2026-11-27, creds in `testers-credentials-us-v1-ff6b3.csv`). Re-check: `node src/dev/provisionTesters.js --count 20`. Keep `tester19` + `tester20` for your own smoke tests
 3. [x] **Check database region**: `europe-north2` (Stockholm), checked 2026-11-25
 4. [ ] ~~Stop strangers: turn off sign-up~~ Parked 2026-11-27: guests are allowed for now, and closing sign-up would block them too
-5. [x] Build APK: `npm run apk` → EAS gives link ([how](docs/tester-distribution.md)). Built 2026-11-25 under `fsopelsa`: build `7809a060-…`
+5. [x] Build APK: `npm run apk` → EAS gives link ([how](docs/tester-distribution.md)). Current: build `c15413c4-…` (2026-11-28, Expo 58.1, guest sign-in), checked on the emulator
 6. [ ] Smoke test: own phone + one friend. Sign in, add, DM, group, leave group, remove friend, reopen app
 7. [ ] Send each friend: link + one row from `testers-credentials-us-v1-ff6b3.csv` — `node src/dev/testerInvites.js` ([message to copy](docs/tester-distribution.md#message-for-testers))
 8. [ ] Fix only bugs that break chat. JS fix → OTA update. Native change → new APK
@@ -43,7 +43,8 @@ Pick next based on what M1 teach us. Order not fixed.
 
 | # | Milestone | Idea |
 |---|-----------|------|
-| M2 | Map on phone | Markers + foreground location on real device. Restrict Maps key to package + SHA-1 |
+| Next | In-app invites (first after M1) | Invite button (share sheet), invite codes + self-registration, `us://add/<handle>` deep link. Details: [in-app invites](docs/invites-and-distribution.md#in-app-invites--what-a-real-feature-would-be-after-m1) |
+| M2 | Map on phone | Real native map instead of the OSM shim: MapLibre + OpenFreeMap (ready on `main`, free, no key) or Google Maps (restrict key + billing first). Markers + foreground location on a real device |
 | M3 | Ambient presence | Background location (add back `expo-task-manager` + permission), push notifications, battery check |
 | M4 | Safe enough to share wider | Outside security review, forward secrecy, Sentry, server-side expiry (needs paid plan) |
 | M5 | Public path | Phone auth (native SDK), App Check, Play Store location review |

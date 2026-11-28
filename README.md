@@ -70,7 +70,7 @@ Old Expo Go can NOT run this app (SDK 58 + Maps 1.29).
 | `npm run test:rules` | Authorization tests: fake friendship, plain text refused, DM hijack, real accept | yes |
 | `npx expo install --check` | Deps match Expo SDK | no |
 | `npx --yes expo-doctor@latest` | Expo project health | no |
-| `npm run check:maps-key` | Maps key can't reach metered Google APIs ([runbook](docs/maps-key-hardening.md)) | no |
+| `npm run check:maps-key` | Maps key can't reach metered Google APIs ([runbook](docs/maps-key-hardening.md)). Only matters once Android uses Google Maps | no |
 | `npm audit` | Dep advisories ([known ones](docs/dependency-audit.md)) | no |
 
 ### Real backend
@@ -80,7 +80,7 @@ Firebase project = `us-v1-ff6b3` (the only project in the app, and the `.firebas
 | Command | Does |
 |---|---|
 | `npx firebase deploy --only auth,firestore` | Push sign-in setting, `firestore.rules`, `firestore.indexes.json` |
-| `node src/dev/provisionTesters.js --count 20` | Make/check tester accounts → `testers-credentials-us-v1-ff6b3.csv` (gitignored, private; first run reads the June `testers-credentials.csv`). Safe to re-run |
+| `node src/dev/provisionTesters.js --count 20` | Make/check tester accounts → `testers-credentials-us-v1-ff6b3.csv` (gitignored, private). Safe to re-run |
 | `node src/dev/provisionTesters.js --emulator --count 3` | Same on emulators → `testers-credentials-emulator.csv` |
 
 ### Ship to testers
@@ -104,7 +104,7 @@ Distribution, Play internal testing): [invites and distribution](docs/invites-an
 
 ## Current limitations
 
-- APK not tested on a phone yet (Milestone 1 step 6).
+- Tester APK checked on the Android emulator only; not yet on a real phone (Milestone 1 step 6).
 - CI workflow (`.github/workflows/checks.yml`) not yet seen green on GitHub.
 - Encryption has limits: new phone = old messages unreadable, no forward secrecy, no outside audit. See [encryption](docs/encryption.md).
 - Some dep advisories remain: [dependency audit](docs/dependency-audit.md), `npm audit` for live list.

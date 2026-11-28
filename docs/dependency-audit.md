@@ -1,17 +1,18 @@
 # Dependency audit
 
-> Last check 2026-10-29. Live list: `npm audit`. Old detail in git history.
+> Last check 2026-11-28 (after Expo 58.1). Live list: `npm audit`. Old detail in git history.
 
-**11 affected entries: 3 high, 3 moderate, 5 low.** All in dev / CLI / signing tools, not app code.
+**17 affected entries, all moderate, from 3 advisories.** All in dev / CLI / build tools, not app code.
+`npm audit fix` only offers major downgrades (`expo` 52, `firebase-tools` 13, `@sentry/react-native` 8.20).
 Never `npm audit fix --force` — it proposes breaking downgrades.
 
 ## Open
 
 | Path | Advisory | What to do |
 | --- | --- | --- |
-| Expo CLI → Zod 3.25.76 | High: [GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5) | Fix only in Zod 4 (breaking). Wait for Expo. |
-| Firebase CLI → Pub/Sub → OpenTelemetry Core 1.30.1 | Moderate: [GHSA-8988-4f7v-96qf](https://github.com/advisories/GHSA-8988-4f7v-96qf) | CLI telemetry only. Wait for upstream. |
-| Expo config → deepmerge | Low: [GHSA-gcqx-w48m-w2h4](https://github.com/advisories/GHSA-gcqx-w48m-w2h4) | No compatible fix. Wait. |
+| Firebase CLI → Pub/Sub → OpenTelemetry Core | Moderate: [GHSA-8988-4f7v-96qf](https://github.com/advisories/GHSA-8988-4f7v-96qf) | CLI telemetry only. Wait for upstream. |
+| Expo fingerprint, archiver, rimraf, Sentry build plugin → glob 9–14.0.1 | Moderate: [GHSA-3g3m-2fjr-6pw4](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4) | Build-time file search only. Wait for upstream. |
+| glob → minimatch 7–11.0.0 | Moderate: [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) | Build-time patterns we write ourselves. Wait for upstream. |
 
 ## Overrides in `package.json`
 

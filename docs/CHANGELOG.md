@@ -8,6 +8,7 @@
 - **Tester APK `c15413c4-…`** from `d7c5f11` (Expo 58.1, guest sign-in, e2ee fixes, runtime `ea3af589…`). Installed over the old app on the emulator and run from cleared app data: intro slides, guest sign-in on first start, location prompt, My Spots, OSM map of Malmö; no crash. Not yet on a real phone; tester login and chat flows not tested.
 - Invites regenerated with the direct `.apk` download link (simpler on a phone than the build page).
 - Two test guest accounts now exist on `us-v1-ff6b3` (emulator runs).
+- Docs sweep: June-era steps (old passwords file, "close sign-up", Maps billing blockers, old APK ids) removed from the Android guide, tester distribution, invites doc, README and PLAN. Dependency audit re-run (17 moderate, dev/build tools only). Laptop env report (11-07) archived. Privacy notice (doc + in-app) now covers guest accounts. In-app invites added to PLAN as the first step after M1.
 
 ## 2026-11-27 — Docs tidy
 - STATUS "Last Updated" held dated history again; the 11-25 and 11-26 lines moved here (older ones were already here).

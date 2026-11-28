@@ -20,14 +20,14 @@ export default function PrivacyNoticeScreen() {
   return (
     <SettingsDetailLayout
       title="Privacy Notice"
-      subtitle="What us stores, who can see it, and your rights. Last updated 31 October 2026."
+      subtitle="What us stores, who can see it, and your rights. Last updated 28 November 2026."
     >
       <Section title="Who is responsible">
         {`us is a nonprofit project run by Pål Schakonat, Malmö, Sweden. Questions or requests: ${SUPPORT_EMAIL}.`}
       </Section>
 
       <Section title="What we store">
-        {'Your account (sign-in email, display name, handle, bio), your spots (the places you define — visible only to you), your messages and group chats, your friend connections and requests, and gatherings you create or join.'}
+        {'Your account (sign-in email for tester accounts, display name, handle, bio), your spots (the places you define — visible only to you), your messages and group chats, your friend connections and requests, and gatherings you create or join.'}
       </Section>
 
       <Section title="Location — the important part">
@@ -43,11 +43,11 @@ export default function PrivacyNoticeScreen() {
       </Section>
 
       <Section title="Your rights">
-        {`You can ask for a copy of your data, correct it, or have your account and all its data deleted — email ${SUPPORT_EMAIL} and it will be handled within a month (usually much faster at this stage). You can also complain to the Swedish Authority for Privacy Protection (IMY, imy.se).`}
+        {`You can ask for a copy of your data, correct it, or have your account and all its data deleted — email ${SUPPORT_EMAIL} and it will be handled within a month (usually much faster at this stage). Guest accounts have no email: tell us your handle. After a guest signs out or uninstalls, nobody can open that account again, but its data stays until you ask us to delete it. You can also complain to the Swedish Authority for Privacy Protection (IMY, imy.se).`}
       </Section>
 
       <Section title="Testing phase">
-        {'You are using a trusted-tester build. Testers are adults (18+) who received their account personally. Things may break; report anything odd via Settings → Report a Bug.'}
+        {'You are using a trusted-tester build. Testers are adults (18+) who received the app personally from the developer, with a tester account or as a guest (no email or password; the guest account lives only on that phone). Things may break; report anything odd via Settings → Report a Bug.'}
       </Section>
     </SettingsDetailLayout>
   );
