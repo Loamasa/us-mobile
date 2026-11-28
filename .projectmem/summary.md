@@ -14,8 +14,6 @@ _Last updated: 2026-11-27_
 - Guests (Firebase anonymous auth) allowed for M1 testing; sign-up stays open because closing it would also block guests. PLAN M1 step 4 parked. [app/(auth)/signin.tsx]
 
 ## Notes
-- chore(deps): apply Expo SDK 58 patch updates
-- Merge pull request #3 from Loamasa/prel/zealous-curie-u46z05
 - chore: drop leftover format-patch, archive Felix's phase 1 rundown
 - chore(deps): Expo SDK 58 patch updates (expo 58.0.26, dev-client, router)
 - Merge pull request #5 from Loamasa/claude/project-thread-03eqlp
@@ -24,6 +22,8 @@ _Last updated: 2026-11-27_
 - New feature: feat: use OpenStreetMap on Android [src/dev/fakeMaps.tsx]
 - New feature: feat: add guest sign-in [app/(auth)/signin.tsx]
 - gotcha: Firebase Auth signUp returning ADMIN_ONLY_OPERATION means user sign-up is disabled in project settings; it also blocks signInAnonymously (guest). [src/dev/provisionTesters.js]
+- New feature: feat(dev): mention guest sign-in in tester invites [src/dev/testerInvites.js]
+- gotcha: Expo runtimeVersion policy "fingerprint" hashes package.json scripts; editing any npm script (even "test") changes the runtime, so OTA updates no longer reach already-built APKs. [app.json]
 
 ## Key files
 - `package-lock.json`
