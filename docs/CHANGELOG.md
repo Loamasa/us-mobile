@@ -4,6 +4,11 @@
 > diet) — STATUS.md now carries only current state. New session entries land HERE; STATUS.md
 > gets the updated state. Entries below the move are verbatim from STATUS.md.
 
+## 2026-11-28 — Tester APK on Expo 58.1
+- **Tester APK `c15413c4-…`** from `d7c5f11` (Expo 58.1, guest sign-in, e2ee fixes, runtime `ea3af589…`). Installed over the old app on the emulator and run from cleared app data: intro slides, guest sign-in on first start, location prompt, My Spots, OSM map of Malmö; no crash. Not yet on a real phone; tester login and chat flows not tested.
+- Invites regenerated with the direct `.apk` download link (simpler on a phone than the build page).
+- Two test guest accounts now exist on `us-v1-ff6b3` (emulator runs).
+
 ## 2026-11-27 — Docs tidy
 - STATUS "Last Updated" held dated history again; the 11-25 and 11-26 lines moved here (older ones were already here).
 - Google Maps billing steps parked: removed from STATUS and README as current tasks (Android uses OpenStreetMap for now, Google Maps not used yet); runbook kept in `docs/maps-key-hardening.md`.
