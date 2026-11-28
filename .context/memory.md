@@ -38,7 +38,7 @@
 
 ## EAS / release
 - `eas.json`: development (dev client APK, emulators) · tester (APK — M1) · production (AAB). `appVersionSource: local` (app.json owns versionCode).
-- app.json `runtimeVersion: { policy: "fingerprint" }` → any native change = new runtime, OTA won't reach old APKs → rebuild.
+- app.json `runtimeVersion: { policy: "fingerprint" }` → any native change = new runtime, OTA won't reach old APKs → rebuild. The fingerprint also hashes `package.json` `scripts`: editing even the `test` script changes the runtime (2026-11-27). Check before `eas update`: `npx expo-updates fingerprint:generate --platform android` must match the APK's runtime.
 - `google-services.json` gitignored, NOT needed (JS SDK, no `googleServicesFile`).
 - **Google Maps not used yet** (Android = OSM shim for now, since 2026-11-26). The key in `app.json` (`AIzaSyDbe2K0…`) is valid, but its Cloud project has no billing, so Google Maps shows a grey grid. Before switching to Google Maps: restrict the key BEFORE linking billing (billing moves `us-v1-ff6b3` Spark → Blaze). Steps: `docs/maps-key-hardening.md`; check: `npm run check:maps-key`.
 - EAS login/build run under user's Expo account. Can't script from here.
